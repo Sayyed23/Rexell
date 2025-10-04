@@ -5,11 +5,7 @@
   <p align="center">Web3 platform for events</p>
 </p>
 
-------
 
-<div align="center"> <table> <tr> <td align="center"> <img src="./Home.png" width="90%" alt="Home Page" /> </td> <td align="center"> <img src="./Create event.png" width="90%" alt="Create Event" /> </td> </tr> <tr> <td align="center"> <img src="./hm.png" width="90%" alt="Events" /> </td> <td align="center"> <img src="./image.png" width="90%" alt="Image" /> </td> </tr><tr> <td align="center"> <img src="./commnt.png" width="90%" alt="Interact" /> </td> <td align="center"> <img src="./tickets.png" width="90%" alt="my tickets" /> </td> </tr> </table> </div>
-
-------
 
 <details>
 <summary> Table of Contents</summary>
