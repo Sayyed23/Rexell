@@ -1,6 +1,5 @@
 <!-- TITLE -->
-<p align="center">
-<img src="https://github.com/johnnjuki/bloctickets/assets/84154246/f5c117ef-1d2e-4adf-88e3-da3197b8a5a9" width="200px" alt="Rexell" />
+
 
   <p align="center">Web3 platform for events</p>
 </p>
