@@ -1,61 +1,17 @@
-# Miscellaneous
-*.class
-*.log
-
-# Environment files - SECURITY: Never commit these!
+node_modules
 .env
-.env.local
-.env.*.local
-*.env
-backend/.env
-backend/.env.backup
 
-# API Keys and Secrets
-*.key
-*.pem
-*.p12
-serviceAccountKey.json
-google-services.json
-GoogleService-Info.plist
-*.pyc
-*.swp
-.DS_Store
-.atom/
-.build/
-.buildlog/
-.history
-.svn/
-.swiftpm/
-migrate_working_dir/
+# Hardhat files
+/cache
+/artifacts
 
-# IntelliJ related
-*.iml
-*.ipr
-*.iws
-.idea/
+# TypeChain files
+/typechain
+/typechain-types
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
+# solidity-coverage files
+/coverage
+/coverage.json
 
-# Flutter/Dart/Pub related
-**/doc/api/
-**/ios/Flutter/.last_build_id
-.dart_tool/
-.flutter-plugins
-.flutter-plugins-dependencies
-.pub-cache/
-.pub/
-/build/
-
-# Symbolication related
-app.*.symbols
-
-# Obfuscation related
-app.*.map.json
-
-# Android Studio will place build artifacts here
-/android/app/debug
-/android/app/profile
-/android/app/release
+# Hardhat Ignition default folder for deployments against a local node
+ignition/deployments/chain-31337
