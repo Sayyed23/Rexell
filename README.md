@@ -1,7 +1,9 @@
-<!-- TITLE -->
+!-- TITLE -->
+<h1 align="center">💠 REXELL 💠</h1>
 
-
-  <p align="center">Web3 platform for events</p>
+<p align="center">
+  <b>Web3 Platform for Events</b><br>
+  Revolutionizing event ticketing with blockchain technology.
 </p>
 
 
