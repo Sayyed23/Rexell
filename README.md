@@ -1,4 +1,4 @@
-!-- TITLE -->
+<!-- TITLE -->
 <h1 align="center">💠 REXELL 💠</h1>
 
 <p align="center">
