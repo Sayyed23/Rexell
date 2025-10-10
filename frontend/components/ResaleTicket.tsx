@@ -16,16 +16,17 @@ interface ResaleTicketProps {
 }
 
 export default function ResaleTicket({ tokenId, onResaleComplete }: ResaleTicketProps) {
-  const { address, isConnected } = useWriteContract();
+  const { address, isConnected } = useAccount();
   const { writeContractAsync } = useWriteContract();
   const [isReselling, setIsReselling] = useState(false);
   const [resalePrice, setResalePrice] = useState("");
-  const [nftUri, setNftUri] = useState("");
+  const [isListed, setIsListed] = useState(false);
 
   // Get resale request details
   const {
     data: resaleRequest,
     isPending: isResaleRequestPending,
+    refetch: refetchResaleRequest,
   } = useReadContract({
     address: contractAddress,
     abi: rexellAbi,
@@ -53,13 +54,14 @@ export default function ResaleTicket({ tokenId, onResaleComplete }: ResaleTicket
   useEffect(() => {
     if (resaleRequest) {
       setResalePrice((Number(resaleRequest.price) / 1e18).toString());
+      // Check if already listed (approved and not rejected)
+      if (resaleRequest.approved && !resaleRequest.rejected) {
+        setIsListed(true);
+      }
     }
-    if (tokenURI) {
-      setNftUri(tokenURI);
-    }
-  }, [resaleRequest, tokenURI]);
+  }, [resaleRequest]);
 
-  const handleResellTicket = async () => {
+  const handleListForResale = async () => {
     if (!isConnected) {
       toast.error("Please connect your wallet");
       return;
@@ -70,30 +72,41 @@ export default function ResaleTicket({ tokenId, onResaleComplete }: ResaleTicket
       return;
     }
 
-    if (!nftUri) {
-      toast.error("NFT URI not available");
-      return;
-    }
-
     try {
       setIsReselling(true);
+      
+      // First cancel any existing resale request for this token
+      try {
+        await writeContractAsync({
+          address: contractAddress,
+          abi: rexellAbi,
+          functionName: "cancelResaleRequest",
+          args: [BigInt(tokenId)],
+        });
+      } catch (error) {
+        // If cancel fails, it might be because there's no existing request, which is fine
+        console.log("No existing resale request to cancel");
+      }
+      
+      // Create a new resale request with the updated price
       const hash = await writeContractAsync({
         address: contractAddress,
         abi: rexellAbi,
-        functionName: "resellTicket",
+        functionName: "requestResaleVerification",
         args: [
           BigInt(tokenId),
           BigInt(Math.floor(parseFloat(resalePrice) * 1e18)), // Convert to wei
-          nftUri
         ],
       });
       
       if (hash) {
         toast.success("Ticket listed for resale successfully!");
+        setIsListed(true);
+        refetchResaleRequest();
         onResaleComplete();
       }
     } catch (error: any) {
-      console.error("Resell ticket error:", error);
+      console.error("List ticket error:", error);
       
       const errorMessage = error.message || error.toString();
       
@@ -110,8 +123,38 @@ export default function ResaleTicket({ tokenId, onResaleComplete }: ResaleTicket
       } else if (errorMessage.includes("user rejected")) {
         toast.error("Transaction was rejected by user");
       } else {
-        toast.error("Failed to list ticket for resale: " + errorMessage);
+        toast.error("Failed to list ticket: " + errorMessage);
       }
+    } finally {
+      setIsReselling(false);
+    }
+  };
+
+  const handleCancelListing = async () => {
+    if (!isConnected) {
+      toast.error("Please connect your wallet");
+      return;
+    }
+
+    try {
+      setIsReselling(true);
+      
+      const hash = await writeContractAsync({
+        address: contractAddress,
+        abi: rexellAbi,
+        functionName: "cancelResaleRequest",
+        args: [BigInt(tokenId)],
+      });
+      
+      if (hash) {
+        toast.success("Resale listing cancelled successfully!");
+        setIsListed(false);
+        refetchResaleRequest();
+        onResaleComplete();
+      }
+    } catch (error: any) {
+      console.error("Cancel listing error:", error);
+      toast.error("Failed to cancel listing: " + (error.message || error.toString()));
     } finally {
       setIsReselling(false);
     }
@@ -151,17 +194,21 @@ export default function ResaleTicket({ tokenId, onResaleComplete }: ResaleTicket
   }
 
   return (
-    <Card className="border-green-200 bg-green-50">
+    <Card className={isListed ? "border-blue-200 bg-blue-50" : "border-green-200 bg-green-50"}>
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle className="text-green-800">Resale Approved</CardTitle>
-            <CardDescription className="text-green-700">
-              Your resale request has been approved. You can now list this ticket for resale.
+            <CardTitle className={isListed ? "text-blue-800" : "text-green-800"}>
+              {isListed ? "Listed for Resale" : "Resale Approved"}
+            </CardTitle>
+            <CardDescription className={isListed ? "text-blue-700" : "text-green-700"}>
+              {isListed 
+                ? "Your ticket is now available in the resale market" 
+                : "Your resale request has been approved. You can now list this ticket for resale."}
             </CardDescription>
           </div>
-          <Badge variant="default" className="bg-green-500">
-            Approved
+          <Badge variant="default" className={isListed ? "bg-blue-500" : "bg-green-500"}>
+            {isListed ? "Active" : "Approved"}
           </Badge>
         </div>
       </CardHeader>
@@ -172,63 +219,106 @@ export default function ResaleTicket({ tokenId, onResaleComplete }: ResaleTicket
             <p className="text-lg font-mono">{tokenId}</p>
           </div>
           <div>
-            <Label className="text-sm font-medium text-gray-700">Original Requested Price</Label>
+            <Label className="text-sm font-medium text-gray-700">
+              {isListed ? "Listed Price" : "Original Requested Price"}
+            </Label>
             <p className="text-lg font-semibold">{formatPrice(resaleRequest.price)} cUSD</p>
           </div>
         </div>
 
-        <div>
-          <Label htmlFor="resalePrice" className="text-sm font-medium text-gray-700">
-            Final Resale Price (cUSD) *
-          </Label>
-          <Input
-            id="resalePrice"
-            type="number"
-            value={resalePrice}
-            onChange={(e) => setResalePrice(e.target.value)}
-            placeholder="Enter final resale price"
-            className="mt-1 focus:ring-2 focus:ring-green-500 focus:border-green-500"
-            min="0"
-            step="0.01"
-          />
-          <p className="text-xs text-gray-500 mt-1">
-            You can adjust the price from your original request
-          </p>
-        </div>
-
-        <div className="bg-blue-50 p-3 rounded-md border border-blue-200">
-          <div className="flex items-start">
-            <div className="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center mr-3 mt-0.5">
-              <span className="text-blue-600 text-xs">ℹ</span>
+        {!isListed && (
+          <>
+            <div>
+              <Label htmlFor="resalePrice" className="text-sm font-medium text-gray-700">
+                Final Resale Price (cUSD) *
+              </Label>
+              <Input
+                id="resalePrice"
+                type="number"
+                value={resalePrice}
+                onChange={(e) => setResalePrice(e.target.value)}
+                placeholder="Enter final resale price"
+                className="mt-1 focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                min="0"
+                step="0.01"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                You can adjust the price from your original request
+              </p>
             </div>
-            <div className="text-sm text-blue-800">
-              <p className="font-medium mb-1">Important Information:</p>
-              <ul className="list-disc list-inside space-y-1 text-xs">
-                <li>Once listed, your ticket will be available for purchase by other users</li>
-                <li>You will receive the resale price in cUSD when sold</li>
-                <li>The original event organizer will receive a small commission</li>
-                <li>You can cancel the listing before it's sold</li>
-              </ul>
+
+            <div className="bg-blue-50 p-3 rounded-md border border-blue-200">
+              <div className="flex items-start">
+                <div className="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center mr-3 mt-0.5">
+                  <span className="text-blue-600 text-xs">ℹ</span>
+                </div>
+                <div className="text-sm text-blue-800">
+                  <p className="font-medium mb-1">Important Information:</p>
+                  <ul className="list-disc list-inside space-y-1 text-xs">
+                    <li>Once listed, your ticket will be available for purchase by other users</li>
+                    <li>You will receive the resale price in cUSD when sold</li>
+                    <li>The transaction will be secured by the blockchain</li>
+                    <li>You can cancel the listing before it's sold</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {isListed && (
+          <div className="bg-yellow-50 p-3 rounded-md border border-yellow-200">
+            <div className="flex items-start">
+              <div className="w-5 h-5 bg-yellow-100 rounded-full flex items-center justify-center mr-3 mt-0.5">
+                <span className="text-yellow-600 text-xs">⚠</span>
+              </div>
+              <div className="text-sm text-yellow-800">
+                <p className="font-medium mb-1">Listing Active:</p>
+                <p className="text-xs">
+                  Your ticket is currently listed in the resale market. 
+                  Buyers can purchase it at {formatPrice(resaleRequest.price)} cUSD.
+                  You can cancel the listing anytime before it's sold.
+                </p>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         <div className="flex gap-3">
-          <Button
-            onClick={handleResellTicket}
-            disabled={isReselling || !resalePrice || parseFloat(resalePrice) <= 0}
-            className="flex-1 bg-green-500 hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-all duration-200"
-            size="lg"
-          >
-            {isReselling ? (
-              <div className="flex items-center">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                Listing Ticket...
-              </div>
-            ) : (
-              "List Ticket for Resale"
-            )}
-          </Button>
+          {!isListed ? (
+            <Button
+              onClick={handleListForResale}
+              disabled={isReselling || !resalePrice || parseFloat(resalePrice) <= 0}
+              className="flex-1 bg-green-500 hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-all duration-200"
+              size="lg"
+            >
+              {isReselling ? (
+                <div className="flex items-center">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Listing Ticket...
+                </div>
+              ) : (
+                "List Ticket for Resale"
+              )}
+            </Button>
+          ) : (
+            <Button
+              onClick={handleCancelListing}
+              disabled={isReselling}
+              variant="destructive"
+              className="flex-1"
+              size="lg"
+            >
+              {isReselling ? (
+                <div className="flex items-center">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Cancelling...
+                </div>
+              ) : (
+                "Cancel Listing"
+              )}
+            </Button>
+          )}
         </div>
       </CardContent>
     </Card>

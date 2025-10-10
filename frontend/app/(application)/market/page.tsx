@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { useEffect, useState } from "react";
-import Image from "next/image";
+import Link from "next/link";
 
 interface ResaleTicket {
   tokenId: bigint;
@@ -17,8 +17,6 @@ interface ResaleTicket {
   price: bigint;
   approved: boolean;
   rejected: boolean;
-  nftUri?: string;
-  eventId?: number;
 }
 
 export default function MarketPage() {
@@ -26,105 +24,120 @@ export default function MarketPage() {
   const { writeContractAsync } = useWriteContract();
   const [resaleTickets, setResaleTickets] = useState<ResaleTicket[]>([]);
   const [loading, setLoading] = useState(true);
+  const [purchasingTokenId, setPurchasingTokenId] = useState<bigint | null>(null);
 
-  // Get all events to find resale tickets
+  // Get the next ticket ID to estimate how many tickets exist
   const {
-    data: allEvents,
-    isPending: isEventsPending,
-    refetch: refetchEvents,
+    data: nextTicketId,
+    isPending: isNextTicketIdPending,
   } = useReadContract({
     address: contractAddress,
     abi: rexellAbi,
-    functionName: "getAllEvents",
+    functionName: "nextTicketId",
   });
 
-  // Fetch resale tickets for all events
-  const fetchResaleTickets = async () => {
-    if (!allEvents || allEvents.length === 0) {
+  // Generate an array of token IDs to check for resale requests
+  const tokenIdsToCheck = nextTicketId 
+    ? Array.from({ length: Number(nextTicketId) }, (_, i) => BigInt(i))
+    : [];
+
+  // Fetch resale requests for all token IDs
+  const resaleRequests = tokenIdsToCheck.map((tokenId) =>
+    useReadContract({
+      address: contractAddress,
+      abi: rexellAbi,
+      functionName: 'getResaleRequest',
+      args: [tokenId]
+    })
+  );
+
+  // Process the resale requests when they're loaded
+  useEffect(() => {
+    if (isNextTicketIdPending || !nextTicketId) {
       setLoading(false);
       return;
     }
 
-    const tickets: ResaleTicket[] = [];
-    
-    // For each event, check for resale tickets
-    for (const event of allEvents) {
-      for (const ticketHolder of event.ticketHolders) {
-        try {
-          // Get user's resale requests
-          const userRequests = await fetchUserResaleRequests(ticketHolder);
-          for (const tokenId of userRequests) {
-            const request = await fetchResaleRequest(Number(tokenId));
-            if (request && request.approved && !request.rejected) {
-              // Get token URI for display
-              const tokenURI = await fetchTokenURI(Number(tokenId));
-              tickets.push({
-                ...request,
-                nftUri: tokenURI,
-                eventId: Number(event.id)
-              });
-            }
+    try {
+      const tickets: ResaleTicket[] = [];
+      
+      // Process all resale requests
+      resaleRequests.forEach((request, index) => {
+        if (request.data) {
+          const resaleRequest = request.data as ResaleTicket;
+          // Check if resale request exists and is approved
+          if (resaleRequest.approved && !resaleRequest.rejected && 
+              resaleRequest.owner !== "0x0000000000000000000000000000000000000000" &&
+              resaleRequest.owner !== address) { // Don't show own tickets
+            tickets.push(resaleRequest);
           }
-        } catch (error) {
-          console.error(`Error fetching resale tickets for ${ticketHolder}:`, error);
         }
-      }
-    }
-
-    setResaleTickets(tickets);
-    setLoading(false);
-  };
-
-  const fetchUserResaleRequests = async (userAddress: string): Promise<bigint[]> => {
-    // This would need to be implemented in the contract or we need to track this differently
-    // For now, we'll return an empty array
-    return [];
-  };
-
-  const fetchResaleRequest = async (tokenId: number): Promise<ResaleTicket | null> => {
-    try {
-      // This would need to be implemented as a view function
-      // For now, return null
-      return null;
+      });
+      
+      setResaleTickets(tickets);
     } catch (error) {
-      console.error(`Error fetching resale request for token ${tokenId}:`, error);
-      return null;
+      console.error("Error processing resale tickets:", error);
+      toast.error("Failed to load resale tickets");
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [nextTicketId, isNextTicketIdPending, address, resaleRequests]);
 
-  const fetchTokenURI = async (tokenId: number): Promise<string | null> => {
-    try {
-      // This would need to be implemented as a view function
-      // For now, return null
-      return null;
-    } catch (error) {
-      console.error(`Error fetching token URI for token ${tokenId}:`, error);
-      return null;
-    }
-  };
-
-  useEffect(() => {
-    if (allEvents) {
-      fetchResaleTickets();
-    }
-  }, [allEvents]);
-
-  const handleBuyTicket = async (tokenId: bigint, price: bigint) => {
+  const handleBuyTicket = async (tokenId: bigint, price: bigint, seller: string) => {
     if (!isConnected) {
       toast.error("Please connect your wallet to buy tickets");
       return;
     }
 
+    if (!address) {
+      toast.error("Wallet address not found");
+      return;
+    }
+
+    if (seller.toLowerCase() === address.toLowerCase()) {
+      toast.error("You cannot buy your own ticket");
+      return;
+    }
+
     try {
-      // In a real implementation, this would handle the payment and transfer
-      // For now, we'll just show a success message
-      toast.success(`Ticket #${Number(tokenId)} purchased successfully!`);
+      setPurchasingTokenId(tokenId);
       
-      // Refresh the market
-      fetchResaleTickets();
+      // Call the buyResaleTicket function with the price as maxPrice
+      const hash = await writeContractAsync({
+        address: contractAddress,
+        abi: rexellAbi,
+        functionName: "buyResaleTicket",
+        args: [tokenId, price], // Pass both tokenId and maxPrice
+      });
+
+      if (hash) {
+        toast.success(`Ticket #${tokenId.toString()} purchased successfully!`);
+        
+        // Refresh the market after purchase
+        setTimeout(() => {
+          window.location.reload();
+        }, 2000);
+      }
     } catch (error: any) {
       console.error("Buy ticket error:", error);
-      toast.error("Failed to buy ticket: " + (error.message || error.toString()));
+      
+      const errorMessage = error.message || error.toString();
+      
+      if (errorMessage.includes("Ticket not available for resale")) {
+        toast.error("This ticket is no longer available for resale");
+      } else if (errorMessage.includes("Incorrect payment amount")) {
+        toast.error("Incorrect payment amount sent");
+      } else if (errorMessage.includes("Cannot buy your own ticket")) {
+        toast.error("You cannot buy your own ticket");
+      } else if (errorMessage.includes("insufficient funds")) {
+        toast.error("Insufficient funds to purchase this ticket");
+      } else if (errorMessage.includes("user rejected")) {
+        toast.error("Transaction was rejected");
+      } else {
+        toast.error("Failed to buy ticket: " + errorMessage);
+      }
+    } finally {
+      setPurchasingTokenId(null);
     }
   };
 
@@ -149,7 +162,7 @@ export default function MarketPage() {
     );
   }
 
-  if (isEventsPending || loading) {
+  if (isNextTicketIdPending || loading) {
     return (
       <main className="px-4">
         <div className="hidden sm:block">
@@ -195,58 +208,25 @@ export default function MarketPage() {
           </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {resaleTickets.map((ticket, index) => (
-              <Card key={index} className="hover:shadow-lg transition-shadow">
+            {resaleTickets.map((ticket) => (
+              <Card key={ticket.tokenId.toString()} className="overflow-hidden hover:shadow-lg transition-shadow">
                 <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle className="text-lg">Ticket #{Number(ticket.tokenId)}</CardTitle>
-                      <CardDescription>
-                        Seller: {formatAddress(ticket.owner)}
-                      </CardDescription>
-                    </div>
-                    <Badge variant="default" className="bg-green-500">
-                      Verified
-                    </Badge>
+                  <div className="bg-gray-200 border-2 border-dashed rounded-xl w-full h-48 flex items-center justify-center">
+                    <span className="text-gray-500">Ticket Image</span>
                   </div>
                 </CardHeader>
                 <CardContent>
-                  {ticket.nftUri && (
-                    <div className="mb-4">
-                      <Image
-                        alt="NFT Ticket"
-                        className="w-full h-48 object-cover rounded-lg"
-                        height="192"
-                        src={`https://ipfs.io/ipfs/${ticket.nftUri}`}
-                        width="300"
-                      />
-                    </div>
-                  )}
-                  
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm font-medium text-gray-600">Price</span>
-                      <span className="text-xl font-bold text-green-600">
-                        {formatPrice(ticket.price)} cUSD
-                      </span>
-                    </div>
-                    
-                    {ticket.eventId && (
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium text-gray-600">Event ID</span>
-                        <span className="text-sm font-mono">{ticket.eventId}</span>
-                      </div>
-                    )}
-                    
-                    <Button
-                      onClick={() => handleBuyTicket(ticket.tokenId, ticket.price)}
-                      className="w-full bg-blue-500 hover:bg-blue-600"
-                      disabled={ticket.owner.toLowerCase() === address?.toLowerCase()}
-                    >
-                      {ticket.owner.toLowerCase() === address?.toLowerCase() 
-                        ? "Your Ticket" 
-                        : "Buy Ticket"
-                      }
+                  <div className="flex justify-between items-start mb-2">
+                    <CardTitle className="text-lg">Ticket #{ticket.tokenId.toString()}</CardTitle>
+                    <Badge variant="secondary">Resale</Badge>
+                  </div>
+                  <CardDescription className="mb-4">
+                    Seller: {formatAddress(ticket.owner)}
+                  </CardDescription>
+                  <div className="flex justify-between items-center">
+                    <div className="text-2xl font-bold">{formatPrice(ticket.price)} cUSD</div>
+                    <Button asChild size="sm">
+                      <Link href={`/buy/${ticket.tokenId.toString()}`}>Buy Now</Link>
                     </Button>
                   </div>
                 </CardContent>

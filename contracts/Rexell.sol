@@ -5,13 +5,12 @@ pragma solidity ^0.8.4;
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
-
-contract Rexell is ERC721URIStorage, Ownable {
-
-
+contract Rexell is ERC721URIStorage, Ownable, ReentrancyGuard {
     IERC20 public cUSDToken;
     address public mine;
+    uint256 public royaltyPercent = 5; // 5% royalty for resales
        
     // address public cUSDTokenAddress = // 0x874069Fa1Eb16D44d622F2e0Ca25eeA172369bC1 //testnet
     // 0x765DE816845861e75A25fCA122bb6898B8B1282a //mainnet
@@ -20,7 +19,6 @@ contract Rexell is ERC721URIStorage, Ownable {
         mine = msg.sender;
         cUSDToken = IERC20(0x874069Fa1Eb16D44d622F2e0Ca25eeA172369bC1);
     }
-
 
     struct Event {
         uint id;
@@ -49,7 +47,6 @@ contract Rexell is ERC721URIStorage, Ownable {
         uint timestamp;
     }
 
-
     struct EventView {
         uint id;
         address organizer;
@@ -67,11 +64,7 @@ contract Rexell is ERC721URIStorage, Ownable {
         uint averageRating;
     }
 
-    Event[] public events;
-    uint public nextEventId;
-    uint public nextTicketId;
-
-    // Add structs for resale functionality
+    // Add structs for resale functionality with royalty and history tracking
     struct ResaleRequest {
         uint256 tokenId;
         address owner;
@@ -80,16 +73,32 @@ contract Rexell is ERC721URIStorage, Ownable {
         bool rejected;
     }
 
-    // Add mappings for resale functionality
+    struct TicketOwnership {
+        uint256 tokenId;
+        address[] owners; // Track all previous owners
+    }
+
+    Event[] public events;
+    uint public nextEventId;
+    uint public nextTicketId;
+
+    // Add mappings for resale functionality with royalty and history tracking
     mapping(address => bool) public verifiedResellers;
     mapping(uint256 => ResaleRequest) public resaleRequests;
     mapping(address => uint256[]) public userResaleRequests;
+    mapping(uint256 => address[]) public ticketOwnershipHistory; // Track ownership history
     
-    // Add events for resale functionality
+    // Security mappings
+    mapping(address => uint256) public nonces; // Protection against replay attacks
+    mapping(uint256 => bool) public ticketCancelled; // Track cancelled tickets
+    
+    // Add events for resale functionality with royalty tracking
     event ResaleRequested(uint256 indexed tokenId, address indexed owner, uint256 price);
     event ResaleApproved(uint256 indexed tokenId, address indexed owner);
     event ResaleRejected(uint256 indexed tokenId, address indexed owner);
     event TicketResold(uint256 indexed tokenId, address indexed seller, address indexed buyer, uint256 price);
+    event RoyaltyPaid(uint256 indexed tokenId, address indexed organizer, uint256 amount);
+    event TicketCancelled(uint256 indexed tokenId, address indexed owner);
 
     function createEvent(
         string memory name,
@@ -121,7 +130,7 @@ contract Rexell is ERC721URIStorage, Ownable {
         nextEventId++;
     }
 
-    function buyTicket(uint eventId, string memory nftUri) public payable {
+    function buyTicket(uint eventId, string memory nftUri) public payable nonReentrant {
         Event storage _event = events[eventId];       
         require(_event.ticketsAvailable > 0, "No tickets available");
         
@@ -136,7 +145,7 @@ contract Rexell is ERC721URIStorage, Ownable {
     }
 
     // Add new function to buy multiple tickets
-    function buyTickets(uint eventId, string[] memory nftUris, uint quantity) public payable {
+    function buyTickets(uint eventId, string[] memory nftUris, uint quantity) public payable nonReentrant {
         Event storage _event = events[eventId];
         require(quantity > 0, "Quantity must be greater than 0");
         require(_event.ticketsAvailable >= quantity, "Not enough tickets available");
@@ -163,11 +172,13 @@ contract Rexell is ERC721URIStorage, Ownable {
         uint ticketId = nextTicketId;
         _mint(msg.sender, ticketId);
         _setTokenURI(ticketId, nftUri);
+        
+        // Track initial ownership
+        ticketOwnershipHistory[ticketId].push(msg.sender);
 
         nextTicketId++;
     }
-//1730937600000n
-//1730960386000n
+
     function submitRating(uint eventId, uint8 rating) public {
         Event storage _event = events[eventId];
         require(block.timestamp > _event.date/1000, "Rating can only be given after the event date");
@@ -397,12 +408,13 @@ contract Rexell is ERC721URIStorage, Ownable {
     }
 
     // Function to request resale verification
-    function requestResaleVerification(uint256 tokenId, uint256 price) public {
+    function requestResaleVerification(uint256 tokenId, uint256 price) public nonReentrant {
         require(tokenId > 0, "Invalid token ID");
         require(_exists(tokenId), "Ticket does not exist");
         require(ownerOf(tokenId) == msg.sender, "You are not the owner of this ticket");
         require(price > 0, "Price must be greater than 0");
         require(resaleRequests[tokenId].owner == address(0), "Resale request already exists for this ticket");
+        require(!ticketCancelled[tokenId], "Ticket has been cancelled");
         
         resaleRequests[tokenId] = ResaleRequest({
             tokenId: tokenId,
@@ -428,6 +440,7 @@ contract Rexell is ERC721URIStorage, Ownable {
         require(resaleRequests[tokenId].owner != address(0), "No resale request for this ticket");
         require(!resaleRequests[tokenId].approved, "Resale already approved");
         require(!resaleRequests[tokenId].rejected, "Resale already rejected");
+        require(!ticketCancelled[tokenId], "Ticket has been cancelled");
         
         resaleRequests[tokenId].approved = true;
         emit ResaleApproved(tokenId, resaleRequests[tokenId].owner);
@@ -465,13 +478,14 @@ contract Rexell is ERC721URIStorage, Ownable {
         emit ResaleRejected(tokenId, msg.sender);
     }
 
-    // Function to resell ticket (after approval)
-    function resellTicket(uint256 tokenId, uint256 price, string memory nftUri) public {
+    // Enhanced function to resell ticket with royalty and ownership tracking
+    function resellTicket(uint256 tokenId, uint256 price, string memory nftUri) public nonReentrant {
         require(_exists(tokenId), "Ticket does not exist");
         require(ownerOf(tokenId) == msg.sender, "You are not the owner of this ticket");
         require(resaleRequests[tokenId].approved, "Resale not approved");
         require(!resaleRequests[tokenId].rejected, "Resale rejected");
         require(price > 0, "Price must be greater than 0");
+        require(!ticketCancelled[tokenId], "Ticket has been cancelled");
         
         // Mark the resale request as completed
         resaleRequests[tokenId].rejected = true; // Mark as "completed" (not literally rejected)
@@ -484,12 +498,75 @@ contract Rexell is ERC721URIStorage, Ownable {
         emit TicketResold(tokenId, msg.sender, address(0), price);
     }
 
+    // New function to buy a resale ticket with royalty payment
+    function buyResaleTicket(uint256 tokenId, uint256 maxPrice) public nonReentrant {
+        require(_exists(tokenId), "Ticket does not exist");
+        require(ownerOf(tokenId) != msg.sender, "Cannot buy your own ticket");
+        require(resaleRequests[tokenId].approved, "Resale not approved");
+        require(!ticketCancelled[tokenId], "Ticket has been cancelled");
+        
+        ResaleRequest storage request = resaleRequests[tokenId];
+        require(request.price <= maxPrice, "Price exceeds maximum allowed");
+        
+        address seller = request.owner;
+        uint256 price = request.price;
+        
+        // Calculate royalty and seller amounts
+        uint256 royaltyAmount = (price * royaltyPercent) / 100;
+        uint256 sellerAmount = price - royaltyAmount;
+        
+        // Transfer payments
+        require(cUSDToken.transferFrom(msg.sender, mine, royaltyAmount), "Royalty transfer failed");
+        require(cUSDToken.transferFrom(msg.sender, seller, sellerAmount), "Payment to seller failed");
+        
+        // Transfer ticket ownership
+        _transfer(address(this), msg.sender, tokenId);
+        
+        // Update ownership history
+        ticketOwnershipHistory[tokenId].push(msg.sender);
+        
+        // Clean up resale request
+        delete resaleRequests[tokenId];
+        
+        emit TicketResold(tokenId, seller, msg.sender, price);
+        emit RoyaltyPaid(tokenId, mine, royaltyAmount);
+    }
+
+    // Function to get ticket ownership history
+    function getTicketOwnershipHistory(uint256 tokenId) public view returns (address[] memory) {
+        return ticketOwnershipHistory[tokenId];
+    }
+
+    // Function to set royalty percentage (only contract owner)
+    function setRoyaltyPercent(uint256 _royaltyPercent) public onlyContractOwner {
+        require(_royaltyPercent <= 20, "Royalty percent cannot exceed 20%");
+        royaltyPercent = _royaltyPercent;
+    }
+
+    // Function to cancel a ticket (emergency function)
+    function cancelTicket(uint256 tokenId) public {
+        require(_exists(tokenId), "Ticket does not exist");
+        require(ownerOf(tokenId) == msg.sender || msg.sender == mine, "Not authorized to cancel ticket");
+        
+        ticketCancelled[tokenId] = true;
+        emit TicketCancelled(tokenId, msg.sender);
+    }
+
+    // Function to check if a ticket is cancelled
+    function isTicketCancelled(uint256 tokenId) public view returns (bool) {
+        return ticketCancelled[tokenId];
+    }
+
     // Function to mint resale ticket NFT
     function mintResaleTicketNft(uint256 originalTokenId, string memory nftUri, address buyer) internal {
         // This is a simplified version - in reality, you'd want to track the original event
         uint ticketId = nextTicketId;
         _mint(buyer, ticketId);
         _setTokenURI(ticketId, nftUri);
+        
+        // Track ownership history for resale ticket
+        ticketOwnershipHistory[ticketId].push(buyer);
+        
         nextTicketId++;
     }
 
