@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 interface ResaleRequest {
   tokenId: bigint;
@@ -21,77 +21,23 @@ interface ResaleRequest {
 export default function ResaleRequestsPage() {
   const { address, isConnected } = useAccount();
   const { writeContractAsync } = useWriteContract();
-  const [resaleRequests, setResaleRequests] = useState<ResaleRequest[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  // Get all events by organizer to find their events
+  // Get all resale requests for organizer's events using the new contract function
   const {
-    data: organizerEvents,
-    isPending: isEventsPending,
-    refetch: refetchEvents,
+    data: resaleRequests,
+    isPending: isRequestsPending,
+    refetch: refetchRequests,
   } = useReadContract({
     address: contractAddress,
     abi: rexellAbi,
-    functionName: "getEventsByOrganizer",
+    functionName: "getOrganizerResaleRequests",
     args: address ? [address] : undefined,
     query: {
       enabled: !!address,
+      refetchInterval: 5000, // Auto-refresh every 5 seconds
     }
-  });
-
-  // Get all resale requests for each event
-  const fetchResaleRequests = async () => {
-    if (!organizerEvents || organizerEvents.length === 0) {
-      setLoading(false);
-      return;
-    }
-
-    const requests: ResaleRequest[] = [];
-    
-    for (const event of organizerEvents) {
-      // Get all ticket holders for this event
-      for (const ticketHolder of event.ticketHolders) {
-        try {
-          // Get user's resale requests
-          const userRequests = await fetchUserResaleRequests(ticketHolder);
-          for (const tokenId of userRequests) {
-            const request = await fetchResaleRequest(Number(tokenId));
-            if (request && request.owner !== "0x0000000000000000000000000000000000000000") {
-              requests.push(request);
-            }
-          }
-        } catch (error) {
-          console.error(`Error fetching requests for ${ticketHolder}:`, error);
-        }
-      }
-    }
-
-    setResaleRequests(requests);
-    setLoading(false);
-  };
-
-  const fetchUserResaleRequests = async (userAddress: string): Promise<bigint[]> => {
-    // This would need to be implemented in the contract or we need to track this differently
-    // For now, we'll return an empty array
-    return [];
-  };
-
-  const fetchResaleRequest = async (tokenId: number): Promise<ResaleRequest | null> => {
-    try {
-      // This would need to be implemented as a view function
-      // For now, return null
-      return null;
-    } catch (error) {
-      console.error(`Error fetching resale request for token ${tokenId}:`, error);
-      return null;
-    }
-  };
-
-  useEffect(() => {
-    if (organizerEvents) {
-      fetchResaleRequests();
-    }
-  }, [organizerEvents]);
+  }) as { data: ResaleRequest[] | undefined; isPending: boolean; refetch: () => void };
 
   const handleApproveResale = async (tokenId: bigint) => {
     try {
@@ -104,7 +50,8 @@ export default function ResaleRequestsPage() {
       
       if (hash) {
         toast.success("Resale request approved successfully");
-        fetchResaleRequests(); // Refresh the list
+        refetchRequests();
+        setRefreshKey(prev => prev + 1);
       }
     } catch (error: any) {
       console.error("Approve resale error:", error);
@@ -123,7 +70,8 @@ export default function ResaleRequestsPage() {
       
       if (hash) {
         toast.success("Resale request rejected");
-        fetchResaleRequests(); // Refresh the list
+        refetchRequests();
+        setRefreshKey(prev => prev + 1);
       }
     } catch (error: any) {
       console.error("Reject resale error:", error);
@@ -152,7 +100,7 @@ export default function ResaleRequestsPage() {
     );
   }
 
-  if (isEventsPending || loading) {
+  if (isRequestsPending) {
     return (
       <main className="px-4">
         <div className="hidden sm:block">
@@ -164,6 +112,10 @@ export default function ResaleRequestsPage() {
       </main>
     );
   }
+
+  // Filter to show only pending requests by default
+  const pendingRequests = resaleRequests?.filter(req => !req.approved && !req.rejected) || [];
+  const processedRequests = resaleRequests?.filter(req => req.approved || req.rejected) || [];
 
   return (
     <main className="px-4">
@@ -178,82 +130,119 @@ export default function ResaleRequestsPage() {
           </p>
         </div>
 
-        {resaleRequests.length === 0 ? (
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center py-12">
-              <div className="text-gray-400 mb-4">
-                <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-semibold text-gray-600 mb-2">No Resale Requests</h3>
-              <p className="text-gray-500 text-center">
-                There are currently no pending resale requests for your events.
-              </p>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="grid gap-6">
-            {resaleRequests.map((request, index) => (
-              <Card key={index} className="hover:shadow-lg transition-shadow">
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle className="text-lg">Resale Request #{Number(request.tokenId)}</CardTitle>
-                      <CardDescription>
-                        Owner: {formatAddress(request.owner)}
-                      </CardDescription>
+        {/* Pending Requests Section */}
+        <div className="mb-8">
+          <h2 className="text-2xl font-semibold mb-4">Pending Requests</h2>
+          {pendingRequests.length === 0 ? (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <div className="text-gray-400 mb-4">
+                  <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-semibold text-gray-600 mb-2">No Pending Resale Requests</h3>
+                <p className="text-gray-500 text-center">
+                  There are currently no pending resale requests for your events.
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-6">
+              {pendingRequests.map((request, index) => (
+                <Card key={index} className="hover:shadow-lg transition-shadow">
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle className="text-lg">Resale Request #{Number(request.tokenId)}</CardTitle>
+                        <CardDescription>
+                          Owner: {formatAddress(request.owner)}
+                        </CardDescription>
+                      </div>
+                      <Badge variant="secondary">
+                        Pending
+                      </Badge>
                     </div>
-                    <div className="flex gap-2">
-                      {request.approved && (
-                        <Badge variant="default" className="bg-green-500">
-                          Approved
-                        </Badge>
-                      )}
-                      {request.rejected && (
-                        <Badge variant="destructive">
-                          Rejected
-                        </Badge>
-                      )}
-                      {!request.approved && !request.rejected && (
-                        <Badge variant="secondary">
-                          Pending
-                        </Badge>
-                      )}
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                      <div>
+                        <label className="text-sm font-medium text-gray-600">Requested Price</label>
+                        <p className="text-lg font-semibold">{formatPrice(request.price)} cUSD</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-600">Token ID</label>
+                        <p className="text-lg font-mono">{Number(request.tokenId)}</p>
+                      </div>
                     </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                    <div>
-                      <label className="text-sm font-medium text-gray-600">Requested Price</label>
-                      <p className="text-lg font-semibold">{formatPrice(request.price)} cUSD</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-600">Token ID</label>
-                      <p className="text-lg font-mono">{Number(request.tokenId)}</p>
-                    </div>
-                  </div>
-                  
-                  {!request.approved && !request.rejected && (
+                    
                     <div className="flex gap-3">
                       <Button
                         onClick={() => handleApproveResale(request.tokenId)}
                         className="bg-green-500 hover:bg-green-600"
+                        data-testid={`approve-resale-${request.tokenId}`}
                       >
                         Approve
                       </Button>
                       <Button
                         onClick={() => handleRejectResale(request.tokenId)}
                         variant="destructive"
+                        data-testid={`reject-resale-${request.tokenId}`}
                       >
                         Reject
                       </Button>
                     </div>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Processed Requests Section */}
+        {processedRequests.length > 0 && (
+          <div>
+            <h2 className="text-2xl font-semibold mb-4">Processed Requests</h2>
+            <div className="grid gap-6">
+              {processedRequests.map((request, index) => (
+                <Card key={index} className="hover:shadow-lg transition-shadow opacity-75">
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle className="text-lg">Resale Request #{Number(request.tokenId)}</CardTitle>
+                        <CardDescription>
+                          Owner: {formatAddress(request.owner)}
+                        </CardDescription>
+                      </div>
+                      <div className="flex gap-2">
+                        {request.approved && (
+                          <Badge variant="default" className="bg-green-500">
+                            Approved
+                          </Badge>
+                        )}
+                        {request.rejected && (
+                          <Badge variant="destructive">
+                            Rejected
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-medium text-gray-600">Requested Price</label>
+                        <p className="text-lg font-semibold">{formatPrice(request.price)} cUSD</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-600">Token ID</label>
+                        <p className="text-lg font-mono">{Number(request.tokenId)}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           </div>
         )}
       </div>

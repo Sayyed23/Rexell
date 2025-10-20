@@ -2,14 +2,16 @@
 
 import { useAccount, useReadContract, useWriteContract } from "wagmi";
 import { rexellAbi, contractAddress } from "@/blockchain/abi/rexell-abi";
+import { cUSDTokenAbi, cUSDTokenAddress } from "@/blockchain/cUSD/cUSD-abi";
 import { Header } from "@/components/header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 
 interface ResaleTicket {
   tokenId: bigint;
@@ -22,66 +24,26 @@ interface ResaleTicket {
 export default function MarketPage() {
   const { address, isConnected } = useAccount();
   const { writeContractAsync } = useWriteContract();
-  const [resaleTickets, setResaleTickets] = useState<ResaleTicket[]>([]);
-  const [loading, setLoading] = useState(true);
   const [purchasingTokenId, setPurchasingTokenId] = useState<bigint | null>(null);
 
-  // Get the next ticket ID to estimate how many tickets exist
+  // Get all approved resale tickets using the new contract function
   const {
-    data: nextTicketId,
-    isPending: isNextTicketIdPending,
+    data: resaleTickets,
+    isPending: isTicketsPending,
+    refetch: refetchTickets,
   } = useReadContract({
     address: contractAddress,
     abi: rexellAbi,
-    functionName: "nextTicketId",
-  });
-
-  // Generate an array of token IDs to check for resale requests
-  const tokenIdsToCheck = nextTicketId 
-    ? Array.from({ length: Number(nextTicketId) }, (_, i) => BigInt(i))
-    : [];
-
-  // Fetch resale requests for all token IDs
-  const resaleRequests = tokenIdsToCheck.map((tokenId) =>
-    useReadContract({
-      address: contractAddress,
-      abi: rexellAbi,
-      functionName: 'getResaleRequest',
-      args: [tokenId]
-    })
-  );
-
-  // Process the resale requests when they're loaded
-  useEffect(() => {
-    if (isNextTicketIdPending || !nextTicketId) {
-      setLoading(false);
-      return;
+    functionName: "getAllApprovedResaleTickets",
+    query: {
+      refetchInterval: 5000, // Auto-refresh every 5 seconds
     }
+  }) as { data: ResaleTicket[] | undefined; isPending: boolean; refetch: () => void };
 
-    try {
-      const tickets: ResaleTicket[] = [];
-      
-      // Process all resale requests
-      resaleRequests.forEach((request, index) => {
-        if (request.data) {
-          const resaleRequest = request.data as ResaleTicket;
-          // Check if resale request exists and is approved
-          if (resaleRequest.approved && !resaleRequest.rejected && 
-              resaleRequest.owner !== "0x0000000000000000000000000000000000000000" &&
-              resaleRequest.owner !== address) { // Don't show own tickets
-            tickets.push(resaleRequest);
-          }
-        }
-      });
-      
-      setResaleTickets(tickets);
-    } catch (error) {
-      console.error("Error processing resale tickets:", error);
-      toast.error("Failed to load resale tickets");
-    } finally {
-      setLoading(false);
-    }
-  }, [nextTicketId, isNextTicketIdPending, address, resaleRequests]);
+  // Filter out user's own tickets
+  const availableTickets = resaleTickets?.filter(ticket => 
+    ticket.owner.toLowerCase() !== address?.toLowerCase()
+  ) || [];
 
   const handleBuyTicket = async (tokenId: bigint, price: bigint, seller: string) => {
     if (!isConnected) {
@@ -102,6 +64,21 @@ export default function MarketPage() {
     try {
       setPurchasingTokenId(tokenId);
       
+      // First, approve cUSD token spending
+      toast.info("Approving cUSD spending...");
+      const approveHash = await writeContractAsync({
+        address: cUSDTokenAddress,
+        abi: cUSDTokenAbi,
+        functionName: "approve",
+        args: [contractAddress, price],
+      });
+
+      if (!approveHash) {
+        throw new Error("Failed to approve cUSD spending");
+      }
+
+      toast.info("Purchasing ticket...");
+      
       // Call the buyResaleTicket function with the price as maxPrice
       const hash = await writeContractAsync({
         address: contractAddress,
@@ -115,7 +92,7 @@ export default function MarketPage() {
         
         // Refresh the market after purchase
         setTimeout(() => {
-          window.location.reload();
+          refetchTickets();
         }, 2000);
       }
     } catch (error: any) {
@@ -123,16 +100,18 @@ export default function MarketPage() {
       
       const errorMessage = error.message || error.toString();
       
-      if (errorMessage.includes("Ticket not available for resale")) {
-        toast.error("This ticket is no longer available for resale");
-      } else if (errorMessage.includes("Incorrect payment amount")) {
-        toast.error("Incorrect payment amount sent");
+      if (errorMessage.includes("Resale not approved")) {
+        toast.error("This ticket is not approved for resale");
+      } else if (errorMessage.includes("Price exceeds maximum allowed")) {
+        toast.error("Price has changed since listing");
       } else if (errorMessage.includes("Cannot buy your own ticket")) {
         toast.error("You cannot buy your own ticket");
-      } else if (errorMessage.includes("insufficient funds")) {
-        toast.error("Insufficient funds to purchase this ticket");
+      } else if (errorMessage.includes("insufficient funds") || errorMessage.includes("insufficient balance")) {
+        toast.error("Insufficient cUSD balance to purchase this ticket");
       } else if (errorMessage.includes("user rejected")) {
         toast.error("Transaction was rejected");
+      } else if (errorMessage.includes("Royalty transfer failed") || errorMessage.includes("Payment to seller failed")) {
+        toast.error("Payment failed. Please ensure you have approved sufficient cUSD");
       } else {
         toast.error("Failed to buy ticket: " + errorMessage);
       }
@@ -162,7 +141,7 @@ export default function MarketPage() {
     );
   }
 
-  if (isNextTicketIdPending || loading) {
+  if (isTicketsPending) {
     return (
       <main className="px-4">
         <div className="hidden sm:block">
@@ -192,7 +171,7 @@ export default function MarketPage() {
           </p>
         </div>
 
-        {resaleTickets.length === 0 ? (
+        {availableTickets.length === 0 ? (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
               <div className="text-gray-400 mb-4">
@@ -208,11 +187,16 @@ export default function MarketPage() {
           </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {resaleTickets.map((ticket) => (
-              <Card key={ticket.tokenId.toString()} className="overflow-hidden hover:shadow-lg transition-shadow">
+            {availableTickets.map((ticket) => (
+              <Card key={ticket.tokenId.toString()} className="overflow-hidden hover:shadow-lg transition-shadow" data-testid={`resale-ticket-${ticket.tokenId}`}>
                 <CardHeader>
-                  <div className="bg-gray-200 border-2 border-dashed rounded-xl w-full h-48 flex items-center justify-center">
-                    <span className="text-gray-500">Ticket Image</span>
+                  <div className="bg-gradient-to-br from-blue-500 to-purple-600 border-2 border-dashed rounded-xl w-full h-48 flex items-center justify-center">
+                    <div className="text-center text-white">
+                      <svg className="w-16 h-16 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
+                      </svg>
+                      <p className="text-sm font-medium">Ticket #{ticket.tokenId.toString()}</p>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -225,8 +209,20 @@ export default function MarketPage() {
                   </CardDescription>
                   <div className="flex justify-between items-center">
                     <div className="text-2xl font-bold">{formatPrice(ticket.price)} cUSD</div>
-                    <Button asChild size="sm">
-                      <Link href={`/buy/${ticket.tokenId.toString()}`}>Buy Now</Link>
+                    <Button 
+                      onClick={() => handleBuyTicket(ticket.tokenId, ticket.price, ticket.owner)}
+                      disabled={purchasingTokenId === ticket.tokenId}
+                      size="sm"
+                      data-testid={`buy-ticket-${ticket.tokenId}`}
+                    >
+                      {purchasingTokenId === ticket.tokenId ? (
+                        <div className="flex items-center">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Buying...
+                        </div>
+                      ) : (
+                        "Buy Now"
+                      )}
                     </Button>
                   </div>
                 </CardContent>

@@ -434,24 +434,52 @@ contract Rexell is ERC721URIStorage, Ownable, ReentrancyGuard {
         verifiedResellers[reseller] = true;
     }
 
-    // Function for contract owner to approve resale
-    function approveResale(uint256 tokenId) public onlyContractOwner {
+    // Helper function to get event organizer for a token
+    function getEventOrganizerForToken(uint256 tokenId) public view returns (address) {
+        require(_exists(tokenId), "Ticket does not exist");
+        
+        // Get the token URI to find the event
+        string memory uri = tokenURI(tokenId);
+        
+        // Search through all events to find which event this ticket belongs to
+        for (uint i = 0; i < events.length; i++) {
+            string[] memory eventNftUris = events[i].nftUris;
+            for (uint j = 0; j < eventNftUris.length; j++) {
+                if (keccak256(bytes(eventNftUris[j])) == keccak256(bytes(uri))) {
+                    return events[i].organizer;
+                }
+            }
+        }
+        
+        return address(0);
+    }
+
+    // Function for event organizer or contract owner to approve resale
+    function approveResale(uint256 tokenId) public {
         require(_exists(tokenId), "Ticket does not exist");
         require(resaleRequests[tokenId].owner != address(0), "No resale request for this ticket");
         require(!resaleRequests[tokenId].approved, "Resale already approved");
         require(!resaleRequests[tokenId].rejected, "Resale already rejected");
         require(!ticketCancelled[tokenId], "Ticket has been cancelled");
         
+        // Check if caller is event organizer or contract owner
+        address eventOrganizer = getEventOrganizerForToken(tokenId);
+        require(msg.sender == eventOrganizer || msg.sender == mine, "Only event organizer or contract owner can approve");
+        
         resaleRequests[tokenId].approved = true;
         emit ResaleApproved(tokenId, resaleRequests[tokenId].owner);
     }
 
-    // Function for contract owner to reject resale
-    function rejectResale(uint256 tokenId) public onlyContractOwner {
+    // Function for event organizer or contract owner to reject resale
+    function rejectResale(uint256 tokenId) public {
         require(_exists(tokenId), "Ticket does not exist");
         require(resaleRequests[tokenId].owner != address(0), "No resale request for this ticket");
         require(!resaleRequests[tokenId].approved, "Resale already approved");
         require(!resaleRequests[tokenId].rejected, "Resale already rejected");
+        
+        // Check if caller is event organizer or contract owner
+        address eventOrganizer = getEventOrganizerForToken(tokenId);
+        require(msg.sender == eventOrganizer || msg.sender == mine, "Only event organizer or contract owner can reject");
         
         resaleRequests[tokenId].rejected = true;
         emit ResaleRejected(tokenId, resaleRequests[tokenId].owner);
@@ -465,6 +493,62 @@ contract Rexell is ERC721URIStorage, Ownable, ReentrancyGuard {
     // Function to get resale request details
     function getResaleRequest(uint256 tokenId) public view returns (ResaleRequest memory) {
         return resaleRequests[tokenId];
+    }
+
+    // Function to get all resale requests for events organized by an address
+    function getOrganizerResaleRequests(address organizer) public view returns (ResaleRequest[] memory) {
+        uint256 count = 0;
+        
+        // First, count how many requests exist for this organizer's events
+        for (uint256 i = 0; i < nextTicketId; i++) {
+            if (_exists(i) && resaleRequests[i].owner != address(0)) {
+                address eventOrganizer = getEventOrganizerForToken(i);
+                if (eventOrganizer == organizer) {
+                    count++;
+                }
+            }
+        }
+        
+        // Create array and populate it
+        ResaleRequest[] memory requests = new ResaleRequest[](count);
+        uint256 index = 0;
+        
+        for (uint256 i = 0; i < nextTicketId; i++) {
+            if (_exists(i) && resaleRequests[i].owner != address(0)) {
+                address eventOrganizer = getEventOrganizerForToken(i);
+                if (eventOrganizer == organizer) {
+                    requests[index] = resaleRequests[i];
+                    index++;
+                }
+            }
+        }
+        
+        return requests;
+    }
+
+    // Function to get all approved resale tickets for the marketplace
+    function getAllApprovedResaleTickets() public view returns (ResaleRequest[] memory) {
+        uint256 count = 0;
+        
+        // Count approved resale tickets
+        for (uint256 i = 0; i < nextTicketId; i++) {
+            if (_exists(i) && resaleRequests[i].approved && !resaleRequests[i].rejected && resaleRequests[i].owner != address(0)) {
+                count++;
+            }
+        }
+        
+        // Create array and populate it
+        ResaleRequest[] memory approvedTickets = new ResaleRequest[](count);
+        uint256 index = 0;
+        
+        for (uint256 i = 0; i < nextTicketId; i++) {
+            if (_exists(i) && resaleRequests[i].approved && !resaleRequests[i].rejected && resaleRequests[i].owner != address(0)) {
+                approvedTickets[index] = resaleRequests[i];
+                index++;
+            }
+        }
+        
+        return approvedTickets;
     }
 
     // Function to cancel resale request
