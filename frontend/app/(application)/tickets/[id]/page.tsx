@@ -17,6 +17,11 @@ export default function TicketsPage({ params }: { params: { id: number } }) {
   const { address, isConnected, isConnecting } = useAccount();
   const router = useRouter();
   const { writeContractAsync } = useWriteContract();
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   // First, get the event details
   const {
@@ -85,7 +90,7 @@ export default function TicketsPage({ params }: { params: { id: number } }) {
   };
 
   // Show loading state while connecting
-  if (isConnecting) {
+  if (isConnecting || !isClient) {
     return (
       <main className="px-4">
         <div className="hidden sm:block">
