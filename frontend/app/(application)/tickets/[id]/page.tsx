@@ -62,39 +62,12 @@ export default function TicketsPage({ params }: { params: { id: number } }) {
   });
 
   // Fallback: Use event ID as tokenId if the specific function fails
-  const effectiveTokenId = tokenId || (event ? BigInt(params.id) : null);
+  const effectiveTokenId = tokenId;
 
   const [showResaleVerification, setShowResaleVerification] = useState(false);
   const [resaleVerified, setResaleVerified] = useState(false);
-  const [loadingTimeout, setLoadingTimeout] = useState(false);
 
-  useEffect(() => {
-    if (userTickets) {
-      console.log("User Tickets:", userTickets);
-    }
-    if (tokenId) {
-      console.log("Token ID:", tokenId.toString());
-    }
-    console.log("Show Resale Verification:", showResaleVerification);
-    console.log("Token ID exists:", !!tokenId);
-    console.log("Token ID value:", tokenId);
-    console.log("Effective Token ID:", effectiveTokenId);
-    console.log("Event ID:", params.id);
-    console.log("Event exists:", !!event);
-  }, [userTickets, tokenId, showResaleVerification, effectiveTokenId, event, params.id]);
 
-  // Set timeout for loading state
-  useEffect(() => {
-    if (isTokenIdPending && !tokenId) {
-      const timeout = setTimeout(() => {
-        setLoadingTimeout(true);
-      }, 10000); // 10 second timeout
-      
-      return () => clearTimeout(timeout);
-    } else {
-      setLoadingTimeout(false);
-    }
-  }, [isTokenIdPending, tokenId]);
 
   const handleVerificationComplete = () => {
     setResaleVerified(true);
@@ -168,8 +141,8 @@ export default function TicketsPage({ params }: { params: { id: number } }) {
                 <div className="space-y-4">
                   <Button 
                     onClick={() => {
-                      if (!effectiveTokenId && !loadingTimeout) {
-                        toast.error("Cannot proceed: Ticket information not available. Please refresh the page and try again.");
+                      if (!effectiveTokenId) {
+                        toast.error("Token ID not loaded yet. Please wait a moment and try again.");
                         return;
                       }
                       setShowResaleVerification(true);
@@ -181,21 +154,16 @@ export default function TicketsPage({ params }: { params: { id: number } }) {
                         }
                       }, 100);
                     }}
-                    disabled={!effectiveTokenId && !loadingTimeout}
+                    disabled={!effectiveTokenId}
                     className="bg-yellow-500 hover:bg-yellow-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105"
                     size="lg"
                   >
-                    {!effectiveTokenId ? (loadingTimeout ? "Use Event ID" : "Loading Ticket Info...") : "Request Resale Verification"}
+                    {isTokenIdPending ? "Loading Ticket Info..." : "Request Resale Verification"}
                   </Button>
                   
                   {showResaleVerification && (
                     <div className="text-sm text-gray-600 text-center">
                       Please fill out the form below to request resale verification
-                      {loadingTimeout && !tokenId && (
-                        <div className="mt-2 text-xs text-orange-600">
-                          ⚠️ Using event ID as fallback tokenId
-                        </div>
-                      )}
                     </div>
                   )}
                   
