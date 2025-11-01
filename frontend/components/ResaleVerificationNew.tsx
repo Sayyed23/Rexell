@@ -126,7 +126,7 @@ export default function ResaleVerificationNew({ tokenId, onVerificationComplete,
       const hash = await writeContractAsync({
         address: contractAddress,
         abi: rexellAbi,
-        functionName: "requestResaleVerification",
+        functionName: "listForResale",
         args: [BigInt(effectiveTokenId), BigInt(Math.floor(priceValue * 1e18))], // Convert to wei (18 decimals)
       });
       
