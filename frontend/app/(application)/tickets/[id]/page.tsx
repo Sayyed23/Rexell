@@ -67,20 +67,6 @@ export default function TicketsPage({ params }: { params: { id: number } }) {
   // Fallback: Use event ID as tokenId if the specific function fails
   const effectiveTokenId = tokenId;
 
-  // Show loading state while connecting
-  if (isConnecting || !isClient) {
-    return (
-      <main className="px-4">
-        <div className="hidden sm:block">
-          <Header />
-        </div>
-        <div className="flex h-screen flex-col items-center justify-center rounded-lg bg-gray-100">
-          <Skeleton className="h-64 w-full rounded-lg" />
-        </div>
-      </main>
-    );
-  }
-
   // Check if we have data to display
   const isLoading = isEventPending || isTicketsPending || isTokenIdPending;
   const hasError = eventError || ticketsError;
@@ -93,7 +79,9 @@ export default function TicketsPage({ params }: { params: { id: number } }) {
         <Header />
       </div>
       <div className="flex h-screen flex-col items-center justify-center rounded-lg bg-gray-100">
-        {!isConnected ? (
+        {isConnecting || !isClient ? (
+          <Skeleton className="h-64 w-full rounded-lg" />
+        ) : !isConnected ? (
           <p>Please connect your wallet to view your tickets</p>
         ) : isLoading ? (
           <Skeleton className="h-64 w-full rounded-lg" />
