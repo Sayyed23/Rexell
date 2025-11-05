@@ -186,7 +186,7 @@ export default function ResaleTicket({ tokenId, onResaleComplete }: ResaleTicket
           </div>
           <h3 className="text-lg font-semibold text-gray-800 mb-2">Resale Not Approved</h3>
           <p className="text-gray-600 text-center">
-            This ticket's resale request has not been approved yet or has been rejected.
+            This ticket&apos;s resale request has not been approved yet or has been rejected.
           </p>
         </CardContent>
       </Card>
