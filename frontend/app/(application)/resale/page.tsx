@@ -173,7 +173,7 @@ export default function ResalePage() {
               <div className="text-5xl mb-4">🎟️</div>
               <h3 className="text-xl font-semibold mb-2">No tickets found</h3>
               <p className="text-gray-600 mb-6">
-                You don't have any tickets in your collection. Purchase tickets from events to list them for resale.
+                You don&apos;t have any tickets in your collection. Purchase tickets from events to list them for resale.
               </p>
               <Button asChild>
                 <a href="/events">Browse Events</a>
