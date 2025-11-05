@@ -113,7 +113,8 @@ export default function TicketsPage({ params }: { params: { id: number } }) {
                     toast.error("Token ID not loaded yet. Please wait a moment and try again.");
                     return;
                   }
-                  router.push(`/tickets/${params.id}/resale`);
+                  // Pass tokenId as query parameter
+                  router.push(`/tickets/${params.id}/resale?tokenId=${effectiveTokenId}`);
                 }}
                 disabled={!effectiveTokenId}
                 className="bg-yellow-500 hover:bg-yellow-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105"
@@ -121,6 +122,12 @@ export default function TicketsPage({ params }: { params: { id: number } }) {
               >
                 {isTokenIdPending ? "Loading Ticket Info..." : "Request Resale Verification"}
               </Button>
+              
+              {effectiveTokenId && (
+                <p className="text-sm text-gray-600 mt-2 text-center">
+                  Token ID: {effectiveTokenId.toString()}
+                </p>
+              )}
             </div>
           </div>
         ) : (
