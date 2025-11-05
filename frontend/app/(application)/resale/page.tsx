@@ -267,7 +267,7 @@ export default function ResalePage() {
                     <ul className="text-sm text-blue-700 list-disc list-inside space-y-1">
                       <li>Your ticket will be reviewed by the event organizer before listing</li>
                       <li>A 5% royalty fee will be applied to resale transactions</li>
-                      <li>You can cancel your request before it's approved</li>
+                      <li>You can cancel your request before it&apos;s approved</li>
                     </ul>
                   </div>
 
