@@ -41,11 +41,11 @@ export default function ResalePage() {
 
   // Get token IDs for the user's tickets
   const { data: tokenIdsData } = useReadContracts({
-    contracts: userTicketsData?.map((uri: string) => ({ address: contractAddress as `0x${string}`, abi: rexellAbi, functionName: 'getTokenIdByUserAndUri', args: [address as `0x${string}`, uri] })) || [],
-      address: contractAddress,
-      abi: rexellAbi,
-      functionName: 'getTokenIdByUserAndUri',
-      args: [address as `0x${string}`, uri],
+    contracts: userTicketsData?.map((uri: string) => ({ 
+      address: contractAddress as `0x${string}`, 
+      abi: rexellAbi, 
+      functionName: 'getTokenIdByUserAndUri', 
+      args: [address as `0x${string}`, uri] 
     })) ?? [],
     query: {
       enabled: !!userTicketsData && userTicketsData.length > 0,
