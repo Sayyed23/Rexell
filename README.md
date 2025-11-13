@@ -62,8 +62,8 @@ Ensure you have **Node.js** installed.
 ### Steps
 1. Clone the repository:
    ```bash
-   git clone https://github.com/jeffIshmael/web3Tickets
-   cd web3Tickets/frontend
+   git clone https://github.com/Sayyed23/Rexell
+   cd Rexell/frontend
    ```
 2. Install dependencies:
 
