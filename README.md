@@ -77,10 +77,6 @@ Ensure you have **Node.js** installed.
     npm run dev
     ```
 
-## Demo
-Create events and buy NFT tickets in our website [Live link](https://bloc-tickets.vercel.app/)
-
-For more information, visit our [website](https://bloc-tickets.vercel.app/) or contact support at [support@bloctickets.com](mailto:jeffianmuchiri24@gmail.com).
 ------
 
 <p align="right">(<a href="#top">back to top</a>)</p>
