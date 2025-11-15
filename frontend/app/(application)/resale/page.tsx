@@ -41,11 +41,11 @@ export default function ResalePage() {
 
   // Get token IDs for the user's tickets
   const { data: tokenIdsData } = useReadContracts({
-    contracts: userTicketsData?.map((uri: string) => ({ address: contractAddress as `0x${string}`, abi: rexellAbi, functionName: 'getTokenIdByUserAndUri', args: [address as `0x${string}`, uri] })) || [],
-      address: contractAddress,
-      abi: rexellAbi,
-      functionName: 'getTokenIdByUserAndUri',
-      args: [address as `0x${string}`, uri],
+    contracts: userTicketsData?.map((uri: string) => ({ 
+      address: contractAddress as `0x${string}`, 
+      abi: rexellAbi, 
+      functionName: 'getTokenIdByUserAndUri', 
+      args: [address as `0x${string}`, uri] 
     })) ?? [],
     query: {
       enabled: !!userTicketsData && userTicketsData.length > 0,
@@ -173,7 +173,7 @@ export default function ResalePage() {
               <div className="text-5xl mb-4">🎟️</div>
               <h3 className="text-xl font-semibold mb-2">No tickets found</h3>
               <p className="text-gray-600 mb-6">
-                You don't have any tickets in your collection. Purchase tickets from events to list them for resale.
+                You don&apos;t have any tickets in your collection. Purchase tickets from events to list them for resale.
               </p>
               <Button asChild>
                 <a href="/events">Browse Events</a>
@@ -267,7 +267,7 @@ export default function ResalePage() {
                     <ul className="text-sm text-blue-700 list-disc list-inside space-y-1">
                       <li>Your ticket will be reviewed by the event organizer before listing</li>
                       <li>A 5% royalty fee will be applied to resale transactions</li>
-                      <li>You can cancel your request before it's approved</li>
+                      <li>You can cancel your request before it&apos;s approved</li>
                     </ul>
                   </div>
 

@@ -98,7 +98,7 @@ export default function OwnershipHistoryPage() {
           <CardContent className="text-center py-8">
             <div className="text-5xl mb-4">🎟️</div>
             <p className="text-gray-600 mb-6">
-              The ticket you're looking for could not be found.
+              The ticket you&apos;re looking for could not be found.
             </p>
             <Button asChild>
               <a href="/market">Browse Marketplace</a>
