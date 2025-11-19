@@ -15,9 +15,9 @@ contract Rexell is ERC721URIStorage, Ownable, ReentrancyGuard {
     // address public cUSDTokenAddress = // 0x874069Fa1Eb16D44d622F2e0Ca25eeA172369bC1 //testnet
     // 0x765DE816845861e75A25fCA122bb6898B8B1282a //mainnet
 
-    constructor() ERC721("Rexell", "BTK") {
+    constructor(address _cUSDTokenAddress) ERC721("Rexell", "BTK") {
         mine = msg.sender;
-        cUSDToken = IERC20(0x874069Fa1Eb16D44d622F2e0Ca25eeA172369bC1);
+        cUSDToken = IERC20(_cUSDTokenAddress);
     }
 
     struct Event {
