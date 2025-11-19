@@ -1,6 +1,5 @@
 export const tokencUSDContractAddress =
-  "0x874069Fa1Eb16D44d622F2e0Ca25eeA172369bC1";
-  //mainnet
+  "0xA99dC247d6b7B2E3ab48a1fEE101b83cD6aCd82a"; // Celo Sepolia cUSD
 export const tokencUSDAbi = [
   {
     constant: true,
