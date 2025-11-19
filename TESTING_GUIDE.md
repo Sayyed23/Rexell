@@ -5,7 +5,7 @@ This guide provides step-by-step instructions for testing the complete resale ve
 ## Prerequisites
 
 Before testing, ensure:
-1. Smart contract is deployed to Celo Alfajores testnet
+1. Smart contract is deployed to Celo Sepolia testnet
 2. Frontend is running (`npm run dev` in /app/frontend)
 3. You have at least 2 test wallets with:
    - CELO tokens for gas fees
@@ -15,14 +15,14 @@ Before testing, ensure:
 ## Getting Test Tokens
 
 ### CELO Tokens (for gas)
-Visit: https://faucet.celo.org/alfajores
+Visit: https://faucet.celo.org/Sepolia
 - Connect your wallet
 - Request CELO tokens
 - Wait for transaction confirmation
 
 ### cUSD Tokens (for payments)
 Option 1 - Faucet:
-- Visit: https://faucet.celo.org/alfajores
+- Visit: https://faucet.celo.org/Sepolia
 - Request cUSD tokens
 
 Option 2 - Swap:
@@ -300,7 +300,7 @@ After completing tests, verify:
 ## Blockchain Explorer Verification
 
 For each transaction, you can verify on Celo Explorer:
-https://alfajores.celoscan.io/
+https://Sepolia.celoscan.io/
 
 Search for:
 - Transaction hash

@@ -14,27 +14,29 @@ module.exports = {
           viaIR: true,
         }},
     networks: {
-        alfajores: {
-            url: "https://alfajores-forno.celo-testnet.org",
+        Sepolia: {
+            url: "https://forno.celo-sepolia.celo-testnet.org",
             accounts: [process.env.PRIVATE_KEY],
+            chainId: 11142220,
         },
         celo: {
             url: "https://forno.celo.org",
             accounts: [process.env.PRIVATE_KEY],
+            chainId: 42220,
         },
     },
     etherscan: {
         apiKey: {
-            alfajores: process.env.CELOSCAN_API_KEY,
+            Sepolia: process.env.CELOSCAN_API_KEY,
             celo: process.env.CELOSCAN_API_KEY,
         },
         customChains: [
             {
-                network: "alfajores",
-                chainId: 44787,
+                network: "Sepolia",
+                chainId: 11142220,
                 urls: {
-                    apiURL: "https://api-alfajores.celoscan.io/api",
-                    browserURL: "https://alfajores.celoscan.io",
+                    apiURL: "https://api-sepolia.celoscan.io/api",
+                    browserURL: "https://sepolia.celoscan.io",
                 },
             },
             {

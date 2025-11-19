@@ -11,19 +11,21 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Header } from "@/components/header";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
+import { celoSepolia } from "@/lib/celoSepolia";
 
 const Page = () => {
   const { isConnected, address } = useAccount();
-  
+
   // Use getUserPurchasedEvents instead of getUserTickets to get event data with IDs
   const { data, isPending, error } = useReadContract({
     address: contractAddress,
     abi: rexellAbi,
     functionName: "getUserPurchasedEvents",
     args: [address!!],
+    chainId: celoSepolia.id,
   });
 
-  const [showResaleOptions, setShowResaleOptions] = useState<{[key: number]: boolean}>({});
+  const [showResaleOptions, setShowResaleOptions] = useState<{ [key: number]: boolean }>({});
 
   useEffect(() => {
     console.log(data);
@@ -66,21 +68,22 @@ const Page = () => {
 
         {/* Error State */}
         {error && isConnected && (
-          <div className="flex h-screen items-center justify-center">
+          <div className="flex h-screen flex-col items-center justify-center space-y-4">
             <p className="text-lg text-red-400">
-              Error fetching tickets. Please connect your wallet and try again.
+              Error fetching tickets: {error.message}
             </p>
+            <p>Please make sure you are connected to Celo Sepolia.</p>
           </div>
         )}
 
         {/* No Tickets State */}
-        {events?.length === 0 && isConnected && !isPending && (
+        {!error && events?.length === 0 && isConnected && !isPending && (
           <div className="flex h-screen items-center justify-center">
             <div className="text-center">
               <p className="text-lg text-gray-600">
                 You have not purchased any tickets yet.
               </p>
-             
+
               <div className="mt-4">
                 <Image
                   src="/static/images/ticket/No-Tickets.jpg" // Replace with an appropriate image path
@@ -131,13 +134,13 @@ const Page = () => {
                   </div>
                   <div className="p-4">
                     <h3 className="font-bold text-lg mb-2">{event.name}</h3>
-                    <Button 
+                    <Button
                       onClick={() => toggleResaleOptions(event.id)}
                       className="w-full bg-yellow-500 hover:bg-yellow-600 mb-2"
                     >
                       {showResaleOptions[event.id] ? "Hide Resale Options" : "Resell Ticket"}
                     </Button>
-                    
+
                     {showResaleOptions[event.id] && (
                       <div className="mt-2 p-3 bg-yellow-50 rounded-lg">
                         <p className="text-sm text-yellow-700 mb-2">

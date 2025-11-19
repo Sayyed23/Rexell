@@ -74,7 +74,7 @@ export default function ResaleTicket({ tokenId, onResaleComplete }: ResaleTicket
 
     try {
       setIsReselling(true);
-      
+
       // First cancel any existing resale request for this token
       try {
         await writeContractAsync({
@@ -87,7 +87,7 @@ export default function ResaleTicket({ tokenId, onResaleComplete }: ResaleTicket
         // If cancel fails, it might be because there's no existing request, which is fine
         console.log("No existing resale request to cancel");
       }
-      
+
       // Create a new resale request with the updated price
       const hash = await writeContractAsync({
         address: contractAddress,
@@ -98,7 +98,7 @@ export default function ResaleTicket({ tokenId, onResaleComplete }: ResaleTicket
           BigInt(Math.floor(parseFloat(resalePrice) * 1e18)), // Convert to wei
         ],
       });
-      
+
       if (hash) {
         toast.success("Ticket listed for resale successfully!");
         setIsListed(true);
@@ -107,9 +107,9 @@ export default function ResaleTicket({ tokenId, onResaleComplete }: ResaleTicket
       }
     } catch (error: any) {
       console.error("List ticket error:", error);
-      
+
       const errorMessage = error.message || error.toString();
-      
+
       if (errorMessage.includes("Resale not approved")) {
         toast.error("This ticket's resale has not been approved yet");
       } else if (errorMessage.includes("Resale rejected")) {
@@ -138,14 +138,14 @@ export default function ResaleTicket({ tokenId, onResaleComplete }: ResaleTicket
 
     try {
       setIsReselling(true);
-      
+
       const hash = await writeContractAsync({
         address: contractAddress,
         abi: rexellAbi,
         functionName: "cancelResaleRequest",
         args: [BigInt(tokenId)],
       });
-      
+
       if (hash) {
         toast.success("Resale listing cancelled successfully!");
         setIsListed(false);
@@ -186,7 +186,7 @@ export default function ResaleTicket({ tokenId, onResaleComplete }: ResaleTicket
           </div>
           <h3 className="text-lg font-semibold text-gray-800 mb-2">Resale Not Approved</h3>
           <p className="text-gray-600 text-center">
-            This ticket's resale request has not been approved yet or has been rejected.
+            This tickets resale request has not been approved yet or has been rejected.
           </p>
         </CardContent>
       </Card>
@@ -202,8 +202,8 @@ export default function ResaleTicket({ tokenId, onResaleComplete }: ResaleTicket
               {isListed ? "Listed for Resale" : "Resale Approved"}
             </CardTitle>
             <CardDescription className={isListed ? "text-blue-700" : "text-green-700"}>
-              {isListed 
-                ? "Your ticket is now available in the resale market" 
+              {isListed
+                ? "Your ticket is now available in the resale market"
                 : "Your resale request has been approved. You can now list this ticket for resale."}
             </CardDescription>
           </div>
@@ -258,7 +258,7 @@ export default function ResaleTicket({ tokenId, onResaleComplete }: ResaleTicket
                     <li>Once listed, your ticket will be available for purchase by other users</li>
                     <li>You will receive the resale price in cUSD when sold</li>
                     <li>The transaction will be secured by the blockchain</li>
-                    <li>You can cancel the listing before it's sold</li>
+                    <li>You can cancel the listing before its sold</li>
                   </ul>
                 </div>
               </div>
@@ -275,9 +275,9 @@ export default function ResaleTicket({ tokenId, onResaleComplete }: ResaleTicket
               <div className="text-sm text-yellow-800">
                 <p className="font-medium mb-1">Listing Active:</p>
                 <p className="text-xs">
-                  Your ticket is currently listed in the resale market. 
+                  Your ticket is currently listed in the resale market.
                   Buyers can purchase it at {formatPrice(resaleRequest.price)} cUSD.
-                  You can cancel the listing anytime before it's sold.
+                  You can cancel the listing anytime before its sold.
                 </p>
               </div>
             </div>

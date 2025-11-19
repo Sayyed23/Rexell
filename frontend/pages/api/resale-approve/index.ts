@@ -1,7 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { contractAddress, rexellAbi } from '@/blockchain/abi/rexell-abi';
 import { createWalletClient, http } from 'viem';
-import { celoAlfajores } from 'viem/chains';
+import { celoSepolia } from '@/lib/celoSepolia';
 import { privateKeyToAccount } from 'viem/accounts';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -27,7 +27,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const account = privateKeyToAccount(ownerPrivateKey as `0x${string}`);
     const client = createWalletClient({
       account,
-      chain: celoAlfajores,
+      chain: celoSepolia,
       transport: http(),
     });
 

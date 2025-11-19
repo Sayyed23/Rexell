@@ -93,6 +93,11 @@ export function Header() {
             smallScreen: false,
             largeScreen: true,
           }}
+          chainStatus="icon"
+          accountStatus={{
+            smallScreen: 'avatar',
+            largeScreen: 'full',
+          }}
         />
       </div>
       <div className="mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8">
@@ -134,6 +139,11 @@ export function Header() {
                 showBalance={{
                   smallScreen: true,
                   largeScreen: true,
+                }}
+                chainStatus="icon"
+                accountStatus={{
+                  smallScreen: 'avatar',
+                  largeScreen: 'full',
                 }}
               />
             </div>

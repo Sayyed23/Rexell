@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { parseEther } from "viem";
+import { celoSepolia } from "@/lib/celoSepolia";
 
 interface UserTicket {
   tokenId: number;
@@ -36,30 +37,32 @@ export default function ResalePage() {
     args: [address as `0x${string}`],
     query: {
       enabled: isConnected,
-    }
+    },
+    chainId: celoSepolia.id,
   });
 
   // Get token IDs for the user's tickets
   const { data: tokenIdsData } = useReadContracts({
-    contracts: userTicketsData?.map((uri: string) => ({ address: contractAddress as `0x${string}`, abi: rexellAbi, functionName: 'getTokenIdByUserAndUri', args: [address as `0x${string}`, uri] })) || [],
-      address: contractAddress,
+    contracts: userTicketsData?.map((uri: string) => ({
+      address: contractAddress as `0x${string}`,
       abi: rexellAbi,
       functionName: 'getTokenIdByUserAndUri',
       args: [address as `0x${string}`, uri],
-    })) ?? [],
+      chainId: celoSepolia.id,
+    })) || [],
     query: {
       enabled: !!userTicketsData && userTicketsData.length > 0,
     }
-  });
+  } as any);
 
   // Load user tickets
   useEffect(() => {
     if (isConnected && userTicketsData && tokenIdsData) {
       const tickets: UserTicket[] = tokenIdsData
-        .map((result, index) => {
-          if (result.status === 'success' && typeof result.data === 'bigint') {
+        .map((result: any, index: number) => {
+          if (result.status === 'success' && result.result !== undefined) {
             return {
-              tokenId: Number(result.data),
+              tokenId: Number(result.result),
               eventId: 0, // You might need another contract call to get eventId from tokenId
               nftUri: userTicketsData[index],
               isListed: false, // This would require another contract call per ticket
@@ -95,14 +98,14 @@ export default function ResalePage() {
 
     try {
       setIsListing(true);
-      
+
       const priceInWei = parseEther(resalePrice);
-      
+
       const hash = await writeContractAsync({
-        address: contractAddress,
+        address: contractAddress as `0x${string}`,
         abi: rexellAbi,
         functionName: "requestResaleVerification",
-        args: [BigInt(selectedTicket), priceInWei as any],
+        args: [BigInt(selectedTicket), priceInWei],
       });
 
       if (hash) {
@@ -114,7 +117,7 @@ export default function ResalePage() {
       }
     } catch (error: any) {
       console.error("Error listing ticket:", error);
-      
+
       if (error.message && error.message.includes("Resale request already exists")) {
         toast.error("Resale request already exists for this ticket");
       } else if (error.message && error.message.includes("You are not the owner")) {
@@ -173,7 +176,7 @@ export default function ResalePage() {
               <div className="text-5xl mb-4">🎟️</div>
               <h3 className="text-xl font-semibold mb-2">No tickets found</h3>
               <p className="text-gray-600 mb-6">
-                You don't have any tickets in your collection. Purchase tickets from events to list them for resale.
+                You dontt have any tickets in your collection. Purchase tickets from events to list them for resale.
               </p>
               <Button asChild>
                 <a href="/events">Browse Events</a>
@@ -186,13 +189,12 @@ export default function ResalePage() {
               <h2 className="text-xl font-semibold mb-4">Your Tickets</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {userTickets.map((ticket) => (
-                  <Card 
-                    key={ticket.tokenId} 
-                    className={`overflow-hidden cursor-pointer transition-all ${
-                      selectedTicket === ticket.tokenId 
-                        ? "ring-2 ring-blue-500 border-blue-500" 
-                        : "hover:shadow-md"
-                    }`}
+                  <Card
+                    key={ticket.tokenId}
+                    className={`overflow-hidden cursor-pointer transition-all ${selectedTicket === ticket.tokenId
+                      ? "ring-2 ring-blue-500 border-blue-500"
+                      : "hover:shadow-md"
+                      }`}
                     onClick={() => setSelectedTicket(ticket.tokenId)}
                   >
                     <CardHeader className="p-0">
@@ -212,10 +214,16 @@ export default function ResalePage() {
                       <CardDescription className="mb-4">
                         Event ID: {ticket.eventId}
                       </CardDescription>
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         className="w-full"
                         disabled={ticket.isListed}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (!ticket.isListed) {
+                            setSelectedTicket(ticket.tokenId);
+                          }
+                        }}
                       >
                         {ticket.isListed ? "Already Listed" : "Select Ticket"}
                       </Button>
@@ -267,7 +275,7 @@ export default function ResalePage() {
                     <ul className="text-sm text-blue-700 list-disc list-inside space-y-1">
                       <li>Your ticket will be reviewed by the event organizer before listing</li>
                       <li>A 5% royalty fee will be applied to resale transactions</li>
-                      <li>You can cancel your request before it's approved</li>
+                      <li>You can cancel your request before its approved</li>
                     </ul>
                   </div>
 

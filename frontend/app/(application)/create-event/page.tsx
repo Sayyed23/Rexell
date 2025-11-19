@@ -36,7 +36,7 @@ export default function CreateEventPage() {
   const { isPending, error, writeContractAsync } = useWriteContract();
   const router = useRouter();
   const [category, setCategory] = useState("");
-  const [ invalid, setInvalid]= useState(false);
+  const [invalid, setInvalid] = useState(false);
 
   const uploadFile = async (fileToUpload: any) => {
     try {
@@ -97,14 +97,14 @@ export default function CreateEventPage() {
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-   
+
     const formData = new FormData(e.target as HTMLFormElement);
     const data = Object.fromEntries(formData.entries());
     console.log(data);
 
     const selectedDate = new Date(`${data.date}T${data.time}`);
     const currentDate = new Date();
-    console.log(`${selectedDate}, ${currentDate}`)
+    console.log(`${selectedDate}, ${currentDate}`);
 
     if (selectedDate < currentDate) {
       setTimeError(true);
@@ -112,7 +112,7 @@ export default function CreateEventPage() {
       return;
     }
     setTimeError(false);
-    
+
     if (!isConnected) {
       toast.error("Please connect your wallet");
       return;
@@ -120,7 +120,7 @@ export default function CreateEventPage() {
     if (invalid) {
       toast.error("Please upload JPG,PNG and GIF");
       return;
-    }   
+    }
     try {
       const dateObject = new Date(data.date as string);
       const dateInMilliseconds = dateObject.getTime();
@@ -143,12 +143,15 @@ export default function CreateEventPage() {
       });
       if (hash) {
         console.log(hash);
-        toast("Event has been created", {
+        toast.success("Event has been created successfully!", {
           description: `${data.date} at ${data.time}`,
         });
-        router.push("/events");
+        // Redirect to events page after successful creation
+        setTimeout(() => {
+          router.push("/events");
+        }, 2000);
       } else {
-        toast("Something happened, try again.");
+        toast.error("Something happened, try again.");
       }
     } catch (e) {
       console.log(e);
@@ -206,7 +209,6 @@ export default function CreateEventPage() {
                   onChange={(event) =>
                     setCategory((event.target as HTMLInputElement).value as string)
                   }
-                 
                 >
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
@@ -233,7 +235,7 @@ export default function CreateEventPage() {
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="time">Time</Label>
-              <Input id="time" name="time" type="time"  required />
+              <Input id="time" name="time" type="time" required />
               {timeError && <p className="text-red-500">Select a valid future time.</p>}
             </div>
 

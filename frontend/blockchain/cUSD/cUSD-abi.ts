@@ -1,4 +1,4 @@
-// cUSD Token Contract on Celo Alfajores Testnet
+// cUSD Token Contract on Celo Sepolia Testnet
 export const cUSDTokenAddress = "0x874069Fa1Eb16D44d622F2e0Ca25eeA172369bC1";
 
 export const cUSDTokenAbi = [

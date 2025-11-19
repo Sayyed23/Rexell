@@ -5,6 +5,7 @@ import { useAccount, useReadContract, useWriteContract } from "wagmi";
 import { rexellAbi, contractAddress } from "@/blockchain/abi/rexell-abi";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { celoSepolia } from "@/lib/celoSepolia";
 
 interface ResaleRequest {
   tokenId: number;
@@ -17,17 +18,18 @@ interface ResaleRequest {
 export default function ResaleApprovalDashboard({ activeTab, setActiveTab }: { activeTab: string; setActiveTab: (tab: string) => void; }) {
   const { address, isConnected } = useAccount();
   const { writeContractAsync } = useWriteContract();
-  
+
   // State for resale requests
   const [resaleRequests, setResaleRequests] = useState<ResaleRequest[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Fetch resale requests
-  const { data: userResaleRequests, refetch } = useReadContract({
+  const { data: userResaleRequests, refetch, error } = useReadContract({
     address: contractAddress,
     abi: rexellAbi,
     functionName: "getUserResaleRequests",
     args: [address as `0x${string}`],
+    chainId: celoSepolia.id,
   });
 
   // Fetch details for each resale request
@@ -48,7 +50,7 @@ export default function ResaleApprovalDashboard({ activeTab, setActiveTab }: { a
           approved: request.approved,
           rejected: request.rejected
         }));
-        
+
         setResaleRequests(requests);
       } catch (error) {
         console.error("Error fetching resale requests:", error);
@@ -64,8 +66,10 @@ export default function ResaleApprovalDashboard({ activeTab, setActiveTab }: { a
       // Reset state when disconnected
       setResaleRequests([]);
       setLoading(false);
+    } else if (error) {
+      setLoading(false);
     }
-  }, [isConnected, userResaleRequests]);
+  }, [isConnected, userResaleRequests, error]);
 
   const approveResale = async (tokenId: number) => {
     if (!isConnected) {
@@ -84,8 +88,8 @@ export default function ResaleApprovalDashboard({ activeTab, setActiveTab }: { a
       if (hash) {
         toast.success(`Resale approved for ticket #${tokenId}`);
         // Update local state
-        setResaleRequests(prev => 
-          prev.map(req => 
+        setResaleRequests(prev =>
+          prev.map(req =>
             req.tokenId === tokenId ? { ...req, approved: true } : req
           )
         );
@@ -124,8 +128,8 @@ export default function ResaleApprovalDashboard({ activeTab, setActiveTab }: { a
       if (hash) {
         toast.success(`Resale rejected for ticket #${tokenId}`);
         // Update local state
-        setResaleRequests(prev => 
-          prev.map(req => 
+        setResaleRequests(prev =>
+          prev.map(req =>
             req.tokenId === tokenId ? { ...req, rejected: true } : req
           )
         );
@@ -165,6 +169,13 @@ export default function ResaleApprovalDashboard({ activeTab, setActiveTab }: { a
 
   return (
     <>
+      {error && (
+        <div className="p-4 mb-4 text-center text-red-500 bg-red-50 rounded-lg">
+          <p>Error fetching resale requests: {error.message}</p>
+          <p className="text-sm mt-1">Please make sure you are connected to Celo Sepolia.</p>
+        </div>
+      )}
+
       {loading ? (
         <div className="text-center py-4">Loading resale requests...</div>
       ) : filteredRequests.length === 0 ? (
@@ -177,8 +188,8 @@ export default function ResaleApprovalDashboard({ activeTab, setActiveTab }: { a
             Review and manage resale requests to prevent scalping
           </p>
           {filteredRequests.map((request) => (
-            <div 
-              key={request.tokenId} 
+            <div
+              key={request.tokenId}
               className="flex items-center justify-between p-4 border rounded-lg"
             >
               <div>
@@ -192,14 +203,14 @@ export default function ResaleApprovalDashboard({ activeTab, setActiveTab }: { a
               </div>
               {activeTab === "pending" && (
                 <div className="flex space-x-2">
-                  <Button 
+                  <Button
                     onClick={() => approveResale(request.tokenId)}
                     size="sm"
                     className="bg-green-600 hover:bg-green-700"
                   >
                     Approve
                   </Button>
-                  <Button 
+                  <Button
                     onClick={() => rejectResale(request.tokenId)}
                     size="sm"
                     variant="outline"

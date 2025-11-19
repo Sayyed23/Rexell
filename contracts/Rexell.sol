@@ -261,6 +261,7 @@ contract Rexell is ERC721URIStorage, Ownable, ReentrancyGuard {
         EventView[] memory result = new EventView[](events.length);
         for (uint i = 0; i < events.length; i++) {
             Event storage _event = events[i];
+            uint averageRating = _event.ratingCount > 0 ? _event.totalRating / _event.ratingCount : 0;
             result[i] = EventView(
                 _event.id,
                 _event.organizer,
@@ -275,8 +276,7 @@ contract Rexell is ERC721URIStorage, Ownable, ReentrancyGuard {
                 _event.ipfs,
                 _event.ticketHolders,
                 _event.nftUris,
-                _event.totalRating
-            
+                averageRating
             );
         }
         return result;

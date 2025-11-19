@@ -1,5 +1,5 @@
 import { createPublicClient, createWalletClient, http, formatUnits, parseUnits } from 'viem';
-import { celoAlfajores } from 'viem/chains';
+import { celoSepolia } from './celoSepolia';
 import { rexellAbi } from "@/blockchain/abi/rexell-abi";
 
 // Contract address - should match your deployed contract
@@ -11,7 +11,7 @@ export const CONTRACT_ADDRESS = "0xc4A5985Aa3f3EAcCC99E62da9819c4e92889e0e7";
  */
 export const getPublicClient = () => {
   return createPublicClient({
-    chain: celoAlfajores,
+    chain: celoSepolia,
     transport: http(),
   });
 };
@@ -22,7 +22,7 @@ export const getPublicClient = () => {
  */
 export const getWalletClient = () => {
   return createWalletClient({
-    chain: celoAlfajores,
+    chain: celoSepolia,
     transport: http(),
   });
 };

@@ -1,7 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { contractAddress, rexellAbi } from '@/blockchain/abi/rexell-abi';
 import { createPublicClient, http } from 'viem';
-import { celoAlfajores } from 'viem/chains';
+import { celoSepolia } from '@/lib/celoSepolia';
 
 // Define the ResaleRequest type to match the Solidity struct
 type ResaleRequest = {
@@ -32,7 +32,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     // Create a public client to interact with the blockchain
     const client = createPublicClient({
-      chain: celoAlfajores,
+      chain: celoSepolia,
       transport: http(),
     });
 

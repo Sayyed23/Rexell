@@ -1,5 +1,5 @@
 import { createPublicClient, createWalletClient, custom } from "viem";
-import { celoAlfajores } from "viem/chains";
+import { celoSepolia } from "./celoSepolia";
 import {
   tokencUSDAbi,
   tokencUSDContractAddress,
@@ -14,12 +14,12 @@ export const approveTokens = async (spender: `0x${string}`, amount: bigint) => {
   // Check if we're in a browser environment and window.ethereum exists
   if (isBrowser && window.ethereum) {
     const privateClient = createWalletClient({
-      chain: celoAlfajores,
+      chain: celoSepolia,
       transport: custom(window.ethereum),
     });
 
     const publicClient = createPublicClient({
-      chain: celoAlfajores,
+      chain: celoSepolia,
       transport: custom(window.ethereum),
     });
 
@@ -71,12 +71,12 @@ export const processCheckout = async (receiver: `0x${string}`, amount: number) =
   // Check if we're in a browser environment and window.ethereum exists
   if (isBrowser && window.ethereum) {
     const privateClient = createWalletClient({
-      chain: celoAlfajores,
+      chain: celoSepolia,
       transport: custom(window.ethereum),
     });
 
     const publicClient = createPublicClient({
-      chain: celoAlfajores,
+      chain: celoSepolia,
       transport: custom(window.ethereum),
     });
 

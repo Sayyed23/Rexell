@@ -4,16 +4,19 @@ import {
   RainbowKitProvider,
   connectorsForWallets,
 } from "@rainbow-me/rainbowkit";
-import { injectedWallet } from "@rainbow-me/rainbowkit/wallets";
+import { metaMaskWallet } from "@rainbow-me/rainbowkit/wallets";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { WagmiProvider, createConfig, http } from "wagmi";
-import { celo, celoAlfajores } from "wagmi/chains";
+import { celo } from "wagmi/chains";
+import { celoSepolia } from "@/lib/celoSepolia";
 
 const connectors = connectorsForWallets(
   [
     {
       groupName: "Recommended",
-      wallets: [injectedWallet],
+      wallets: [
+        metaMaskWallet,
+      ],
     },
   ],
   {
@@ -25,11 +28,12 @@ const connectors = connectorsForWallets(
 const config = createConfig({
   connectors,
   // chains: [celoAlfajores],
-  chains: [celo , celoAlfajores],
+  chains: [celo, celoSepolia],
   transports: {
     [celo.id]: http(),
-    [celoAlfajores.id]: http(),
+    [celoSepolia.id]: http(),
   },
+  multiInjectedProviderDiscovery: false, // This can help with MetaMask connection issues
 });
 
 export function BlockchainProviders({
@@ -42,7 +46,9 @@ export function BlockchainProviders({
   return (
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
-        <RainbowKitProvider>{children}</RainbowKitProvider>
+        <RainbowKitProvider>
+          {children}
+        </RainbowKitProvider>
       </QueryClientProvider>
     </WagmiProvider>
   );

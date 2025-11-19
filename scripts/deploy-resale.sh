@@ -34,7 +34,7 @@ echo "✅ Compilation successful"
 echo ""
 
 # Step 2: Deploy to testnet
-echo "Step 2: Deploying to Celo Alfajores testnet..."
+echo "Step 2: Deploying to Celo Sepolia testnet..."
 echo "⚠️  Make sure you have:"
 echo "  - CELO tokens in your deployer wallet for gas"
 echo "  - Private key set in .env file"
@@ -42,7 +42,7 @@ echo ""
 read -p "Press Enter to continue with deployment, or Ctrl+C to cancel..."
 
 # Deploy the contract
-npx hardhat run scripts/deploy.ts --network alfajores
+npx hardhat run scripts/deploy.ts --network Sepolia
 
 if [ $? -ne 0 ]; then
     echo "❌ Deployment failed. Please check your configuration and try again."
@@ -75,26 +75,32 @@ echo "========================================="
 echo "✅ Deployment Complete!"
 echo "========================================="
 echo ""
+
 echo "📝 Next Steps:"
 echo "  1. Test resale request flow:"
 echo "     - Buy a ticket"
 echo "     - Request resale verification"
 echo "     - Check status updates"
 echo ""
+
 echo "  2. Test organizer dashboard:"
 echo "     - Visit /owner/resale-requests as event organizer"
 echo "     - Approve/reject resale requests"
 echo ""
+
 echo "  3. Test market purchase:"
 echo "     - Visit /market page"
 echo "     - Purchase an approved resale ticket"
 echo "     - Verify cUSD payment and ownership transfer"
 echo ""
+
 echo "  4. Verify events on blockchain explorer:"
-echo "     - https://alfajores.celoscan.io/"
+echo "     - https://Sepolia.celoscan.io/"
 echo ""
+
 echo "📖 For detailed documentation, see:"
 echo "  - /app/RESALE_IMPLEMENTATION.md"
 echo "  - /app/RESALE_ROYALTY_HISTORY.md"
 echo ""
+
 echo "🎉 Happy reselling!"

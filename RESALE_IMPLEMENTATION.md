@@ -165,7 +165,7 @@ event TicketCancelled(uint256 indexed tokenId, address indexed owner);
 npx hardhat compile
 
 # Deploy to Celo Alfajores testnet
-npx hardhat run scripts/deploy.ts --network alfajores
+npx hardhat run scripts/deploy.ts --network Sepolia
 
 # Note the deployed contract address
 ```

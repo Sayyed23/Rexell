@@ -39,7 +39,7 @@ export default function OwnershipHistoryPage() {
       const history: OwnershipRecord[] = (historyData as string[]).map((owner: string) => ({
         owner,
       }));
-      
+
       setOwnershipHistory(history);
       setLoading(false);
     } else if (!isHistoryPending && id) {
@@ -98,7 +98,7 @@ export default function OwnershipHistoryPage() {
           <CardContent className="text-center py-8">
             <div className="text-5xl mb-4">🎟️</div>
             <p className="text-gray-600 mb-6">
-              The ticket you're looking for could not be found.
+              The ticket youre looking for could not be found.
             </p>
             <Button asChild>
               <a href="/market">Browse Marketplace</a>
@@ -137,7 +137,7 @@ export default function OwnershipHistoryPage() {
 
             <div className="space-y-4">
               <h3 className="text-lg font-semibold">Ownership Timeline</h3>
-              
+
               {ownershipHistory.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
                   No ownership history available for this ticket
@@ -147,11 +147,10 @@ export default function OwnershipHistoryPage() {
                   {ownershipHistory.map((record, index) => (
                     <div key={index} className="flex items-start">
                       <div className="flex flex-col items-center mr-4">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                          index === 0 
-                            ? "bg-green-500 text-white" 
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${index === 0
+                            ? "bg-green-500 text-white"
                             : "bg-blue-500 text-white"
-                        }`}>
+                          }`}>
                           {index === 0 ? "1" : index + 1}
                         </div>
                         {index < ownershipHistory.length - 1 && (
@@ -175,7 +174,7 @@ export default function OwnershipHistoryPage() {
             <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
               <h3 className="font-medium text-blue-800 mb-2">Transparency Information</h3>
               <p className="text-sm text-blue-700">
-                This ownership history is stored on the blockchain and cannot be altered. 
+                This ownership history is stored on the blockchain and cannot be altered.
                 It provides transparency for all ticket transfers and helps prevent fraud.
               </p>
             </div>

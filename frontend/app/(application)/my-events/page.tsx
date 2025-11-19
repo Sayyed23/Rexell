@@ -17,6 +17,7 @@ import { convertDateFromMilliseconds } from "@/lib/utils";
 import { CalendarIcon, MapPinIcon, UserIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Header } from "@/components/header";
+import { celoSepolia } from "@/lib/celoSepolia";
 
 export default function MyEventsPage() {
   const { address, isConnected } = useAccount();
@@ -30,6 +31,7 @@ export default function MyEventsPage() {
     abi: rexellAbi,
     functionName: "getEventsByOrganizer",
     args: [address!!],
+    chainId: celoSepolia.id,
   });
 
   const [isMounted, setIsMounted] = useState(false);
@@ -57,15 +59,15 @@ export default function MyEventsPage() {
         )}
 
         {error && (
-          <div className="flex h-screen items-center justify-center">
-            <p>
-              Error fetching events, connect wallet if not connected and try
-              again
+          <div className="flex h-screen flex-col items-center justify-center space-y-4">
+            <p className="text-red-500">
+              Error fetching events: {error.message}
             </p>
+            <p>Please make sure you are connected to Celo Sepolia.</p>
           </div>
         )}
 
-        {events?.length === 0 && (
+        {!error && events?.length === 0 && (
           <div className="flex h-screen items-center justify-center">
             <p>You have not created any event yet</p>
           </div>
