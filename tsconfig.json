@@ -6,9 +6,15 @@
     "forceConsistentCasingInFileNames": true,
     "strict": true,
     "skipLibCheck": true,
-    "resolveJsonModule": true,
-    "types": ["node", "mocha", "chai"]
+    "resolveJsonModule": true
   },
-  "include": ["./test", "./scripts", "./deploy.ts", "./typechain-types", "./hardhat.d.ts"],
-  "exclude": ["./frontend"]
+  "include": [
+    "./test",
+    "./scripts",
+    "./deploy.ts",
+    "./typechain-types"
+  ],
+  "exclude": [
+    "./frontend"
+  ]
 }

@@ -1,6 +1,11 @@
 {
   "compilerOptions": {
-    "lib": ["dom", "dom.iterable", "es2020"],
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "es2020"
+    ],
+    "target": "es2020",
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
@@ -18,9 +23,19 @@
       }
     ],
     "paths": {
-      "@/*": ["./*"]
+      "@/*": [
+        "./*"
+      ]
     }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "lib/buy-ticket.ts"],
-  "exclude": ["node_modules"]
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    "lib/buy-ticket.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
 }

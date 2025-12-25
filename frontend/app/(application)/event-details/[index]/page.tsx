@@ -12,6 +12,10 @@ import {
   rexellAbi,
   contractAddress,
 } from "@/blockchain/abi/rexell-abi";
+import {
+  tokencUSDAbi,
+  tokencUSDContractAddress,
+} from "@/blockchain/cUSD/TokenCusd";
 import { Header } from "@/components/header";
 import { Button } from "@/components/shared/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -61,6 +65,17 @@ export default function EventDetailsPage({
     args: [BigInt(params.index)],
     chainId: celoSepolia.id,
   });
+
+  const { data: cUSDBalance } = useReadContract({
+    address: tokencUSDContractAddress,
+    abi: tokencUSDAbi,
+    functionName: "balanceOf",
+    args: [address as `0x${string}`],
+    query: {
+      enabled: !!address,
+    },
+  });
+
   console.log(event);
 
   const {
@@ -141,9 +156,16 @@ export default function EventDetailsPage({
       return;
     }
 
+    const price = event?.[7] ? BigInt(event[7]) : 0n;
+    const totalCost = price * BigInt(ticketQuantity);
+
+    if (!free && cUSDBalance !== undefined && cUSDBalance < totalCost) {
+      toast.error(`Insufficient cUSD balance. You need ${Number(totalCost) / 10 ** 18} cUSD.`);
+      return;
+    }
+
     try {
       setProcessing(true);
-      const totalCost = Number(event?.[7]) * ticketQuantity;
 
       // For free tickets, we don't need payment
       let paid = true;
@@ -154,7 +176,7 @@ export default function EventDetailsPage({
         const { approveTokens } = await import("@/lib/TokenFuction");
 
         // Approve the contract to spend the required amount
-        paid = await approveTokens(contractAddress, BigInt(totalCost));
+        paid = await approveTokens(contractAddress, totalCost);
       }
 
       if (paid) {
@@ -216,7 +238,14 @@ export default function EventDetailsPage({
                 body: data,
               });
 
+              if (!res.ok) {
+                throw new Error(`Failed to upload ticket image to IPFS: ${res.statusText}`);
+              }
+
               const resData = await res.json();
+              if (!resData.IpfsHash) {
+                throw new Error("Failed to retrieve IPFS Hash from upload response.");
+              }
               nftUris.push(resData.IpfsHash);
             }
 
@@ -283,7 +312,14 @@ export default function EventDetailsPage({
               body: data,
             });
 
+            if (!res.ok) {
+              throw new Error(`Failed to upload ticket image to IPFS: ${res.statusText}`);
+            }
+
             const resData = await res.json();
+            if (!resData.IpfsHash) {
+              throw new Error("Failed to retrieve IPFS Hash from upload response.");
+            }
             setCid(resData.IpfsHash);
 
             const hash = await writeContractAsync({
@@ -299,15 +335,15 @@ export default function EventDetailsPage({
               router.push(`/tickets/${event?.[0]}`);
             }
           }
-        } catch (error) {
-          toast.error("Minting Ticket NFT failed!");
-          console.log(error);
+        } catch (error: any) {
+          toast.error(`Minting Ticket NFT failed: ${error.message || error}`);
+          console.error("Minting error:", error);
           return;
         } finally {
           setIsUploading(false);
         }
       } else {
-        toast.error(`Failed to approve payment of ${totalCost / 10 ** 18} cUSD`);
+        toast.error(`Failed to approve payment of ${Number(totalCost) / 10 ** 18} cUSD`);
       }
     } catch (error) {
       console.log(error);
