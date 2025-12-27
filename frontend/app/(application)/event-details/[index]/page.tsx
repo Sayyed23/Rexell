@@ -23,7 +23,7 @@ import { convertDateFromMilliseconds } from "@/lib/utils";
 import { toast } from "sonner";
 import { generateTicketImage } from "@/components/shared/Ticket";
 import Comment from "@/components/Comment";
-import { celoSepolia } from "@/lib/celoSepolia";
+import { celoSepolia } from '@/lib/celoSepolia';
 
 interface Comment {
   commenter: string;
@@ -55,7 +55,7 @@ export default function EventDetailsPage({
   const [ticketQuantity, setTicketQuantity] = useState(1);
 
   const {
-    data: event,
+    data: eventData,
     isPending,
     error,
   } = useReadContract({
@@ -65,6 +65,8 @@ export default function EventDetailsPage({
     args: [BigInt(params.index)],
     chainId: celoSepolia.id,
   });
+
+  const event = eventData as any;
 
   const { data: cUSDBalance } = useReadContract({
     address: tokencUSDContractAddress,
@@ -95,7 +97,7 @@ export default function EventDetailsPage({
     }
     if (event?.[13]) {
       setComments(
-        event[13].map((comment) => ({
+        event[13].map((comment: any) => ({
           commenter: comment.commenter.toString(),
           text: comment.text,
           timestamp: Number(comment.timestamp),
@@ -109,7 +111,7 @@ export default function EventDetailsPage({
     }
 
     if (event?.[5]) {
-      if (Date.now() > Number(event?.[5])) {
+      if (Date.now() > Number(event?.[5]) * 1000) {
         setPassed(true);
       }
     }
@@ -195,7 +197,7 @@ export default function EventDetailsPage({
               // Generate the ticket image
               const nftImage = await generateTicketImage({
                 eventName: event?.[2],
-                date: new Date(Number(event?.[5])).toLocaleDateString("en-US", {
+                date: new Date(Number(event?.[5]) * 1000).toLocaleDateString("en-US", {
                   day: "2-digit",
                   month: "short",
                   year: "numeric",
@@ -269,7 +271,7 @@ export default function EventDetailsPage({
             // Generate the ticket image
             const nftImage = await generateTicketImage({
               eventName: event?.[2],
-              date: new Date(Number(event?.[5])).toLocaleDateString("en-US", {
+              date: new Date(Number(event?.[5]) * 1000).toLocaleDateString("en-US", {
                 day: "2-digit",
                 month: "short",
                 year: "numeric",
@@ -437,7 +439,7 @@ export default function EventDetailsPage({
                 <div className="flex items-center space-x-4 text-gray-600">
                   <div className="flex items-center space-x-1">
                     <CalendarRange className="h-5 w-5" />
-                    <p>{convertDateFromMilliseconds(Number(event?.[5]))}</p>
+                    <p>{convertDateFromMilliseconds(Number(event?.[5]) * 1000)}</p>
                   </div>
                   <div className="flex items-center space-x-1">
                     <MapPin className="h-5 w-5" />

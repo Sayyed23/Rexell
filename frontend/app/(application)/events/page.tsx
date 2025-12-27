@@ -1,5 +1,7 @@
 "use client";
 
+
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useReadContract, useAccount } from "wagmi";
@@ -9,18 +11,18 @@ import {
   rexellAbi,
   contractAddress,
 } from "@/blockchain/abi/rexell-abi";
+
 import { Skeleton } from "@/components/ui/skeleton";
 import { convertDateFromMilliseconds } from "@/lib/utils";
-import { Header } from "@/components/header";
-import { useEffect, useState } from "react";
 import { celoSepolia } from "@/lib/celoSepolia";
+import { Header } from "@/components/header";
 
 export default function EventsPage() {
   const { address, isConnected } = useAccount();
   const [isClient, setIsClient] = useState(false);
 
   const { data, isPending, error, refetch } = useReadContract({
-    address: contractAddress,
+    address: contractAddress as `0x${string}`,
     abi: rexellAbi,
     functionName: "getAllEvents",
     chainId: celoSepolia.id,
@@ -128,7 +130,7 @@ export default function EventsPage() {
                       <Link href={`/event-details/${index}`} key={index}>
                         <div className="event-card overflow-hidden rounded-lg bg-white shadow-lg transition-shadow duration-300 hover:shadow-2xl relative">
                           {/* Display "Ended" only when the event date has passed */}
-                          {Date.now() > Number(event.date) && (
+                          {Date.now() > Number(event.date) * 1000 && (
                             <div className="absolute top-0 left-0 right-0 bottom-0 flex items-center justify-center bg-black bg-opacity-50 text-white text-xl font-semibold z-10">
                               Ended
                             </div>
@@ -164,7 +166,7 @@ export default function EventsPage() {
                                 <div className="flex items-center space-x-2">
                                   <Calendar className="h-5 w-5 text-gray-500" />
                                   <p className="text-gray-500">
-                                    {convertDateFromMilliseconds(Number(event.date))}
+                                    {convertDateFromMilliseconds(Number(event.date) * 1000)}
                                   </p>
                                 </div>
                               </div>
@@ -177,7 +179,7 @@ export default function EventsPage() {
                                 <div className="flex items-center space-x-2">
                                   <Ticket className="h-5 w-5 text-gray-500" />
                                   <p className="text-gray-500">
-                                    {Date.now() > Number(event.date) ? "--" : `${Number(event.ticketsAvailable)}`}
+                                    {Date.now() > Number(event.date) * 1000 ? "--" : `${Number(event.ticketsAvailable)}`}
                                   </p>
                                 </div>
                               </div>

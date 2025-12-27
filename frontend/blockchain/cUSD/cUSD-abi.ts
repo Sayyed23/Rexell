@@ -1,5 +1,5 @@
 // cUSD Token Contract on Celo Sepolia Testnet
-export const cUSDTokenAddress = "0xA99dC247d6b7B2E3ab48a1fEE101b83cD6aCd82a";
+export const cUSDTokenAddress = "0xa513E6E4b8f2a923D98304ec87F64353C4D5C853";
 
 export const cUSDTokenAbi = [
   {

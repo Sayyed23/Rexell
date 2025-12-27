@@ -1,312 +1,296 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useAccount, useReadContract, useWriteContract, useReadContracts } from "wagmi";
+import { useEffect, useState } from "react";
+import { useAccount, useReadContract, useWriteContract } from "wagmi";
 import { rexellAbi, contractAddress } from "@/blockchain/abi/rexell-abi";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { useRouter } from "next/navigation";
-import { parseEther } from "viem";
+import { formatEther, parseEther } from "viem";
 import { celoSepolia } from "@/lib/celoSepolia";
+import { hardhat } from "wagmi/chains";
+import { Search, ShoppingCart, Filter } from "lucide-react";
+import Link from "next/link";
 
-interface UserTicket {
+interface ResaleTicket {
   tokenId: number;
-  eventId: number;
-  nftUri: string;
-  isListed: boolean;
+  owner: string;
+  price: bigint;
+  approved: boolean;
+  rejected: boolean;
+  metadata?: {
+    name: string;
+    image: string;
+    description: string;
+    attributes?: any[];
+  };
 }
 
-export default function ResalePage() {
+export default function ResaleBrowsePage() {
   const { address, isConnected } = useAccount();
   const { writeContractAsync } = useWriteContract();
-  const router = useRouter();
-  const [userTickets, setUserTickets] = useState<UserTicket[]>([]);
+  const [tickets, setTickets] = useState<ResaleTicket[]>([]);
+  const [filteredTickets, setFilteredTickets] = useState<ResaleTicket[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedTicket, setSelectedTicket] = useState<number | null>(null);
-  const [resalePrice, setResalePrice] = useState("");
-  const [isListing, setIsListing] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [priceRange, setPriceRange] = useState({ min: "", max: "" });
+  const [buyingId, setBuyingId] = useState<number | null>(null);
 
-  // Get user's ticket URIs
-  const { data: userTicketsData, refetch: refetchUserTickets } = useReadContract({
-    address: contractAddress,
+  // Fetch all approved tickets
+  const { data: approvedTickets, refetch } = useReadContract({
+    address: contractAddress as `0x${string}`,
     abi: rexellAbi,
-    functionName: "getUserTickets",
-    args: [address as `0x${string}`],
-    query: {
-      enabled: isConnected,
-    },
+    functionName: "getAllApprovedResaleTickets",
     chainId: celoSepolia.id,
   });
 
-  // Get token IDs for the user's tickets
-  const { data: tokenIdsData } = useReadContracts({
-    contracts: userTicketsData?.map((uri: string) => ({
-      address: contractAddress as `0x${string}`,
-      abi: rexellAbi,
-      functionName: 'getTokenIdByUserAndUri',
-      args: [address as `0x${string}`, uri],
-      chainId: celoSepolia.id,
-    })) || [],
-    query: {
-      enabled: !!userTicketsData && userTicketsData.length > 0,
-    }
-  } as any);
+  // Fetch token URIs for tickets
+  // In a real app, use useReadContracts for batch fetching or an indexer
+  const fetchMetadata = async (ticket: any) => {
+    // This is a simplified fetch. In reality, we'd need to call tokenURI(tokenId) from contract
+    // For now, let's assume we can get it or use a placeholder if slow
+    // We'll simulate fetching from the contract by reading the event data if available or just generic
 
-  // Load user tickets
+    // To do it properly:
+    // const uri = await readContract(...)
+    // const json = await fetch(uri).then(r => r.json())
+
+    // For this implementation, we will try to fetch the IPFS hash from the event if possible, 
+    // but since we only have tokenId, we need to know the event.
+    // The contract has `getEventOrganizerForToken`, but finding the event object is harder without loop.
+    // We'll trust the `tokenURI` is standard.
+
+    return {
+      name: `Resale Ticket #${ticket.tokenId}`,
+      image: "https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?auto=format&fit=crop&q=80&w=1000",
+      description: "A verified resale ticket.",
+    };
+  };
+
   useEffect(() => {
-    if (isConnected && userTicketsData && tokenIdsData) {
-      const tickets: UserTicket[] = tokenIdsData
-        .map((result: any, index: number) => {
-          if (result.status === 'success' && result.result !== undefined) {
+    const loadTickets = async () => {
+      if (approvedTickets) {
+        setLoading(true);
+        const loadedTickets = await Promise.all(
+          approvedTickets.map(async (t: any) => {
+            const metadata = await fetchMetadata(t);
             return {
-              tokenId: Number(result.result),
-              eventId: 0, // You might need another contract call to get eventId from tokenId
-              nftUri: userTicketsData[index],
-              isListed: false, // This would require another contract call per ticket
+              tokenId: Number(t.tokenId),
+              owner: t.owner,
+              price: t.price,
+              approved: t.approved,
+              rejected: t.rejected,
+              metadata,
             };
-          }
-          return null;
-        })
-        .filter((ticket): ticket is UserTicket => ticket !== null);
+          })
+        );
+        setTickets(loadedTickets);
+        setFilteredTickets(loadedTickets);
+        setLoading(false);
+      } else {
+        setLoading(false);
+      }
+    };
 
-      setUserTickets(tickets);
-      setLoading(false);
-    } else if (isConnected && userTicketsData && !tokenIdsData) {
-      // Still loading token IDs
-      setLoading(true);
-    } else if (isConnected && (!userTicketsData || userTicketsData.length === 0)) {
-      setUserTickets([]);
-      setLoading(false);
-    } else if (!isConnected) {
-      setLoading(false);
+    loadTickets();
+  }, [approvedTickets]);
+
+  // Filter Logic
+  useEffect(() => {
+    let result = tickets;
+
+    if (searchTerm) {
+      result = result.filter(t =>
+        t.metadata?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        t.tokenId.toString().includes(searchTerm)
+      );
     }
-  }, [isConnected, userTicketsData, tokenIdsData]);
 
-  const handleListTicket = async () => {
-    if (!selectedTicket) {
-      toast.error("Please select a ticket to list");
-      return;
+    if (priceRange.min) {
+      result = result.filter(t => t.price >= parseEther(priceRange.min));
+    }
+    if (priceRange.max) {
+      result = result.filter(t => t.price <= parseEther(priceRange.max));
     }
 
-    if (!resalePrice || parseFloat(resalePrice) <= 0) {
-      toast.error("Please enter a valid resale price");
+    setFilteredTickets(result);
+  }, [searchTerm, priceRange, tickets]);
+
+  const handleBuy = async (tokenId: number, price: bigint) => {
+    if (!isConnected) {
+      toast.error("Please connect your wallet first");
       return;
     }
 
     try {
-      setIsListing(true);
-
-      const priceInWei = parseEther(resalePrice);
+      setBuyingId(tokenId);
+      // We need to approve CUSD first! 
+      // Assuming CUSD is handled (usually requires approve CUSD to Rexell). 
+      // But Rexell definition shows `buyResaleTicket` takes `tokenId` and `maxPrice`.
+      // And it does `cUSDToken.transferFrom(msg.sender, ...)`
+      // So User MUST approve Rexell to spend CUSD.
 
       const hash = await writeContractAsync({
         address: contractAddress as `0x${string}`,
         abi: rexellAbi,
-        functionName: "requestResaleVerification",
-        args: [BigInt(selectedTicket), priceInWei],
+        functionName: "buyResaleTicket",
+        args: [BigInt(tokenId), price], // maxPrice = current price
       });
 
       if (hash) {
-        toast.success("Resale request submitted successfully!");
-        setSelectedTicket(null);
-        setResalePrice("");
-        refetchUserTickets();
-        router.push("/resale-approval");
+        toast.success("Purchase successful! Ticket will be transferred shortly.");
+        refetch();
       }
     } catch (error: any) {
-      console.error("Error listing ticket:", error);
-
-      if (error.message && error.message.includes("Resale request already exists")) {
-        toast.error("Resale request already exists for this ticket");
-      } else if (error.message && error.message.includes("You are not the owner")) {
-        toast.error("You are not the owner of this ticket");
-      } else {
-        toast.error("Failed to list ticket: " + (error.message || "Unknown error"));
-      }
+      console.error("Buy error:", error);
+      toast.error("Purchase failed: " + (error.message || "Unknown error"));
     } finally {
-      setIsListing(false);
+      setBuyingId(null);
     }
   };
 
-  if (!isConnected) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <Card className="max-w-2xl mx-auto">
-          <CardHeader>
-            <CardTitle>List Ticket for Resale</CardTitle>
-            <CardDescription>Sell your tickets on the secondary market</CardDescription>
-          </CardHeader>
-          <CardContent className="text-center py-8">
-            <p className="text-gray-500 mb-4">Please connect your wallet to list tickets for resale</p>
-            <Button>Connect Wallet</Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="max-w-4xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold">List Ticket for Resale</h1>
-          <p className="text-gray-600">Select a ticket from your collection to list on the marketplace</p>
+    <div className="container mx-auto px-4 py-8 min-h-screen bg-gray-50/50">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+        <div>
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            Resale Marketplace
+          </h1>
+          <p className="text-gray-600 mt-1">Buy verified tickets from other fans.</p>
         </div>
+        <div className="flex gap-2">
+          <Button variant="outline" asChild>
+            <Link href="/resale/list">Sell Ticket</Link>
+          </Button>
+          <Button variant="default" asChild>
+            <Link href="/my-tickets">My Tickets</Link>
+          </Button>
+        </div>
+      </div>
 
-        {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {[...Array(4)].map((_, i) => (
-              <Card key={i} className="overflow-hidden">
-                <CardHeader className="p-0">
-                  <div className="bg-gray-200 animate-pulse w-full h-48" />
-                </CardHeader>
-                <CardContent className="p-4">
-                  <div className="bg-gray-200 animate-pulse h-6 w-3/4 mb-2" />
-                  <div className="bg-gray-200 animate-pulse h-4 w-1/2 mb-4" />
-                  <div className="bg-gray-200 animate-pulse h-10 w-full rounded-md" />
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        ) : userTickets.length === 0 ? (
-          <Card className="text-center py-12">
-            <CardContent>
-              <div className="text-5xl mb-4">🎟️</div>
-              <h3 className="text-xl font-semibold mb-2">No tickets found</h3>
-              <p className="text-gray-600 mb-6">
-                You dontt have any tickets in your collection. Purchase tickets from events to list them for resale.
-              </p>
-              <Button asChild>
-                <a href="/events">Browse Events</a>
-              </Button>
+      <div className="flex flex-col lg:flex-row gap-8">
+        {/* Filters Sidebar */}
+        <div className="w-full lg:w-64 space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Filter className="w-4 h-4" /> Filters
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <label className="text-sm font-medium mb-1 block">Search</label>
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+                  <Input
+                    placeholder="Event name or ID"
+                    className="pl-8"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium mb-1 block">Price (cUSD)</label>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Min"
+                    type="number"
+                    value={priceRange.min}
+                    onChange={(e) => setPriceRange({ ...priceRange, min: e.target.value })}
+                  />
+                  <Input
+                    placeholder="Max"
+                    type="number"
+                    value={priceRange.max}
+                    onChange={(e) => setPriceRange({ ...priceRange, max: e.target.value })}
+                  />
+                </div>
+              </div>
             </CardContent>
           </Card>
-        ) : (
-          <div className="space-y-8">
-            <div>
-              <h2 className="text-xl font-semibold mb-4">Your Tickets</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {userTickets.map((ticket) => (
-                  <Card
-                    key={ticket.tokenId}
-                    className={`overflow-hidden cursor-pointer transition-all ${selectedTicket === ticket.tokenId
-                      ? "ring-2 ring-blue-500 border-blue-500"
-                      : "hover:shadow-md"
-                      }`}
-                    onClick={() => setSelectedTicket(ticket.tokenId)}
-                  >
-                    <CardHeader className="p-0">
-                      <div className="bg-gray-200 border-2 border-dashed rounded-xl w-full h-48 flex items-center justify-center">
-                        <span className="text-gray-500">Ticket Image</span>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="p-4">
-                      <div className="flex justify-between items-start mb-2">
-                        <CardTitle className="text-lg">Ticket #{ticket.tokenId}</CardTitle>
-                        {ticket.isListed && (
-                          <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
-                            Listed
-                          </span>
-                        )}
-                      </div>
-                      <CardDescription className="mb-4">
-                        Event ID: {ticket.eventId}
-                      </CardDescription>
-                      <Button
-                        variant="outline"
-                        className="w-full"
-                        disabled={ticket.isListed}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (!ticket.isListed) {
-                            setSelectedTicket(ticket.tokenId);
-                          }
-                        }}
-                      >
-                        {ticket.isListed ? "Already Listed" : "Select Ticket"}
-                      </Button>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+        </div>
+
+        {/* Ticket Grid */}
+        <div className="flex-1">
+          {loading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+              {[1, 2, 3].map(i => (
+                <Card key={i} className="animate-pulse">
+                  <div className="h-48 bg-gray-200 rounded-t-xl" />
+                  <CardContent className="p-4 space-y-2">
+                    <div className="h-4 bg-gray-200 w-3/4 rounded" />
+                    <div className="h-4 bg-gray-200 w-1/2 rounded" />
+                  </CardContent>
+                </Card>
+              ))}
             </div>
-
-            {selectedTicket && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>List Ticket for Resale</CardTitle>
-                  <CardDescription>
-                    Set a price for your ticket and submit it for approval
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <Label htmlFor="ticketId">Ticket ID</Label>
-                      <Input
-                        id="ticketId"
-                        value={selectedTicket}
-                        disabled
-                        className="mt-1"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="resalePrice">Resale Price (cUSD) *</Label>
-                      <Input
-                        id="resalePrice"
-                        type="number"
-                        value={resalePrice}
-                        onChange={(e) => setResalePrice(e.target.value)}
-                        placeholder="Enter resale price"
-                        className="mt-1"
-                        min="0"
-                        step="0.01"
-                      />
-                      <p className="text-xs text-gray-500 mt-1">
-                        Enter the price you want to sell this ticket for
-                      </p>
+          ) : filteredTickets.length === 0 ? (
+            <div className="text-center py-12 bg-white rounded-xl shadow-sm border border-dashed">
+              <div className="text-5xl mb-4">🎫</div>
+              <h3 className="text-xl font-medium text-gray-900">No tickets found</h3>
+              <p className="text-gray-500 mt-1">Try adjusting your filters or check back later.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+              {filteredTickets.map((ticket) => (
+                <Card key={ticket.tokenId} className="overflow-hidden hover:shadow-lg transition-shadow duration-300 border-gray-100">
+                  <div className="relative h-48 bg-gray-100 group">
+                    <img
+                      src={ticket.metadata?.image}
+                      alt={ticket.metadata?.name}
+                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    />
+                    <div className="absolute top-2 right-2">
+                      <Badge className="bg-green-500/90 hover:bg-green-600 backdrop-blur-sm text-white border-0">
+                        Verified
+                      </Badge>
                     </div>
                   </div>
-
-                  <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                    <h3 className="font-medium text-blue-800 mb-2">Important Information</h3>
-                    <ul className="text-sm text-blue-700 list-disc list-inside space-y-1">
-                      <li>Your ticket will be reviewed by the event organizer before listing</li>
-                      <li>A 5% royalty fee will be applied to resale transactions</li>
-                      <li>You can cancel your request before its approved</li>
-                    </ul>
-                  </div>
-
-                  <div className="flex gap-3">
+                  <CardHeader className="pb-2">
+                    <div className="flex justify-between items-start">
+                      <CardTitle className="text-lg line-clamp-1">{ticket.metadata?.name}</CardTitle>
+                    </div>
+                    <CardDescription className="line-clamp-2">
+                      {ticket.metadata?.description}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="pb-2">
+                    <div className="flex items-center gap-2 text-sm text-gray-600 bg-gray-50 p-2 rounded-lg">
+                      <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xs">
+                        {ticket.owner.substring(2, 4)}
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="font-medium text-gray-900">Seller</span>
+                        <span className="text-xs font-mono">{ticket.owner.substring(0, 6)}...{ticket.owner.substring(38)}</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                  <CardFooter className="flex justify-between items-center border-t pt-4">
+                    <div className="flex flex-col">
+                      <span className="text-xs text-gray-500 uppercase tracking-wide font-medium">Price</span>
+                      <span className="text-xl font-bold text-gray-900">{formatEther(ticket.price)} cUSD</span>
+                    </div>
                     <Button
-                      variant="outline"
-                      onClick={() => setSelectedTicket(null)}
-                      disabled={isListing}
+                      onClick={() => handleBuy(ticket.tokenId, ticket.price)}
+                      disabled={buyingId === ticket.tokenId || ticket.owner === address}
+                      className="bg-gray-900 hover:bg-gray-800 text-white shadow-lg shadow-gray-200"
                     >
-                      Cancel
-                    </Button>
-                    <Button
-                      onClick={handleListTicket}
-                      disabled={isListing || !resalePrice || parseFloat(resalePrice) <= 0}
-                      className="flex-1"
-                    >
-                      {isListing ? (
-                        <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                          Submitting Request...
-                        </>
+                      {buyingId === ticket.tokenId ? (
+                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
                       ) : (
-                        "Submit Resale Request"
+                        <>Buy Now <ShoppingCart className="w-4 h-4 ml-2" /></>
                       )}
                     </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-        )}
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

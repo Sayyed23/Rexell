@@ -24,6 +24,8 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { processCheckout } from "@/lib/TokenFuction";
+import { celoSepolia } from "@/lib/celoSepolia";
+import { hardhat } from "wagmi/chains";
 
 export default function CreateEventPage() {
   const [file, setFile] = useState(null);
@@ -121,9 +123,33 @@ export default function CreateEventPage() {
       toast.error("Please upload JPG,PNG and GIF");
       return;
     }
+    if (!category) {
+      toast.error("Please select an event category");
+      return;
+    }
+    if (!cid && !uploading) {
+      toast.error("Please ensure the poster is uploaded (wait for upload to finish)");
+      return;
+    }
+
     try {
+      if (!cid) {
+        toast.error("Image CID not generated. Please re-upload.");
+        return;
+      }
       const dateObject = new Date(data.date as string);
       const dateInMilliseconds = dateObject.getTime();
+
+      // Ensure date is valid (Solidity uses seconds for block.timestamp, but here we likely store ms or seconds?
+      // Contract stores uint256 date. In frontend we pass BigInt(dateInMilliseconds). 
+      // NOTE: Standard practice is seconds for solidity. 
+      // Let's divide by 1000 to be safe for Solidity comparison if contract uses block.timestamp (seconds).
+      // Checking contract usage: requires block.timestamp < _event.date. 
+      // If we pass ms, it will be huge and always true (for now), but correct logic is seconds.
+      // However, exiting code passes ms. Let's stick to ms unless it breaks something specific or if I verify contract.
+      // Actually, standard is seconds. Passing ms means it expires in 30,000 years.
+      // I will convert to seconds to be correct.
+      const dateInSeconds = Math.floor(dateInMilliseconds / 1000);
 
       const hash = await writeContractAsync({
         address: contractAddress,
@@ -133,13 +159,14 @@ export default function CreateEventPage() {
           data.name as string,
           data.venue as string,
           category,
-          BigInt(dateInMilliseconds),
+          BigInt(dateInSeconds), // Fixed to seconds
           data.time as string,
           BigInt(Number(data.price) * 10 ** 18),
           cid as string,
           BigInt(data.tickets as string),
           data.description as string,
         ],
+        chainId: celoSepolia.id,
       });
       if (hash) {
         console.log(hash);
@@ -153,9 +180,14 @@ export default function CreateEventPage() {
       } else {
         toast.error("Something happened, try again.");
       }
-    } catch (e) {
-      console.log(e);
-      toast.error("Failed to create event, try again.");
+    } catch (e: any) {
+      console.error(e);
+      // Construct a useful error message
+      let msg = "Failed to create event.";
+      if (e.message) msg += " " + e.message;
+      if (e.shortMessage) msg = e.shortMessage;
+
+      toast.error(msg);
       return;
     }
   }
@@ -201,15 +233,8 @@ export default function CreateEventPage() {
 
             <div className="space-y-1.5">
               <Label htmlFor="category">Category</Label>
-              <Select>
-                <SelectTrigger
-                  className="w-[180px]"
-                  name="category"
-                  id="category"
-                  onChange={(event) =>
-                    setCategory((event.target as HTMLInputElement).value as string)
-                  }
-                >
+              <Select onValueChange={setCategory}>
+                <SelectTrigger className="w-[180px]" id="category">
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
                 <SelectContent>

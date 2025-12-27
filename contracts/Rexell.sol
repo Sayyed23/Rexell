@@ -6,18 +6,30 @@ import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "./SoulboundIdentity.sol";
 
 contract Rexell is ERC721URIStorage, Ownable, ReentrancyGuard {
     IERC20 public cUSDToken;
     address public mine;
     uint256 public royaltyPercent = 5; // 5% royalty for resales
+    
+    SoulboundIdentity public identityContract;
+    address public platformFeeRecipient;
+    uint256 public platformFeePercent = 2; // 2% platform fee
+    
+    uint256 public maxResaleMultiplier = 200; // 200% of original price
+    uint256 public resaleCutoffHours = 48; // Stops 48h before event
        
     // address public cUSDTokenAddress = // 0x874069Fa1Eb16D44d622F2e0Ca25eeA172369bC1 //testnet
     // 0x765DE816845861e75A25fCA122bb6898B8B1282a //mainnet
 
-    constructor(address _cUSDTokenAddress) ERC721("Rexell", "BTK") {
+    constructor(address _cUSDTokenAddress, address _identityContractAddress) ERC721("Rexell", "BTK") {
         mine = msg.sender;
+        platformFeeRecipient = msg.sender; // Default to deployer
         cUSDToken = IERC20(_cUSDTokenAddress);
+        if (_identityContractAddress != address(0)) {
+            identityContract = SoulboundIdentity(_identityContractAddress);
+        }
     }
 
     struct Event {
@@ -98,6 +110,7 @@ contract Rexell is ERC721URIStorage, Ownable, ReentrancyGuard {
     event ResaleRejected(uint256 indexed tokenId, address indexed owner);
     event TicketResold(uint256 indexed tokenId, address indexed seller, address indexed buyer, uint256 price);
     event RoyaltyPaid(uint256 indexed tokenId, address indexed organizer, uint256 amount);
+    event PlatformFeePaid(uint256 indexed tokenId, uint256 amount);
     event TicketCancelled(uint256 indexed tokenId, address indexed owner);
 
     function createEvent(
@@ -409,12 +422,43 @@ contract Rexell is ERC721URIStorage, Ownable, ReentrancyGuard {
 
     // Function to request resale verification
     function requestResaleVerification(uint256 tokenId, uint256 price) public nonReentrant {
-        require(tokenId > 0, "Invalid token ID");
+        // require(tokenId > 0, "Invalid token ID"); // Removed to allow token ID 0
         require(_exists(tokenId), "Ticket does not exist");
         require(ownerOf(tokenId) == msg.sender, "You are not the owner of this ticket");
         require(price > 0, "Price must be greater than 0");
         require(resaleRequests[tokenId].owner == address(0), "Resale request already exists for this ticket");
         require(!ticketCancelled[tokenId], "Ticket has been cancelled");
+        
+        
+        if (address(identityContract) != address(0)) {
+            require(identityContract.hasValidIdentity(msg.sender), "Seller not verified via Soulbound Identity");
+        }
+
+        // Find associated event to check rules
+        bool eventFound = false;
+        for (uint i = 0; i < events.length; i++) {
+             string[] memory eventNftUris = events[i].nftUris;
+             for (uint j = 0; j < eventNftUris.length; j++) {
+                 // We need to match tokenURI. 
+                 // Note: Loop is inefficient but works for this structure.
+                 if (keccak256(bytes(eventNftUris[j])) == keccak256(bytes(tokenURI(tokenId)))) {
+                     Event storage _event = events[i];
+                     require(block.timestamp < _event.date - (resaleCutoffHours * 1 hours), "Resale period has ended");
+                     
+                     // Check max price
+                     if (_event.price > 0) {
+                        uint256 maxAllowed = (_event.price * maxResaleMultiplier) / 100;
+                        require(price <= maxAllowed, "Price exceeds maximum allowed resale price");
+                     }
+                     
+                     eventFound = true;
+                     break;
+                 }
+             }
+             if (eventFound) break;
+        }
+
+        require(eventFound, "Event for ticket not found");
         
         resaleRequests[tokenId] = ResaleRequest({
             tokenId: tokenId,
@@ -595,12 +639,20 @@ contract Rexell is ERC721URIStorage, Ownable, ReentrancyGuard {
         address seller = request.owner;
         uint256 price = request.price;
         
-        // Calculate royalty and seller amounts
+        // Calculate royalty, platform fee and seller amounts
         uint256 royaltyAmount = (price * royaltyPercent) / 100;
-        uint256 sellerAmount = price - royaltyAmount;
+        uint256 platformFeeAmount = (price * platformFeePercent) / 100;
+        uint256 sellerAmount = price - royaltyAmount - platformFeeAmount;
         
+        // Get event organizer
+        address organizer = getEventOrganizerForToken(tokenId);
+        if (organizer == address(0)) {
+            organizer = mine; // Fallback to contract owner
+        }
+
         // Transfer payments
-        require(cUSDToken.transferFrom(msg.sender, mine, royaltyAmount), "Royalty transfer failed");
+        require(cUSDToken.transferFrom(msg.sender, organizer, royaltyAmount), "Royalty transfer failed");
+        require(cUSDToken.transferFrom(msg.sender, platformFeeRecipient, platformFeeAmount), "Platform fee transfer failed");
         require(cUSDToken.transferFrom(msg.sender, seller, sellerAmount), "Payment to seller failed");
         
         // Transfer ticket ownership
@@ -613,7 +665,8 @@ contract Rexell is ERC721URIStorage, Ownable, ReentrancyGuard {
         delete resaleRequests[tokenId];
         
         emit TicketResold(tokenId, seller, msg.sender, price);
-        emit RoyaltyPaid(tokenId, mine, royaltyAmount);
+        emit RoyaltyPaid(tokenId, organizer, royaltyAmount);
+        emit PlatformFeePaid(tokenId, platformFeeAmount);
     }
 
     // Function to get ticket ownership history
@@ -621,10 +674,32 @@ contract Rexell is ERC721URIStorage, Ownable, ReentrancyGuard {
         return ticketOwnershipHistory[tokenId];
     }
 
-    // Function to set royalty percentage (only contract owner)
     function setRoyaltyPercent(uint256 _royaltyPercent) public onlyContractOwner {
         require(_royaltyPercent <= 20, "Royalty percent cannot exceed 20%");
         royaltyPercent = _royaltyPercent;
+    }
+
+    function setPlatformFeePercent(uint256 _platformFeePercent) public onlyContractOwner {
+        require(_platformFeePercent <= 10, "Platform fee cannot exceed 10%");
+        platformFeePercent = _platformFeePercent;
+    }
+    
+    function setPlatformFeeRecipient(address _recipient) public onlyContractOwner {
+        require(_recipient != address(0), "Invalid recipient");
+        platformFeeRecipient = _recipient;
+    }
+
+    function setMaxResaleMultiplier(uint256 _multiplier) public onlyContractOwner {
+        require(_multiplier >= 100, "Multiplier must be at least 100%");
+        maxResaleMultiplier = _multiplier;
+    }
+
+    function setResaleCutoffHours(uint256 _hours) public onlyContractOwner {
+        resaleCutoffHours = _hours;
+    }
+    
+    function setIdentityContract(address _identityContract) public onlyContractOwner {
+        identityContract = SoulboundIdentity(_identityContract);
     }
 
     // Function to cancel a ticket (emergency function)

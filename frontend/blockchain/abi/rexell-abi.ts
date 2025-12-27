@@ -1,11 +1,15 @@
-export const contractAddress = "0xA512e0f2D651Dabb3C4EBC5Db2351bFcc3b7eB92";
-// "0x4dEE335F6cFE2748DA7F4CD8Ce8d7B24c7B0282c";
+export const contractAddress = "0xc6Be85Cf311613D3Db8A4FBECa30A13AD2308F1E";
 export const rexellAbi = [
   {
     "inputs": [
       {
         "internalType": "address",
         "name": "_cUSDTokenAddress",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_identityContractAddress",
         "type": "address"
       }
     ],
@@ -111,6 +115,25 @@ export const rexellAbi = [
       }
     ],
     "name": "OwnershipTransferred",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "tokenId",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      }
+    ],
+    "name": "PlatformFeePaid",
     "type": "event"
   },
   {
@@ -1265,6 +1288,19 @@ export const rexellAbi = [
     "type": "function"
   },
   {
+    "inputs": [],
+    "name": "identityContract",
+    "outputs": [
+      {
+        "internalType": "contract SoulboundIdentity",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [
       {
         "internalType": "address",
@@ -1302,6 +1338,19 @@ export const rexellAbi = [
         "internalType": "bool",
         "name": "",
         "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "maxResaleMultiplier",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
       }
     ],
     "stateMutability": "view",
@@ -1411,6 +1460,32 @@ export const rexellAbi = [
     "type": "function"
   },
   {
+    "inputs": [],
+    "name": "platformFeePercent",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "platformFeeRecipient",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [
       {
         "internalType": "uint256",
@@ -1446,6 +1521,19 @@ export const rexellAbi = [
     "name": "requestResaleVerification",
     "outputs": [],
     "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "resaleCutoffHours",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
     "type": "function"
   },
   {
@@ -1588,6 +1676,71 @@ export const rexellAbi = [
       }
     ],
     "name": "setApprovalForAll",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_identityContract",
+        "type": "address"
+      }
+    ],
+    "name": "setIdentityContract",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_multiplier",
+        "type": "uint256"
+      }
+    ],
+    "name": "setMaxResaleMultiplier",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_platformFeePercent",
+        "type": "uint256"
+      }
+    ],
+    "name": "setPlatformFeePercent",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_recipient",
+        "type": "address"
+      }
+    ],
+    "name": "setPlatformFeeRecipient",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_hours",
+        "type": "uint256"
+      }
+    ],
+    "name": "setResaleCutoffHours",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"

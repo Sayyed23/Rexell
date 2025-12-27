@@ -7,7 +7,7 @@ import {
 import { metaMaskWallet } from "@rainbow-me/rainbowkit/wallets";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { WagmiProvider, createConfig, http } from "wagmi";
-import { celo } from "wagmi/chains";
+import { celo, hardhat } from "wagmi/chains";
 import { celoSepolia } from "@/lib/celoSepolia";
 
 const connectors = connectorsForWallets(
@@ -28,10 +28,11 @@ const connectors = connectorsForWallets(
 const config = createConfig({
   connectors,
   // chains: [celoAlfajores],
-  chains: [celo, celoSepolia],
+  chains: [celo, celoSepolia, hardhat],
   transports: {
     [celo.id]: http(),
     [celoSepolia.id]: http(),
+    [hardhat.id]: http("http://127.0.0.1:8545"),
   },
   multiInjectedProviderDiscovery: false, // This can help with MetaMask connection issues
 });

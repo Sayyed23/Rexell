@@ -18,6 +18,7 @@ import { CalendarIcon, MapPinIcon, UserIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Header } from "@/components/header";
 import { celoSepolia } from "@/lib/celoSepolia";
+import { hardhat } from "wagmi/chains";
 
 export default function MyEventsPage() {
   const { address, isConnected } = useAccount();
@@ -86,7 +87,7 @@ export default function MyEventsPage() {
                       <div className="flex items-center gap-2">
                         <CalendarIcon className="h-4 w-4 text-gray-500" />
                         <span className="text-gray-500">
-                          {convertDateFromMilliseconds(Number(event.date))}
+                          {convertDateFromMilliseconds(Number(event.date) * 1000)}
                         </span>
                       </div>
                       <div className="flex items-center gap-2">

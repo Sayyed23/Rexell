@@ -71,7 +71,7 @@ export default function EventDetailsPage({
                 <div>
                   <CalendarRange className="mr-1 inline-block h-5 w-5" />
                   {/* {event?.date} */}
-                  {convertDateFromMilliseconds(Number(event?.[5]))}
+                  {convertDateFromMilliseconds(Number(event?.[5]) * 1000)}
                 </div>
                 <div>
                   <MapPin className="mr-1 inline-block h-5 w-5" />
@@ -81,7 +81,7 @@ export default function EventDetailsPage({
                 <div>
                   <Ticket className="mr-1 inline-block h-5 w-5" />
                   {/* {event?.ticketsAvailable} */}
-                  {Number(event?.[8]) } left
+                  {Number(event?.[8])} left
                 </div>
               </div>
             </div>
