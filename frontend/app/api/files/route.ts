@@ -27,4 +27,4 @@ export async function POST(request: NextRequest) {
 }
 
 // Use the new configuration format
-export const runtime = 'edge'; // Example configuration, adjust as needed
+export const runtime = 'nodejs';
