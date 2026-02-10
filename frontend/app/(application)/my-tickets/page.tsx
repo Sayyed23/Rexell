@@ -63,7 +63,7 @@ const Page = () => {
               <TicketIcon className="w-8 h-8 text-gray-400" />
             </div>
             <h3 className="text-lg font-medium text-gray-900 mb-1">No tickets found</h3>
-            <p className="text-gray-500 mb-6">You haven't purchased any tickets yet.</p>
+            <p className="text-gray-500 mb-6">You havent purchased any tickets yet.</p>
             <Link href="/events">
               <Button>Browse Events</Button>
             </Link>

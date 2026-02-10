@@ -1,4 +1,4 @@
-export const soulboundIdentityAddress = "0xe8A1cCBF123f9Fb86513b4B6DaEde4dcb534D325"; // Update after deployment
+export const soulboundIdentityAddress = (process.env.NEXT_PUBLIC_SOULBOUND_ADDRESS as `0x${string}`) || "0xD48dDb644398F48e1644c2B398d8d5De15b0bF5E"; // Update after deployment
 
 export const soulboundIdentityAbi = [
     {

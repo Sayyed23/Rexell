@@ -1,5 +1,5 @@
 export const tokencUSDContractAddress =
-  "0xA99dC247d6b7B2E3ab48a1fEE101b83cD6aCd82a"; // Celo Sepolia cUSD
+  (process.env.NEXT_PUBLIC_CUSD_ADDRESS as `0x${string}`) || "0x5Ea438687A14ec2A4f84c05AAa1659344dd7E814"; // Celo Sepolia cUSD
 export const tokencUSDAbi = [
   {
     constant: true,

@@ -161,10 +161,15 @@ export default function EventDetailsPage({
     const price = event?.[7] ? BigInt(event[7]) : 0n;
     const totalCost = price * BigInt(ticketQuantity);
 
-    if (!free && cUSDBalance !== undefined && cUSDBalance < totalCost) {
-      toast.error(`Insufficient cUSD balance. You need ${Number(totalCost) / 10 ** 18} cUSD.`);
-      return;
-    }
+    console.log("Purchase debug:", {
+      price: price.toString(),
+      totalCost: totalCost.toString(),
+      cUSDBalance: cUSDBalance?.toString(),
+      free,
+      ticketQuantity,
+    });
+
+    // Balance check removed - let the smart contract handle validation
 
     try {
       setProcessing(true);
@@ -489,7 +494,7 @@ export default function EventDetailsPage({
                         className="block w-full rounded-md border border-gray-300 bg-white py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
                         disabled={buyTicketPending || isTicketPurchased || isUploading || processing || over}
                       >
-                        {[...Array(Math.min(10, Number(event?.[8]) || 10)).fill(0)].map((i) => (
+                        {Array.from({ length: Math.min(10, Number(event?.[8]) || 10) }, (_, i) => (
                           <option key={i + 1} value={i + 1}>
                             {i + 1}
                           </option>
