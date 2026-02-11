@@ -100,6 +100,16 @@ export default function ResaleTicket({ tokenId, onResaleComplete }: ResaleTicket
       });
 
       if (hash) {
+        // AI Logging
+        if (address) {
+          import("@/lib/ai/logger").then(({ aiLogger }) => {
+            aiLogger.log('resale_attempt', address, 0, { // eventId 0 as it's not readily available here
+              ticketId: Number(tokenId),
+              price: resalePrice
+            });
+          });
+        }
+
         toast.success("Ticket listed for resale successfully!");
         setIsListed(true);
         refetchResaleRequest();

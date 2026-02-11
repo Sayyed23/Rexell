@@ -1,0 +1,13 @@
+[
+  {
+    "eventType": "purchase_success",
+    "wallet": "0xTestWallet123",
+    "eventId": "999",
+    "timestamp": 123456789,
+    "metadata": {
+      "txHash": "0xTestHash",
+      "quantity": 2,
+      "price": "50.0"
+    }
+  }
+]

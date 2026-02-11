@@ -2,7 +2,9 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useReadContract, useAccount } from "wagmi";
+import { useReadContract, useAccount, useWriteContract } from "wagmi";
+import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
 import {
   rexellAbi,
   contractAddress,
@@ -15,6 +17,7 @@ import { celoSepolia } from "@/lib/celoSepolia";
 import { hardhat } from "wagmi/chains";
 import QRCode from "react-qr-code";
 import { Calendar, MapPin, Ticket as TicketIcon } from "lucide-react";
+import { aiLogger } from "@/lib/ai/logger";
 
 const Page = () => {
   const { isConnected, address } = useAccount();
@@ -155,6 +158,9 @@ const EventTicketGroup = ({ event, address }: { event: any, address: `0x${string
 };
 
 const TicketItem = ({ eventId, uri, address, index, total }: { eventId: bigint, uri: string, address: `0x${string}`, index: number, total: number }) => {
+  const { writeContractAsync } = useWriteContract();
+  const [isFinalizing, setIsFinalizing] = useState(false);
+
   const { data: tokenId } = useReadContract({
     address: contractAddress as `0x${string}`,
     abi: rexellAbi,
@@ -163,8 +169,55 @@ const TicketItem = ({ eventId, uri, address, index, total }: { eventId: bigint, 
     chainId: celoSepolia.id,
   });
 
+  // Check for existing resale request
+  const { data: resaleRequest, refetch: refetchResale } = useReadContract({
+    address: contractAddress as `0x${string}`,
+    abi: rexellAbi,
+    functionName: "getResaleRequest",
+    args: tokenId !== undefined && tokenId !== null ? [tokenId] : undefined,
+    chainId: celoSepolia.id,
+    query: {
+      enabled: tokenId !== undefined && tokenId !== null
+    }
+  }) as { data: any, refetch: () => void };
+
+  const handleFinalizeListing = async () => {
+    if (!tokenId || !resaleRequest) return;
+    try {
+      setIsFinalizing(true);
+      await writeContractAsync({
+        address: contractAddress as `0x${string}`,
+        abi: rexellAbi,
+        functionName: "resellTicket",
+        args: [tokenId, resaleRequest.price, uri],
+        chainId: celoSepolia.id,
+      });
+
+      // AI Logging
+      import("@/lib/ai/logger").then(({ aiLogger }) => {
+        aiLogger.log('resale_attempt', address, Number(eventId), {
+          ticketId: Number(tokenId),
+          price: resaleRequest.price.toString()
+        });
+      });
+
+      toast.success("Ticket listed on marketplace successfully!");
+      refetchResale();
+    } catch (e: any) {
+      console.error(e);
+      toast.error("Failed to list ticket: " + (e.message || "Unknown error"));
+    } finally {
+      setIsFinalizing(false);
+    }
+  };
+
   // Safe check for valid token ID (including 0)
   const hasTokenId = tokenId !== undefined && tokenId !== null;
+
+  const hasActiveRequest = resaleRequest && resaleRequest.owner !== "0x0000000000000000000000000000000000000000";
+  const isApproved = hasActiveRequest && resaleRequest.approved && !resaleRequest.rejected;
+  const isPendingApproval = hasActiveRequest && !resaleRequest.approved && !resaleRequest.rejected;
+  const isRejected = hasActiveRequest && resaleRequest.rejected; // Could mean rejected OR completed via resellTicket
 
   return (
     <div className="p-6 transition-colors hover:bg-gray-50/50">
@@ -182,6 +235,16 @@ const TicketItem = ({ eventId, uri, address, index, total }: { eventId: bigint, 
                   ID: #{tokenId.toString()}
                 </span>
               )}
+              {isPendingApproval && (
+                <span className="bg-amber-50 text-amber-600 text-xs font-semibold px-2 py-1 rounded border border-amber-200">
+                  PENDING APPROVAL
+                </span>
+              )}
+              {isApproved && (
+                <span className="bg-green-50 text-green-600 text-xs font-semibold px-2 py-1 rounded border border-green-200">
+                  APPROVED FOR LISTING
+                </span>
+              )}
             </div>
             <div className="text-sm text-gray-500 max-w-lg">
               This ticket verifies your entry. Present the QR code at the venue.
@@ -190,11 +253,37 @@ const TicketItem = ({ eventId, uri, address, index, total }: { eventId: bigint, 
 
           <div className="flex gap-3">
             {hasTokenId ? (
-              <Link href={`/resell/${tokenId}?eventId=${eventId}`}>
-                <Button variant="outline" className="border-gray-300 hover:bg-white hover:border-gray-400">
-                  Sell Ticket
-                </Button>
-              </Link>
+              <>
+                {!hasActiveRequest && (
+                  <Link href={`/resell/${tokenId}?eventId=${eventId}`}>
+                    <Button variant="outline" className="border-gray-300 hover:bg-white hover:border-gray-400">
+                      Sell Ticket
+                    </Button>
+                  </Link>
+                )}
+
+                {isPendingApproval && (
+                  <Button variant="secondary" disabled className="bg-gray-100 text-gray-500">
+                    Waiting for Review...
+                  </Button>
+                )}
+
+                {isApproved && (
+                  <Button
+                    onClick={handleFinalizeListing}
+                    disabled={isFinalizing}
+                    className="bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    {isFinalizing ? <Loader2 className="animate-spin w-4 h-4 mr-2" /> : "Finalize Listing"}
+                  </Button>
+                )}
+
+                {isRejected && (
+                  <div className="text-xs text-red-500 font-medium">
+                    Listing Closed / Rejected
+                  </div>
+                )}
+              </>
             ) : (
               <Button disabled variant="outline">Loading ID...</Button>
             )}

@@ -616,7 +616,7 @@ contract Rexell is ERC721URIStorage, Ownable, ReentrancyGuard {
         require(!ticketCancelled[tokenId], "Ticket has been cancelled");
         
         // Mark the resale request as completed
-        resaleRequests[tokenId].rejected = true; // Mark as "completed" (not literally rejected)
+        // resaleRequests[tokenId].rejected = true; // REMOVED: This hid the ticket from the market
         
         // Transfer ticket to contract first
         _transfer(msg.sender, address(this), tokenId);

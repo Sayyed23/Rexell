@@ -24,8 +24,10 @@ import { toast } from "sonner";
 import { generateTicketImage } from "@/components/shared/Ticket";
 import Comment from "@/components/Comment";
 import { celoSepolia } from '@/lib/celoSepolia';
+import { aiModeService, EnforcementAction } from "@/lib/ai/ai-mode";
+import { aiLogger } from "@/lib/ai/logger";
 
-interface Comment {
+interface EventComment {
   commenter: string;
   text: string;
   timestamp: number;
@@ -43,7 +45,7 @@ export default function EventDetailsPage({
   const [free, setFree] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [processing, setProcessing] = useState(false);
-  const [comments, setComments] = useState<Comment[]>([]); // For event comments
+  const [comments, setComments] = useState<EventComment[]>([]); // For event comments
   const [holders, setHolders] = useState<`0x${string}`[]>([]);
   const [selectedRating, setSelectedRating] = useState(0); // Rating value
   const { writeContractAsync: getSubmission } = useWriteContract();
@@ -165,6 +167,29 @@ export default function EventDetailsPage({
       toast.error(`Insufficient cUSD balance. You need ${Number(totalCost) / 10 ** 18} cUSD.`);
       return;
     }
+
+    // --- AI Mode Integration ---
+    if (address) {
+      aiLogger.log('purchase_attempt', address, Number(params.index), { quantity: ticketQuantity, price: totalCost.toString() });
+
+      const risk = aiModeService.assessRisk(address, Number(params.index));
+
+      if (risk.action === EnforcementAction.BLOCK) {
+        aiLogger.log('purchase_failed', address, Number(params.index), { reason: 'AI_BLOCK', risk });
+        toast.error("Transaction Blocked by AI Mode", {
+          description: risk.reason,
+        });
+        return;
+      }
+
+      if (risk.action === EnforcementAction.WARNING) {
+        toast.warning("AI Mode Warning", {
+          description: risk.reason,
+        });
+        // We allow it to proceed, but user is warned
+      }
+    }
+    // ---------------------------
 
     try {
       setProcessing(true);
@@ -324,14 +349,13 @@ export default function EventDetailsPage({
             }
             setCid(resData.IpfsHash);
 
-            const hash = await writeContractAsync({
-              address: contractAddress,
-              abi: rexellAbi,
-              functionName: "buyTicket",
-              args: [BigInt(params.index), resData.IpfsHash],
-            });
-
             if (hash) {
+              // Record successful purchase for AI tracking
+              if (address) {
+                aiModeService.recordPurchase(address, Number(params.index));
+                aiLogger.log('purchase_success', address, Number(params.index), { txHash: hash, quantity: ticketQuantity });
+              }
+
               toast("Ticket NFT minted! Redirecting...");
               setIsUploading(false);
               router.push(`/tickets/${event?.[0]}`);

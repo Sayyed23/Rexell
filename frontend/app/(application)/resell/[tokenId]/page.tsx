@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { useAccount, useReadContract, useWriteContract } from "wagmi";
 import { rexellAbi, contractAddress } from "@/blockchain/abi/rexell-abi";
+import { soulboundIdentityAbi, soulboundIdentityAddress } from "@/blockchain/abi/soulbound-abi";
+import { KYCFlow } from "@/components/AI/KYCFlow";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -90,6 +92,26 @@ export default function ResellTicketPage({ params, searchParams }: { params: { t
         functionName: "platformFeePercent",
         chainId: celoSepolia.id,
     });
+
+    const [verified, setVerified] = useState(false);
+
+    const { data: isVerified, refetch: refetchIdentity } = useReadContract({
+        address: soulboundIdentityAddress as `0x${string}`,
+        abi: soulboundIdentityAbi,
+        functionName: "hasValidIdentity",
+        args: [address as `0x${string}`],
+        chainId: celoSepolia.id,
+        query: {
+            enabled: !!address
+        }
+    }) as { data: boolean, refetch: () => void };
+
+    // Sync local state with contract state
+    useEffect(() => {
+        if (isVerified) {
+            setVerified(true);
+        }
+    }, [isVerified]);
 
     // Load logic
     useEffect(() => {
@@ -276,13 +298,24 @@ export default function ResellTicketPage({ params, searchParams }: { params: { t
                 </CardContent>
                 <CardFooter className="flex justify-between">
                     <Button variant="outline" onClick={() => router.back()}>Cancel</Button>
-                    <Button
-                        onClick={handleSubmit}
-                        disabled={submitting || !price || parseFloat(price) <= 0 || parseEther(price) > maxPrice}
-                        className="bg-blue-600 hover:bg-blue-700"
-                    >
-                        {submitting ? <Loader2 className="animate-spin mr-2" /> : "Confirm & List"}
-                    </Button>
+
+                    {!verified ? (
+                        <div className="flex flex-col items-end gap-2">
+                            <p className="text-xs text-red-500 font-medium">Verification Required to Sell</p>
+                            <KYCFlow onVerified={() => {
+                                setVerified(true);
+                                refetchIdentity();
+                            }} />
+                        </div>
+                    ) : (
+                        <Button
+                            onClick={handleSubmit}
+                            disabled={submitting || !price || parseFloat(price) <= 0 || parseEther(price) > maxPrice}
+                            className="bg-blue-600 hover:bg-blue-700"
+                        >
+                            {submitting ? <Loader2 className="animate-spin mr-2" /> : "Confirm & List"}
+                        </Button>
+                    )}
                 </CardFooter>
             </Card>
         </div>

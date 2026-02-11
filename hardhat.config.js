@@ -7,15 +7,16 @@ module.exports = {
     solidity: {
         version: "0.8.17",
         settings: {
-          optimizer: {
-            enabled: true,
-            runs: 200,
-          },
-          viaIR: true,
-        }},
+            optimizer: {
+                enabled: true,
+                runs: 200,
+            },
+            viaIR: true,
+        }
+    },
     networks: {
         Sepolia: {
-            url: "https://forno.celo-sepolia.celo-testnet.org",
+            url: "https://celo-sepolia.drpc.org",
             accounts: [process.env.PRIVATE_KEY],
             chainId: 11142220,
         },

@@ -1,4 +1,4 @@
-export const soulboundIdentityAddress = "0xe8A1cCBF123f9Fb86513b4B6DaEde4dcb534D325"; // Update after deployment
+export const soulboundIdentityAddress = "0x2480D8256Bf632c51B35Ed771738ccACCc3aE4c8"; // Update after deployment
 
 export const soulboundIdentityAbi = [
     {

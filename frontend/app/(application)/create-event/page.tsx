@@ -1,6 +1,6 @@
 "use client";
 
-require("dotenv").config();
+
 import { useAccount, useWriteContract } from "wagmi";
 import {
   Select,

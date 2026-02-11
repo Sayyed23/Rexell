@@ -89,7 +89,7 @@ export default function TicketsPage({ params }: { params: { id: number } }) {
       const timeout = setTimeout(() => {
         setLoadingTimeout(true);
       }, 10000); // 10 second timeout
-      
+
       return () => clearTimeout(timeout);
     } else {
       setLoadingTimeout(false);
@@ -161,12 +161,12 @@ export default function TicketsPage({ params }: { params: { id: number } }) {
                 width="450"
               />
             </div>
-            
+
             {/* Resale functionality */}
             <div className="w-full max-w-md">
               {!resaleVerified ? (
                 <div className="space-y-4">
-                  <Button 
+                  <Button
                     onClick={() => {
                       if (!effectiveTokenId && !loadingTimeout) {
                         toast.error("Cannot proceed: Ticket information not available. Please refresh the page and try again.");
@@ -187,7 +187,7 @@ export default function TicketsPage({ params }: { params: { id: number } }) {
                   >
                     {!effectiveTokenId ? (loadingTimeout ? "Use Event ID" : "Loading Ticket Info...") : "Request Resale Verification"}
                   </Button>
-                  
+
                   {showResaleVerification && (
                     <div className="text-sm text-gray-600 text-center">
                       Please fill out the form below to request resale verification
@@ -198,10 +198,10 @@ export default function TicketsPage({ params }: { params: { id: number } }) {
                       )}
                     </div>
                   )}
-                  
+
                   {/* Debug button for testing - only show if effectiveTokenId is available */}
                   {!showResaleVerification && effectiveTokenId && (
-                    <Button 
+                    <Button
                       onClick={() => setShowResaleVerification(true)}
                       variant="outline"
                       className="mt-2 text-xs"
@@ -216,12 +216,12 @@ export default function TicketsPage({ params }: { params: { id: number } }) {
                   ✅ Resale verification approved! You can now resell this ticket.
                 </div>
               )}
-              
+
               {showResaleVerification && (
                 <div id="resale-verification-form" className="mt-6">
                   {effectiveTokenId ? (
-                    <ResaleVerificationNew 
-                      tokenId={Number(effectiveTokenId)} 
+                    <ResaleVerificationNew
+                      tokenId={Number(effectiveTokenId)}
                       onVerificationComplete={handleVerificationComplete}
                       onCancel={handleCancelVerification}
                     />
@@ -234,7 +234,7 @@ export default function TicketsPage({ params }: { params: { id: number } }) {
                       <p className="text-blue-700 mb-4">
                         Please wait while we retrieve your ticket information...
                       </p>
-                      <Button 
+                      <Button
                         onClick={handleCancelVerification}
                         variant="outline"
                         className="w-full border-gray-300 text-gray-700 hover:bg-gray-50"
@@ -266,14 +266,14 @@ export default function TicketsPage({ params }: { params: { id: number } }) {
                           </ul>
                         </div>
                         <div className="flex gap-3">
-                          <Button 
+                          <Button
                             onClick={handleCancelVerification}
                             variant="outline"
                             className="flex-1 border-gray-300 text-gray-700 hover:bg-gray-50"
                           >
                             Cancel
                           </Button>
-                          <Button 
+                          <Button
                             onClick={() => {
                               refetch();
                               // Try to get tokenId again
@@ -294,11 +294,11 @@ export default function TicketsPage({ params }: { params: { id: number } }) {
                   )}
                 </div>
               )}
-              
+
               {resaleVerified && effectiveTokenId && (
                 <div className="mt-6">
-                  <ResaleTicket 
-                    tokenId={Number(effectiveTokenId)} 
+                  <ResaleTicket
+                    tokenId={Number(effectiveTokenId)}
                     onResaleComplete={handleResaleComplete}
                   />
                 </div>

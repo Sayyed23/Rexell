@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { formatEther } from "viem";
+import { aiModeService, EnforcementAction } from "@/lib/ai/ai-mode";
+import { aiLogger } from "@/lib/ai/logger";
 
 interface ResaleTicket {
   tokenId: number;
@@ -82,10 +84,32 @@ export default function BuyResaleTicketPage() {
     }
 
     try {
+      if (address && ticket) {
+        // Log attempt
+        aiLogger.log('resale_attempt', address, ticket.eventId, { ticketId: ticket.tokenId, price: ticket.price });
+
+        // Using ticket.eventId if available, otherwise 0
+        const risk = aiModeService.assessRisk(address, ticket.eventId);
+
+        if (risk.action === EnforcementAction.BLOCK) {
+          aiLogger.log('purchase_failed', address, ticket.eventId, { reason: 'AI_BLOCK_RESALE', risk });
+          toast.error("Transaction Blocked by AI Mode", {
+            description: risk.reason,
+          });
+          return;
+        }
+
+        if (risk.action === EnforcementAction.WARNING) {
+          toast.warning("AI Mode Warning", {
+            description: risk.reason,
+          });
+        }
+      }
+
       setIsPurchasing(true);
-      
+
       const priceInWei = BigInt(Math.floor(ticket.price * 1e18));
-      
+
       const hash = await writeContractAsync({
         address: contractAddress,
         abi: rexellAbi,
@@ -94,6 +118,10 @@ export default function BuyResaleTicketPage() {
       });
 
       if (hash) {
+        if (address && ticket) {
+          aiModeService.recordPurchase(address, ticket.eventId);
+          aiLogger.log('resale_success', address, ticket.eventId, { ticketId: ticket.tokenId, txHash: hash });
+        }
         toast.success("Ticket purchased successfully!");
         setTimeout(() => {
           router.push("/my-tickets");
@@ -101,7 +129,7 @@ export default function BuyResaleTicketPage() {
       }
     } catch (error: any) {
       console.error("Error purchasing ticket:", error);
-      
+
       if (error.message && error.message.includes("Ticket not approved")) {
         toast.error("This ticket is not approved for resale");
       } else if (error.message && error.message.includes("Price exceeds maximum")) {
@@ -201,29 +229,29 @@ export default function BuyResaleTicketPage() {
                   <span className="text-gray-500">Ticket Image</span>
                 </div>
               </div>
-              
+
               <div className="space-y-4">
                 <div>
                   <h3 className="text-lg font-semibold">Ticket #{ticket.tokenId}</h3>
                   <p className="text-gray-600">Event ID: {ticket.eventId}</p>
                 </div>
-                
+
                 <div className="space-y-2">
                   <div className="flex justify-between">
                     <span className="text-gray-600">Seller:</span>
                     <span className="font-mono text-sm">{ticket.owner.substring(0, 6)}...{ticket.owner.substring(ticket.owner.length - 4)}</span>
                   </div>
-                  
+
                   <div className="flex justify-between">
                     <span className="text-gray-600">Price:</span>
                     <span className="text-xl font-bold">{ticket.price.toFixed(2)} cUSD</span>
                   </div>
-                  
+
                   <div className="flex justify-between">
                     <span className="text-gray-600">Royalty Fee (5%):</span>
                     <span className="text-gray-800">{(ticket.price * ROYALY_FEE_PERCENT).toFixed(2)} cUSD</span>
                   </div>
-                  
+
                   <div className="border-t pt-2 flex justify-between">
                     <span className="font-semibold">Total:</span>
                     <span className="text-xl font-bold">{(ticket.price).toFixed(2)} cUSD</span>

@@ -47,7 +47,7 @@ export default function ResaleRequestsPage() {
         functionName: "approveResale",
         args: [tokenId],
       });
-      
+
       if (hash) {
         toast.success("Resale request approved successfully");
         refetchRequests();
@@ -67,7 +67,7 @@ export default function ResaleRequestsPage() {
         functionName: "rejectResale",
         args: [tokenId],
       });
-      
+
       if (hash) {
         toast.success("Resale request rejected");
         refetchRequests();
@@ -175,7 +175,7 @@ export default function ResaleRequestsPage() {
                         <p className="text-lg font-mono">{Number(request.tokenId)}</p>
                       </div>
                     </div>
-                    
+
                     <div className="flex gap-3">
                       <Button
                         onClick={() => handleApproveResale(request.tokenId)}
