@@ -51,13 +51,15 @@ export default function ResaleTicketDetailPage({ params }: { params: { ticketId:
 
     const handleBuy = async () => {
         if (!isConnected) return toast.error("Connect Wallet");
+        if (!request) return toast.error("Ticket request not found");
         try {
             setBuying(true);
+            const actualTokenId = BigInt((request as any).tokenId);
             await writeContractAsync({
                 address: contractAddress as `0x${string}`,
                 abi: rexellAbi,
                 functionName: "buyResaleTicket",
-                args: [ticketId, ticket.price],
+                args: [actualTokenId, ticket.price],
             });
             toast.success("Ticket Purchased!");
         } catch (e: any) {

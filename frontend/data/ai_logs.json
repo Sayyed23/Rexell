@@ -9,5 +9,45 @@
       "quantity": 2,
       "price": "50.0"
     }
+  },
+  {
+    "eventType": "purchase_attempt",
+    "wallet": "0xD534Ec2E8FAce07e1E839643D5A09f102cE0f86B",
+    "eventId": 2,
+    "timestamp": 1770833660373,
+    "metadata": {
+      "quantity": 1,
+      "price": "10000000000000000"
+    }
+  },
+  {
+    "eventType": "purchase_attempt",
+    "wallet": "0xD534Ec2E8FAce07e1E839643D5A09f102cE0f86B",
+    "eventId": 2,
+    "timestamp": 1770833729596,
+    "metadata": {
+      "quantity": 1,
+      "price": "10000000000000000"
+    }
+  },
+  {
+    "eventType": "purchase_attempt",
+    "wallet": "0xD534Ec2E8FAce07e1E839643D5A09f102cE0f86B",
+    "eventId": 2,
+    "timestamp": 1770834414165,
+    "metadata": {
+      "quantity": 1,
+      "price": "10000000000000000"
+    }
+  },
+  {
+    "eventType": "purchase_success",
+    "wallet": "0xD534Ec2E8FAce07e1E839643D5A09f102cE0f86B",
+    "eventId": 2,
+    "timestamp": 1770834427723,
+    "metadata": {
+      "txHash": "0xce03eba276f213eb0b88b9243e1618e1e2a6a700a44fb22b6d363b231f1c410c",
+      "quantity": 1
+    }
   }
 ]

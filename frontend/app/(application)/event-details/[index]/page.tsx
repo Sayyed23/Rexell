@@ -354,6 +354,14 @@ export default function EventDetailsPage({
             }
             setCid(resData.IpfsHash);
 
+            // Buy single ticket
+            const hash = await writeContractAsync({
+              address: contractAddress,
+              abi: rexellAbi,
+              functionName: "buyTickets",
+              args: [BigInt(params.index), [resData.IpfsHash], BigInt(1)],
+            });
+
             if (hash) {
               // Record successful purchase for AI tracking
               if (address) {
