@@ -3,7 +3,7 @@ import { celoSepolia } from './celoSepolia';
 import { rexellAbi } from "@/blockchain/abi/rexell-abi";
 
 // Contract address - should match your deployed contract
-export const CONTRACT_ADDRESS = "0xc4A5985Aa3f3EAcCC99E62da9819c4e92889e0e7";
+export const CONTRACT_ADDRESS = (process.env.NEXT_PUBLIC_REXELL_ADDRESS as `0x${string}`) || "0x2954db0316985787B2076CF9bF7f42CCeBFF8185";
 
 /**
  * Get the public client

@@ -1,4 +1,4 @@
-export const contractAddress = "0xd7d7f04Aa8B166Bf42998Ec369f5Cb3b4bB6952a";
+export const contractAddress = (process.env.NEXT_PUBLIC_REXELL_ADDRESS as `0x${string}`) || "0x2954db0316985787B2076CF9bF7f42CCeBFF8185";
 export const rexellAbi = [
   {
     "inputs": [
