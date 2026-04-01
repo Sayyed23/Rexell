@@ -1,33 +1,34 @@
-# Design Document: Rexell AI Bot Detection Integration
+# Design Document: Rexell AI Bot Detection Integration (Cloud-Agnostic)
 
 ## Overview
 
-This design document specifies the technical architecture for integrating AI-powered bot detection capabilities into the Rexell blockchain-based ticketing platform. The system leverages AWS managed services to provide real-time bot detection during ticket purchases and resale operations, protecting legitimate users from automated scalping attacks.
+This design document specifies the technical architecture for integrating AI-powered bot detection capabilities into the Rexell blockchain-based ticketing platform. The system uses containerized microservices and open-source tooling to provide real-time bot detection during ticket purchases and resale operations, protecting legitimate users from automated scalping attacks.
+
+The architecture is fully cloud-agnostic and deployable on any cloud provider (AWS, GCP, Azure) or on-premises infrastructure using Docker and Kubernetes.
 
 ### System Goals
-
-The bot detection system aims to:
 
 1. Detect and block automated bot activity during ticket purchase flows with sub-200ms latency
 2. Analyze behavioral biometrics to distinguish human users from automated scripts
 3. Provide adaptive challenge mechanisms that minimize friction for legitimate users
 4. Integrate seamlessly with existing Rexell smart contracts (buyTicket, buyTickets, requestResaleVerification)
-5. Scale elastically to handle traffic spikes during high-demand ticket releases
-6. Maintain cost efficiency through serverless architecture and intelligent resource management
+5. Scale horizontally to handle traffic spikes during high-demand ticket releases
+6. Maintain cost efficiency through container orchestration and intelligent resource management
 7. Ensure data privacy compliance with GDPR and CCPA regulations
 
 ### Key Design Principles
 
-- **Serverless-First**: Utilize AWS Lambda and managed services to minimize operational overhead
+- **Container-First**: All services run as Docker containers orchestrated by Kubernetes
 - **Defense in Depth**: Multiple detection layers including behavioral analysis, ML scoring, and adaptive challenges
 - **Fail-Safe**: Graceful degradation to basic rate limiting when bot detection services are unavailable
 - **Privacy by Design**: Anonymize user data, encrypt at rest and in transit, implement data retention policies
-- **Observable**: Comprehensive logging, metrics, and alerting for detection performance and system health
+- **Observable**: Prometheus metrics, structured logging, and Grafana dashboards for full observability
+- **Cloud-Agnostic**: No vendor-specific SDKs or managed services; deployable anywhere
+
 
 ## Architecture
 
 ### High-Level Architecture
-
 
 ```mermaid
 graph TB
@@ -35,149 +36,143 @@ graph TB
         WebApp[Web Application]
         BehavioralSDK[Behavioral Analytics SDK]
     end
-    
-    subgraph "AWS Cloud"
-        subgraph "API Layer"
-            APIGateway[API Gateway<br/>Rate Limiting & Auth]
-        end
-        
-        subgraph "Compute Layer"
-            DetectionLambda[Detection Lambda<br/>Risk Analysis]
-            ChallengeLambda[Challenge Lambda<br/>Verification]
-            TrainingLambda[Training Lambda<br/>Model Updates]
-        end
-        
-        subgraph "ML Layer"
-            SageMaker[SageMaker Endpoint<br/>Bot Detection Model]
-            S3Models[S3<br/>Model Artifacts]
-        end
-        
-        subgraph "Data Layer"
-            DynamoDB[(DynamoDB<br/>Behavioral Data<br/>Risk Scores)]
-            S3Archive[S3 Glacier<br/>Archived Data]
-        end
-        
-        subgraph "Security Layer"
-            KMS[KMS<br/>Encryption Keys]
-            Secrets[Secrets Manager<br/>API Keys]
-        end
-        
-        subgraph "Monitoring Layer"
-            CloudWatch[CloudWatch<br/>Logs & Metrics]
-            SNS[SNS<br/>Alerts]
-        end
+
+    subgraph "API Layer"
+        APIServer[API Server<br/>FastAPI / Express.js<br/>Rate Limiting & Auth]
+        RateLimiter[Redis<br/>Rate Limiter]
     end
-    
+
+    subgraph "Core Services"
+        DetectionService[Detection Service<br/>Risk Analysis]
+        ChallengeService[Challenge Service<br/>Verification]
+        TrainingService[Training Service<br/>Model Updates]
+    end
+
+    subgraph "ML Layer"
+        MLInference[ML Inference Service<br/>TorchServe / Triton]
+        ModelRegistry[Model Registry<br/>MLflow]
+    end
+
+    subgraph "Data Layer"
+        PostgreSQL[(PostgreSQL<br/>Behavioral Data<br/>Risk Scores<br/>Tokens)]
+        Redis[(Redis<br/>Cache & Sessions)]
+        MinIO[MinIO / Object Storage<br/>Model Artifacts<br/>Archived Data]
+    end
+
+    subgraph "Messaging"
+        RabbitMQ[RabbitMQ<br/>Async Processing]
+    end
+
+    subgraph "Observability"
+        Prometheus[Prometheus<br/>Metrics]
+        Grafana[Grafana<br/>Dashboards & Alerts]
+        Loki[Loki<br/>Log Aggregation]
+    end
+
     subgraph "Blockchain Layer"
-        RexellContract[Rexell Smart Contract<br/>buyTicket/requestResaleVerification]
+        RexellContract[Rexell Smart Contract<br/>buyTicket / requestResaleVerification]
         Backend[Rexell Backend<br/>Transaction Orchestration]
     end
-    
+
     WebApp --> BehavioralSDK
-    BehavioralSDK --> APIGateway
-    APIGateway --> DetectionLambda
-    APIGateway --> ChallengeLambda
-    DetectionLambda --> SageMaker
-    DetectionLambda --> DynamoDB
-    ChallengeLambda --> DynamoDB
-    TrainingLambda --> SageMaker
-    TrainingLambda --> S3Models
-    DynamoDB --> S3Archive
-    DetectionLambda --> CloudWatch
-    ChallengeLambda --> CloudWatch
-    CloudWatch --> SNS
-    KMS --> DynamoDB
-    KMS --> S3Models
-    Backend --> APIGateway
+    BehavioralSDK --> APIServer
+    APIServer --> RateLimiter
+    APIServer --> DetectionService
+    APIServer --> ChallengeService
+    DetectionService --> MLInference
+    DetectionService --> PostgreSQL
+    DetectionService --> Redis
+    ChallengeService --> PostgreSQL
+    ChallengeService --> Redis
+    TrainingService --> MLInference
+    TrainingService --> ModelRegistry
+    TrainingService --> MinIO
+    PostgreSQL --> MinIO
+    DetectionService --> RabbitMQ
+    RabbitMQ --> TrainingService
+    DetectionService --> Prometheus
+    ChallengeService --> Prometheus
+    Prometheus --> Grafana
+    Loki --> Grafana
+    Backend --> APIServer
     Backend --> RexellContract
-    DetectionLambda -.Verification Token.-> Backend
+    DetectionService -.Verification Token.-> Backend
 ```
 
 ### Architecture Components
 
-
-
 **Client Layer**
-- Behavioral Analytics SDK: JavaScript library embedded in Rexell web application to capture user interactions
+- Behavioral Analytics SDK: JavaScript library embedded in the Rexell web application to capture user interactions
 - Collects mouse movements, keystroke dynamics, touch gestures, navigation patterns
-- Transmits encrypted behavioral data to API Gateway
+- Transmits encrypted behavioral data to the API Server over TLS 1.3
 
 **API Layer**
-- AWS API Gateway: RESTful API endpoints with request/response validation
-- Authentication via API keys stored in AWS Secrets Manager
-- Rate limiting: 100 req/sec per API key, burst capacity 200 requests
-- Request throttling with exponential backoff for exceeded limits
+- API Server: FastAPI (Python) or Express.js (TypeScript) REST API with request validation and authentication
+- API key authentication via request headers; keys stored in environment secrets
+- Rate limiting enforced via Redis sliding window: 100 req/sec per API key, burst capacity 200
+- Request throttling returns HTTP 429 with Retry-After header
 
-**Compute Layer**
-- Detection Lambda: Analyzes behavioral data, invokes ML model, calculates risk scores
-- Challenge Lambda: Generates and validates adaptive verification challenges
-- Training Lambda: Scheduled function for monthly model retraining on accumulated data
+**Core Services**
+- Detection Service: Analyzes behavioral data, invokes ML model, calculates risk scores, issues tokens
+- Challenge Service: Generates and validates adaptive verification challenges
+- Training Service: Scheduled job for monthly model retraining on accumulated data
 
 **ML Layer**
-- SageMaker Endpoint: Real-time inference endpoint hosting bot detection model
-- Auto-scaling based on request volume (min 1, max 10 instances)
-- Model artifacts stored in S3 with versioning enabled
+- ML Inference Service: TorchServe or Triton Inference Server hosting the bot detection model
+- Horizontal pod autoscaling based on request volume (min 1, max 10 replicas)
+- Model artifacts stored in MinIO with versioning
+- MLflow for experiment tracking and model registry
 
 **Data Layer**
-- DynamoDB: Primary data store for behavioral data, risk scores, verification tokens
-- On-demand pricing for variable workload patterns
-- Point-in-time recovery enabled for data protection
-- S3 Glacier: Long-term archive for data older than 90 days
+- PostgreSQL: Primary relational store for behavioral data, risk scores, verification tokens, user reputation
+- Redis: In-memory cache for session state, rate limiting counters, reputation score caching
+- MinIO: S3-compatible object storage for model artifacts, challenge images, and archived data
 
-**Security Layer**
-- AWS KMS: Customer-managed keys for encryption at rest
-- Secrets Manager: Secure storage for API keys, signing keys, external credentials
-- IAM roles with least-privilege access policies
+**Messaging**
+- RabbitMQ: Asynchronous message queue for decoupled processing (e.g., training data ingestion, audit events)
 
-**Monitoring Layer**
-- CloudWatch: Centralized logging, custom metrics, dashboards
-- SNS: Alert notifications for high bot detection rates, errors, performance degradation
-- X-Ray: Distributed tracing for request flow analysis
+**Observability**
+- Prometheus: Metrics collection from all services via `/metrics` endpoints
+- Grafana: Dashboards and alert rules for operational, detection, and cost views
+- Loki: Structured log aggregation from all containers
 
-### Deployment Architecture
-
-The system deploys across multiple AWS availability zones for high availability:
-
-- API Gateway: Multi-AZ by default
-- Lambda functions: Deployed in VPC with subnets in 3 AZs
-- DynamoDB: Global tables with multi-region replication (optional)
-- SageMaker endpoints: Multi-AZ deployment with automatic failover
 
 ### Data Flow
-
-
 
 ```mermaid
 sequenceDiagram
     participant User
     participant WebApp
     participant SDK as Behavioral SDK
-    participant API as API Gateway
-    participant Lambda as Detection Lambda
-    participant ML as SageMaker
-    participant DB as DynamoDB
+    participant API as API Server
+    participant Svc as Detection Service
+    participant ML as ML Inference Service
+    participant DB as PostgreSQL
+    participant Cache as Redis
     participant Backend as Rexell Backend
     participant Contract as Smart Contract
-    
+
     User->>WebApp: Navigate to ticket purchase
     WebApp->>SDK: Initialize behavioral tracking
     SDK->>SDK: Collect mouse, keyboard, navigation data
-    
+
     User->>WebApp: Click "Buy Ticket"
     WebApp->>SDK: Request verification
-    SDK->>API: POST /detect (behavioral data)
-    API->>Lambda: Invoke with behavioral payload
-    
-    Lambda->>DB: Query user history
-    DB-->>Lambda: Historical behavioral data
-    
-    Lambda->>ML: Invoke endpoint with features
-    ML-->>Lambda: Risk score (0-100)
-    
+    SDK->>API: POST /v1/detect (behavioral data)
+    API->>Svc: Forward with validated payload
+
+    Svc->>Cache: Check cached reputation score
+    Cache-->>Svc: Reputation (or miss)
+    Svc->>DB: Query user history (on cache miss)
+    DB-->>Svc: Historical behavioral data
+
+    Svc->>ML: POST /predictions (feature vector)
+    ML-->>Svc: Risk score (0-1)
+
     alt Risk Score < 50 (Low Risk)
-        Lambda->>DB: Store risk score
-        Lambda->>Lambda: Generate verification token
-        Lambda-->>API: Return token + allow
+        Svc->>DB: Store risk score + decision
+        Svc->>Svc: Generate verification token (HMAC-SHA256)
+        Svc-->>API: Return token + allow
         API-->>SDK: Verification successful
         SDK-->>WebApp: Proceed with purchase
         WebApp->>Backend: Submit transaction with token
@@ -186,23 +181,23 @@ sequenceDiagram
         Contract-->>Backend: Transaction hash
         Backend-->>WebApp: Purchase confirmed
     else Risk Score 50-80 (Medium Risk)
-        Lambda->>DB: Store risk score
-        Lambda-->>API: Return challenge required
+        Svc->>DB: Store risk score
+        Svc-->>API: Return challenge required
         API-->>SDK: Challenge required
         SDK-->>WebApp: Display challenge
         WebApp->>User: Show verification challenge
         User->>WebApp: Complete challenge
-        WebApp->>API: POST /verify-challenge
-        API->>Lambda: Validate challenge response
-        Lambda->>Lambda: Reduce risk score by 30
-        Lambda->>Lambda: Generate verification token
-        Lambda-->>API: Return token + allow
+        WebApp->>API: POST /v1/verify-challenge
+        API->>Svc: Validate challenge response
+        Svc->>Svc: Reduce risk score by 30
+        Svc->>Svc: Generate verification token
+        Svc-->>API: Return token + allow
         API-->>WebApp: Verification successful
         WebApp->>Backend: Submit transaction with token
         Backend->>Contract: Call buyTicket()
     else Risk Score > 80 (High Risk)
-        Lambda->>DB: Store risk score + block event
-        Lambda-->>API: Return blocked
+        Svc->>DB: Store risk score + block event
+        Svc-->>API: Return blocked
         API-->>SDK: Request blocked
         SDK-->>WebApp: Display error message
         WebApp->>User: "Unable to process request"
@@ -220,24 +215,15 @@ The core orchestration service responsible for coordinating bot detection operat
 - Coordinate between Behavioral_Analyzer, Risk_Scorer, and Challenge_Engine
 - Generate and manage verification tokens
 - Enforce rate limiting and request throttling
-- Log detection events to CloudWatch
+- Log detection events
 
 **Interfaces:**
 
-
-
 ```typescript
 interface BotDetectionService {
-  // Analyze user behavior and return risk assessment
   detectBot(request: DetectionRequest): Promise<DetectionResponse>;
-  
-  // Validate verification token
   validateToken(token: string, walletAddress: string): Promise<TokenValidation>;
-  
-  // Mark token as consumed after successful transaction
   consumeToken(token: string): Promise<void>;
-  
-  // Get detection statistics for monitoring
   getDetectionStats(timeRange: TimeRange): Promise<DetectionStats>;
 }
 
@@ -251,50 +237,36 @@ interface DetectionRequest {
 interface DetectionResponse {
   decision: 'allow' | 'challenge' | 'block';
   riskScore: number; // 0-100
-  verificationToken?: string; // Present if decision is 'allow'
-  challengeType?: ChallengeType; // Present if decision is 'challenge'
-  challengeId?: string; // Present if decision is 'challenge'
-  reason?: string; // Explanation for decision
+  verificationToken?: string;
+  challengeType?: ChallengeType;
+  challengeId?: string;
+  reason?: string;
 }
 
 interface RequestContext {
   eventId: string;
   ticketQuantity: number;
   timestamp: number;
-  ipAddress?: string;
   userAgent?: string;
 }
 ```
 
 **Implementation:**
-- AWS Lambda function (Node.js 18.x runtime)
-- Memory: 1024 MB
-- Timeout: 10 seconds
-- Concurrency: Reserved capacity of 50 during peak hours, auto-scaling up to 500
-- Environment variables: DynamoDB table names, SageMaker endpoint, KMS key ARN
+- Python FastAPI service running in Docker container
+- Kubernetes Deployment with 2-10 replicas (HPA based on CPU/request rate)
+- Environment variables for DB connection strings, ML service URL, signing keys
+
 
 ### Behavioral_Analyzer
 
-Component responsible for processing raw behavioral data and extracting features for ML model.
-
-**Responsibilities:**
-- Validate and sanitize incoming behavioral data
-- Extract statistical features from mouse movements (velocity, acceleration, curvature)
-- Analyze keystroke dynamics (flight time, dwell time, rhythm patterns)
-- Calculate navigation pattern features (page sequence entropy, dwell time distribution)
-- Aggregate features into ML-ready feature vector
+Component responsible for processing raw behavioral data and extracting features for the ML model.
 
 **Interfaces:**
 
 ```typescript
 interface BehavioralAnalyzer {
-  // Extract features from raw behavioral data
   extractFeatures(data: BehavioralData): Promise<FeatureVector>;
-  
-  // Validate behavioral data completeness and integrity
   validateData(data: BehavioralData): ValidationResult;
-  
-  // Calculate anomaly score based on historical patterns
   calculateAnomalyScore(features: FeatureVector, history: UserHistory): number;
 }
 
@@ -316,7 +288,7 @@ interface MouseEvent {
 interface KeystrokeEvent {
   timestamp: number;
   keyCode: string;
-  pressTime: number; // Duration of key press in ms
+  pressTime: number;
   eventType: 'keydown' | 'keyup';
 }
 
@@ -338,48 +310,33 @@ interface FeatureVector {
   keystrokeDwellTimeMean: number;
   navigationEntropy: number;
   sessionDuration: number;
-  // ... additional 20+ features
+  // 20+ additional features
 }
 ```
 
 **Implementation:**
-- Embedded within Detection Lambda function
-- Feature extraction algorithms based on research in behavioral biometrics
-- Statistical calculations using math.js library
+- Embedded within the Detection Service as a Python module
+- Feature extraction using NumPy/SciPy for statistical calculations
 - Feature normalization to [0, 1] range for ML model input
 
 ### Risk_Scorer
 
-
-
-Component that calculates risk scores using ML model and contextual signals.
-
-**Responsibilities:**
-- Invoke SageMaker endpoint with feature vector
-- Combine ML model score with contextual signals (account age, transaction history)
-- Apply reputation adjustments for trusted users
-- Calculate final risk score (0-100)
-- Determine decision threshold (allow/challenge/block)
+Component that calculates risk scores using the ML model and contextual signals.
 
 **Interfaces:**
 
 ```typescript
 interface RiskScorer {
-  // Calculate risk score for a user session
   calculateRiskScore(features: FeatureVector, context: RiskContext): Promise<RiskScore>;
-  
-  // Update user reputation based on successful transactions
   updateReputation(walletAddress: string, outcome: 'success' | 'failure'): Promise<void>;
-  
-  // Get user reputation score
   getReputation(walletAddress: string): Promise<ReputationScore>;
 }
 
 interface RiskContext {
   walletAddress: string;
-  accountAge: number; // Days since first transaction
+  accountAge: number;
   transactionHistory: TransactionSummary;
-  recentFailures: number; // Failed verifications in last 24h
+  recentFailures: number;
   trustedStatus: boolean;
 }
 
@@ -388,12 +345,6 @@ interface RiskScore {
   confidence: number; // 0-1
   factors: RiskFactor[];
   decision: 'allow' | 'challenge' | 'block';
-}
-
-interface RiskFactor {
-  name: string;
-  contribution: number; // -50 to +50
-  description: string;
 }
 
 interface ReputationScore {
@@ -407,49 +358,31 @@ interface ReputationScore {
 ```
 
 **Implementation:**
-- Embedded within Detection Lambda function
-- SageMaker endpoint invocation using AWS SDK v3
-- Caching of reputation scores in DynamoDB with TTL
+- HTTP call to ML Inference Service (`POST /predictions`) with feature vector payload
+- Circuit breaker pattern (5 failures → open for 60s) for fault tolerance
+- Reputation scores cached in Redis with 5-minute TTL
 - Decision thresholds: allow (<50), challenge (50-80), block (>80)
-- Reputation decay: -1 point per day of inactivity
+- Fallback to rule-based scoring when ML Inference Service is unavailable
 
 **ML Model Architecture:**
-- Algorithm: Gradient Boosted Trees (XGBoost)
+- Algorithm: Gradient Boosted Trees (XGBoost or scikit-learn GradientBoostingClassifier)
 - Input: 30-dimensional feature vector
 - Output: Bot probability score (0-1)
-- Training data: Historical behavioral data labeled by human review and challenge outcomes
+- Training framework: scikit-learn / XGBoost with MLflow experiment tracking
 - Validation metrics: 95% accuracy, <2% false positive rate
-- Model versioning: Semantic versioning stored in S3 metadata
+- Model artifacts stored in MinIO with semantic versioning
 
 ### Challenge_Engine
 
 Component that generates and validates adaptive verification challenges.
 
-**Responsibilities:**
-- Select appropriate challenge type based on risk score
-- Generate challenge content (images, questions, behavioral tasks)
-- Validate user responses
-- Adjust risk scores based on challenge outcomes
-- Track challenge failure rates per user
-
 **Interfaces:**
 
 ```typescript
 interface ChallengeEngine {
-  // Generate a challenge appropriate for the risk level
   generateChallenge(riskScore: number, context: ChallengeContext): Promise<Challenge>;
-  
-  // Validate user response to challenge
   validateChallenge(challengeId: string, response: ChallengeResponse): Promise<ChallengeResult>;
-  
-  // Get challenge statistics for monitoring
   getChallengeStats(timeRange: TimeRange): Promise<ChallengeStats>;
-}
-
-interface ChallengeContext {
-  sessionId: string;
-  walletAddress: string;
-  previousFailures: number;
 }
 
 interface Challenge {
@@ -462,67 +395,42 @@ interface Challenge {
 
 type ChallengeType = 'image_selection' | 'behavioral_confirmation' | 'multi_step';
 
-interface ChallengeContent {
-  instructions: string;
-  data: any; // Challenge-specific data
-}
-
-interface ChallengeResponse {
-  challengeId: string;
-  answer: any; // Challenge-specific answer format
-  completionTime: number; // Time taken to complete in ms
-}
-
 interface ChallengeResult {
   success: boolean;
   riskScoreAdjustment: number; // -30 for success, +10 for failure
   remainingAttempts: number;
-  blockedUntil?: number; // Timestamp if user is temporarily blocked
+  blockedUntil?: number;
 }
 ```
 
 **Implementation:**
-- Separate AWS Lambda function (Challenge Lambda)
+- Separate Python FastAPI microservice (Challenge Service)
 - Challenge types:
-  - **Image Selection** (risk 50-65): Select images matching a category (e.g., "Select all traffic lights")
-  - **Behavioral Confirmation** (risk 65-80): Perform specific mouse/keyboard patterns
-  - **Multi-Step** (risk 65-80): Combination of image selection + behavioral confirmation
-- Challenge content stored in S3 bucket
-- Challenge state stored in DynamoDB with 5-minute TTL
-- Rate limiting: Max 3 failures per session, 15-minute cooldown
+  - **Image Selection** (risk 50-65): Select images matching a category
+  - **Multi-Step** (risk 65-80): Image selection + behavioral confirmation
+- Challenge images stored in MinIO
+- Challenge state stored in Redis with 5-minute TTL
+- Rate limiting: max 3 failures per session, 15-minute cooldown
 
 ### Integration with Rexell Smart Contracts
 
-
-
-The bot detection system integrates with existing Rexell smart contract functions:
-
 **Integration Points:**
 
-1. **buyTicket(eventId, nftUri)**: Single ticket purchase
-   - Rexell backend requests verification token before transaction
-   - Token validated and consumed upon successful purchase
-   
-2. **buyTickets(eventId, nftUris, quantity)**: Bulk ticket purchase
-   - Higher scrutiny for bulk purchases (risk score multiplier: 1.5x)
-   - Token includes quantity limit to prevent token reuse for additional tickets
-   
-3. **requestResaleVerification(tokenId, price)**: Resale request
-   - Behavioral analysis of resale patterns
-   - Account history and trusted status considered
-   - Rapid successive requests flagged for review
+1. **buyTicket(eventId, nftUri)**: Single ticket purchase — token requested before transaction
+2. **buyTickets(eventId, nftUris, quantity)**: Bulk purchase — 1.5x risk score multiplier applied
+3. **requestResaleVerification(tokenId, price)**: Resale request — behavioral pattern analysis applied
 
 **Verification Token Structure:**
 
 ```typescript
 interface VerificationToken {
-  tokenId: string; // UUID v4
-  walletAddress: string; // Ethereum address
-  eventId: string; // Event being purchased
-  maxQuantity: number; // Maximum tickets allowed
-  issuedAt: number; // Unix timestamp
-  expiresAt: number; // Unix timestamp (5 minutes from issuance)
-  signature: string; // HMAC-SHA256 signature
+  tokenId: string;        // UUID v4
+  walletAddress: string;  // Ethereum address
+  eventId: string;
+  maxQuantity: number;
+  issuedAt: number;       // Unix timestamp (ms)
+  expiresAt: number;      // issuedAt + 5 minutes
+  signature: string;      // HMAC-SHA256 over payload
 }
 ```
 
@@ -535,298 +443,185 @@ function generateToken(walletAddress: string, eventId: string, quantity: number)
     eventId,
     maxQuantity: quantity,
     issuedAt: Date.now(),
-    expiresAt: Date.now() + (5 * 60 * 1000), // 5 minutes
+    expiresAt: Date.now() + (5 * 60 * 1000),
   };
-  
   const signature = crypto
     .createHmac('sha256', signingKey)
     .update(JSON.stringify(payload))
     .digest('hex');
-  
   return Buffer.from(JSON.stringify({ ...payload, signature })).toString('base64');
 }
 ```
 
-**Backend Integration Flow:**
-
-```typescript
-// Rexell backend service
-async function executePurchase(walletAddress: string, eventId: string, quantity: number) {
-  // 1. Request bot detection verification
-  const detectionResult = await botDetectionClient.detectBot({
-    sessionId: getCurrentSessionId(),
-    walletAddress,
-    behavioralData: getBehavioralData(),
-    context: { eventId, ticketQuantity: quantity, timestamp: Date.now() }
-  });
-  
-  // 2. Handle detection result
-  if (detectionResult.decision === 'block') {
-    throw new Error('Purchase blocked due to suspicious activity');
-  }
-  
-  if (detectionResult.decision === 'challenge') {
-    // Return challenge to frontend for user completion
-    return { requiresChallenge: true, challengeId: detectionResult.challengeId };
-  }
-  
-  // 3. Validate token
-  const tokenValid = await botDetectionClient.validateToken(
-    detectionResult.verificationToken,
-    walletAddress
-  );
-  
-  if (!tokenValid) {
-    throw new Error('Invalid verification token');
-  }
-  
-  // 4. Execute blockchain transaction
-  const tx = await rexellContract.buyTickets(eventId, nftUris, quantity);
-  await tx.wait();
-  
-  // 5. Mark token as consumed
-  await botDetectionClient.consumeToken(detectionResult.verificationToken);
-  
-  return { success: true, transactionHash: tx.hash };
-}
-```
 
 ## Data Models
 
-### DynamoDB Tables
+### PostgreSQL Schema
 
-**Table: BehavioralData**
+**Table: behavioral_data**
 
 Stores raw and processed behavioral data for analysis and model training.
 
+```sql
+CREATE TABLE behavioral_data (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_hash     TEXT NOT NULL,          -- SHA-256 of wallet address + salt
+  session_id    TEXT NOT NULL,
+  timestamp     BIGINT NOT NULL,
+  feature_vector JSONB NOT NULL,
+  raw_data      JSONB,                  -- Optional, for training
+  context_data  JSONB NOT NULL,
+  created_at    TIMESTAMPTZ DEFAULT NOW(),
+  expires_at    TIMESTAMPTZ NOT NULL    -- 90 days from created_at
+);
 
-
-```typescript
-interface BehavioralDataRecord {
-  // Partition key: hashed wallet address for anonymization
-  PK: string; // Format: "USER#{hashedWalletAddress}"
-  
-  // Sort key: timestamp for time-series queries
-  SK: string; // Format: "SESSION#{timestamp}#{sessionId}"
-  
-  // Data fields
-  sessionId: string;
-  timestamp: number;
-  featureVector: FeatureVector;
-  rawBehavioralData?: BehavioralData; // Optional, for training
-  contextData: RequestContext;
-  
-  // Metadata
-  createdAt: number;
-  ttl: number; // 90 days from creation
-}
+CREATE INDEX idx_behavioral_data_user_hash ON behavioral_data(user_hash);
+CREATE INDEX idx_behavioral_data_session ON behavioral_data(session_id);
+CREATE INDEX idx_behavioral_data_expires ON behavioral_data(expires_at);
 ```
 
-**Indexes:**
-- GSI1: sessionId (PK) → timestamp (SK) for session lookups
-- TTL enabled on `ttl` attribute for automatic deletion after 90 days
-
-**Table: RiskScores**
+**Table: risk_scores**
 
 Stores calculated risk scores and detection decisions.
 
-```typescript
-interface RiskScoreRecord {
-  // Partition key: hashed wallet address
-  PK: string; // Format: "USER#{hashedWalletAddress}"
-  
-  // Sort key: timestamp
-  SK: string; // Format: "RISK#{timestamp}"
-  
-  // Data fields
-  sessionId: string;
-  riskScore: number;
-  decision: 'allow' | 'challenge' | 'block';
-  factors: RiskFactor[];
-  modelVersion: string;
-  
-  // Context
-  eventId: string;
-  ticketQuantity: number;
-  
-  // Metadata
-  createdAt: number;
-  ttl: number; // 90 days from creation
-}
+```sql
+CREATE TABLE risk_scores (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_hash     TEXT NOT NULL,
+  session_id    TEXT NOT NULL,
+  risk_score    INTEGER NOT NULL CHECK (risk_score BETWEEN 0 AND 100),
+  decision      TEXT NOT NULL CHECK (decision IN ('allow', 'challenge', 'block')),
+  factors       JSONB NOT NULL,
+  model_version TEXT NOT NULL,
+  event_id      TEXT NOT NULL,
+  ticket_qty    INTEGER NOT NULL,
+  created_at    TIMESTAMPTZ DEFAULT NOW(),
+  expires_at    TIMESTAMPTZ NOT NULL
+);
+
+CREATE INDEX idx_risk_scores_user_hash ON risk_scores(user_hash);
+CREATE INDEX idx_risk_scores_decision ON risk_scores(decision, created_at);
+CREATE INDEX idx_risk_scores_event ON risk_scores(event_id, created_at);
 ```
 
-**Indexes:**
-- GSI1: decision (PK) → timestamp (SK) for filtering by decision type
-- GSI2: eventId (PK) → timestamp (SK) for event-specific analysis
-
-**Table: VerificationTokens**
+**Table: verification_tokens**
 
 Stores active verification tokens with short TTL.
 
-```typescript
-interface VerificationTokenRecord {
-  // Partition key: token ID
-  PK: string; // Format: "TOKEN#{tokenId}"
-  
-  // Sort key: wallet address for validation
-  SK: string; // Format: "WALLET#{walletAddress}"
-  
-  // Data fields
-  tokenId: string;
-  walletAddress: string;
-  eventId: string;
-  maxQuantity: number;
-  issuedAt: number;
-  expiresAt: number;
-  consumed: boolean;
-  consumedAt?: number;
-  
-  // Metadata
-  ttl: number; // 10 minutes from creation (5 min validity + 5 min grace)
-}
+```sql
+CREATE TABLE verification_tokens (
+  token_id      UUID PRIMARY KEY,
+  wallet_address TEXT NOT NULL,
+  event_id      TEXT NOT NULL,
+  max_quantity  INTEGER NOT NULL,
+  issued_at     BIGINT NOT NULL,
+  expires_at    BIGINT NOT NULL,
+  consumed      BOOLEAN DEFAULT FALSE,
+  consumed_at   BIGINT,
+  tx_hash       TEXT
+);
+
+CREATE INDEX idx_tokens_wallet ON verification_tokens(wallet_address, issued_at);
 ```
 
-**Indexes:**
-- GSI1: walletAddress (PK) → issuedAt (SK) for user token history
-- TTL enabled on `ttl` attribute
-
-**Table: UserReputation**
+**Table: user_reputation**
 
 Stores user reputation scores and transaction history.
 
-```typescript
-interface UserReputationRecord {
-  // Partition key: hashed wallet address
-  PK: string; // Format: "USER#{hashedWalletAddress}"
-  
-  // Sort key: fixed value for single record per user
-  SK: string; // Format: "REPUTATION"
-  
-  // Data fields
-  reputationScore: number; // 0-100
-  transactionCount: number;
-  successfulTransactions: number;
-  failedVerifications: number;
-  accountCreatedAt: number;
-  trustedStatus: boolean;
-  trustedSince?: number;
-  
-  // Recent activity tracking
-  last24hFailures: number;
-  last24hPurchases: number;
-  lastActivityAt: number;
-  
-  // Metadata
-  updatedAt: number;
-}
+```sql
+CREATE TABLE user_reputation (
+  user_hash             TEXT PRIMARY KEY,
+  reputation_score      INTEGER DEFAULT 50 CHECK (reputation_score BETWEEN 0 AND 100),
+  transaction_count     INTEGER DEFAULT 0,
+  successful_txns       INTEGER DEFAULT 0,
+  failed_verifications  INTEGER DEFAULT 0,
+  account_created_at    BIGINT NOT NULL,
+  trusted_status        BOOLEAN DEFAULT FALSE,
+  trusted_since         BIGINT,
+  last_24h_failures     INTEGER DEFAULT 0,
+  last_24h_purchases    INTEGER DEFAULT 0,
+  last_activity_at      BIGINT,
+  updated_at            TIMESTAMPTZ DEFAULT NOW()
+);
 ```
 
-**Table: ChallengeState**
+**Table: challenge_state**
 
 Stores active challenge state and attempt tracking.
 
-```typescript
-interface ChallengeStateRecord {
-  // Partition key: challenge ID
-  PK: string; // Format: "CHALLENGE#{challengeId}"
-  
-  // Sort key: session ID
-  SK: string; // Format: "SESSION#{sessionId}"
-  
-  // Data fields
-  challengeId: string;
-  sessionId: string;
-  walletAddress: string;
-  challengeType: ChallengeType;
-  challengeContent: ChallengeContent;
-  correctAnswer: any; // Encrypted
-  
-  // Attempt tracking
-  attempts: number;
-  maxAttempts: number;
-  failedAttempts: number;
-  
-  // Timing
-  createdAt: number;
-  expiresAt: number;
-  completedAt?: number;
-  
-  // Metadata
-  ttl: number; // 10 minutes from creation
-}
+```sql
+CREATE TABLE challenge_state (
+  challenge_id    UUID PRIMARY KEY,
+  session_id      TEXT NOT NULL,
+  user_hash       TEXT NOT NULL,
+  challenge_type  TEXT NOT NULL,
+  challenge_data  JSONB NOT NULL,
+  correct_answer  TEXT NOT NULL,  -- Encrypted
+  attempts        INTEGER DEFAULT 0,
+  max_attempts    INTEGER DEFAULT 3,
+  failed_attempts INTEGER DEFAULT 0,
+  created_at      BIGINT NOT NULL,
+  expires_at      BIGINT NOT NULL,
+  completed_at    BIGINT
+);
+
+CREATE INDEX idx_challenge_session ON challenge_state(session_id, created_at);
 ```
 
-**Indexes:**
-- GSI1: sessionId (PK) → createdAt (SK) for session challenge lookup
-- TTL enabled on `ttl` attribute
-
-### S3 Bucket Structure
-
-**Bucket: rexell-bot-detection-models**
-
-Stores ML model artifacts and training data.
+### Redis Key Patterns
 
 ```
-rexell-bot-detection-models/
+rate_limit:{api_key}:{window}          → sliding window counter (TTL: 1s)
+reputation:{user_hash}                 → cached ReputationScore JSON (TTL: 5m)
+session:{session_id}                   → session state JSON (TTL: 30m)
+challenge:{challenge_id}               → challenge state JSON (TTL: 5m)
+fallback:active                        → "1" when fallback mode is on (TTL: none)
+block:{user_hash}                      → "1" when user is temporarily blocked (TTL: 15m)
+```
+
+### MinIO Bucket Structure
+
+```
+bot-detection-models/
 ├── models/
 │   ├── v1.0.0/
-│   │   ├── model.tar.gz
+│   │   ├── model.pkl (or model.pt)
 │   │   ├── metadata.json
 │   │   └── validation_metrics.json
-│   ├── v1.1.0/
-│   │   └── ...
-│   └── latest -> v1.1.0/
+│   └── latest -> v1.0.0/
 ├── training-data/
 │   ├── 2024-01/
-│   │   ├── labeled_data.parquet
 │   │   └── features.parquet
-│   └── 2024-02/
-│       └── ...
+│   └── ...
 └── challenge-content/
-    ├── images/
-    │   ├── traffic_lights/
-    │   ├── crosswalks/
-    │   └── ...
-    └── templates/
-        └── ...
-```
+    └── images/
+        ├── traffic_lights/
+        └── crosswalks/
 
-**Bucket: rexell-bot-detection-archive**
-
-Long-term archive for behavioral data (S3 Glacier).
-
-```
-rexell-bot-detection-archive/
-├── behavioral-data/
-│   ├── 2024/
-│   │   ├── 01/
-│   │   │   ├── data_20240101.parquet.gz
-│   │   │   └── ...
-│   │   └── 02/
-│   │       └── ...
-└── risk-scores/
-    └── ...
+bot-detection-archive/
+└── behavioral-data/
+    └── 2024/01/
+        └── data_20240101.parquet.gz
 ```
 
 ### Encryption Strategy
 
-
-
 **Data at Rest:**
-- DynamoDB: AWS KMS encryption with customer-managed key (CMK)
-- S3: Server-side encryption with KMS (SSE-KMS)
-- Key rotation: Automatic annual rotation enabled
+- PostgreSQL: Transparent Data Encryption (TDE) or filesystem-level encryption (LUKS)
+- MinIO: Server-side encryption with AES-256 (SSE-S3 compatible)
+- Redis: Encrypted at rest via OS-level disk encryption
 
 **Data in Transit:**
 - TLS 1.3 for all API communications
 - Certificate pinning in client SDK
-- Mutual TLS for backend-to-Lambda communication
+- mTLS between internal microservices (via service mesh or manual cert management)
 
 **Data Anonymization:**
-- Wallet addresses hashed using SHA-256 with salt before storage
+- Wallet addresses hashed using SHA-256 with a per-deployment salt before storage
 - IP addresses truncated to /24 subnet (last octet removed)
 - User agents normalized to browser family only
 - No PII stored in logs or behavioral data
+
 
 ## API Specifications
 
@@ -840,187 +635,107 @@ Analyze behavioral data and return risk assessment.
   "sessionId": "550e8400-e29b-41d4-a716-446655440000",
   "walletAddress": "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb",
   "behavioralData": {
-    "mouseMovements": [
-      { "timestamp": 1234567890, "x": 100, "y": 200, "eventType": "move" }
-    ],
-    "keystrokes": [
-      { "timestamp": 1234567891, "keyCode": "KeyA", "pressTime": 50, "eventType": "keydown" }
-    ],
-    "navigationEvents": [
-      { "timestamp": 1234567800, "fromPage": "/events", "toPage": "/event/123", "dwellTime": 5000 }
-    ],
+    "mouseMovements": [{ "timestamp": 1234567890, "x": 100, "y": 200, "eventType": "move" }],
+    "keystrokes": [{ "timestamp": 1234567891, "keyCode": "KeyA", "pressTime": 50, "eventType": "keydown" }],
+    "navigationEvents": [{ "timestamp": 1234567800, "fromPage": "/events", "toPage": "/event/123", "dwellTime": 5000 }],
     "sessionDuration": 30000
   },
-  "context": {
-    "eventId": "123",
-    "ticketQuantity": 2,
-    "timestamp": 1234567890,
-    "userAgent": "Mozilla/5.0..."
-  }
+  "context": { "eventId": "123", "ticketQuantity": 2, "timestamp": 1234567890 }
 }
 ```
 
-**Response (Allow):**
-```json
-{
-  "decision": "allow",
-  "riskScore": 25,
-  "verificationToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "expiresAt": 1234568190,
-  "factors": [
-    { "name": "mouse_velocity", "contribution": -10, "description": "Natural mouse movement patterns" },
-    { "name": "account_age", "contribution": -15, "description": "Established account" }
-  ]
-}
-```
+**Response (Allow):** `{ "decision": "allow", "riskScore": 25, "verificationToken": "...", "expiresAt": 1234568190 }`
 
-**Response (Challenge):**
-```json
-{
-  "decision": "challenge",
-  "riskScore": 65,
-  "challengeType": "image_selection",
-  "challengeId": "ch_550e8400e29b41d4a716446655440000",
-  "challenge": {
-    "instructions": "Select all images containing traffic lights",
-    "images": [
-      { "id": "img1", "url": "https://..." },
-      { "id": "img2", "url": "https://..." }
-    ],
-    "expiresAt": 1234568190
-  },
-  "factors": [
-    { "name": "mouse_velocity", "contribution": 20, "description": "Unusually consistent velocity" },
-    { "name": "keystroke_rhythm", "contribution": 15, "description": "Mechanical typing pattern" }
-  ]
-}
-```
+**Response (Challenge):** `{ "decision": "challenge", "riskScore": 65, "challengeType": "image_selection", "challengeId": "ch_..." }`
 
-**Response (Block):**
-```json
-{
-  "decision": "block",
-  "riskScore": 95,
-  "reason": "Automated bot activity detected",
-  "retryAfter": 900,
-  "factors": [
-    { "name": "mouse_velocity", "contribution": 40, "description": "Impossible movement speed" },
-    { "name": "session_duration", "contribution": 30, "description": "Suspiciously short session" }
-  ]
-}
-```
-
-**Error Responses:**
-- 400 Bad Request: Invalid behavioral data format
-- 429 Too Many Requests: Rate limit exceeded
-- 500 Internal Server Error: Service unavailable
-- 503 Service Unavailable: Fallback mode active
+**Response (Block):** `{ "decision": "block", "riskScore": 95, "reason": "Automated bot activity detected", "retryAfter": 900 }`
 
 ### POST /v1/verify-challenge
 
 Validate user response to verification challenge.
 
-**Request:**
-```json
-{
-  "challengeId": "ch_550e8400e29b41d4a716446655440000",
-  "sessionId": "550e8400-e29b-41d4-a716-446655440000",
-  "response": {
-    "selectedImages": ["img1", "img3", "img5"]
-  },
-  "completionTime": 8500
-}
-```
-
-**Response (Success):**
-```json
-{
-  "success": true,
-  "verificationToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "expiresAt": 1234568190,
-  "adjustedRiskScore": 35
-}
-```
-
-**Response (Failure):**
-```json
-{
-  "success": false,
-  "remainingAttempts": 2,
-  "message": "Incorrect response. Please try again."
-}
-```
-
-**Response (Blocked):**
-```json
-{
-  "success": false,
-  "blocked": true,
-  "blockedUntil": 1234568790,
-  "message": "Too many failed attempts. Please try again in 15 minutes."
-}
-```
-
 ### POST /v1/validate-token
 
 Validate verification token before transaction execution.
-
-**Request:**
-```json
-{
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "walletAddress": "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb",
-  "eventId": "123"
-}
-```
-
-**Response:**
-```json
-{
-  "valid": true,
-  "maxQuantity": 2,
-  "expiresAt": 1234568190
-}
-```
 
 ### POST /v1/consume-token
 
 Mark token as consumed after successful transaction.
 
-**Request:**
-```json
-{
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "transactionHash": "0x1234567890abcdef..."
-}
-```
-
-**Response:**
-```json
-{
-  "consumed": true,
-  "consumedAt": 1234567900
-}
-```
-
 ### GET /v1/health
 
-Health check endpoint for monitoring.
+Health check endpoint. Returns status of all dependent services (PostgreSQL, Redis, ML Inference Service).
 
-**Response:**
 ```json
 {
   "status": "healthy",
   "version": "1.2.0",
-  "services": {
-    "lambda": "healthy",
-    "sagemaker": "healthy",
-    "dynamodb": "healthy"
-  },
+  "services": { "database": "healthy", "cache": "healthy", "ml_inference": "healthy" },
   "timestamp": 1234567890
 }
 ```
 
+## Deployment Architecture
+
+### Kubernetes Manifests Overview
+
+```
+k8s/
+├── namespace.yaml
+├── detection-service/
+│   ├── deployment.yaml      # 2-10 replicas, HPA on CPU + custom metrics
+│   ├── service.yaml
+│   └── hpa.yaml
+├── challenge-service/
+│   ├── deployment.yaml
+│   └── service.yaml
+├── ml-inference/
+│   ├── deployment.yaml      # TorchServe or Triton, 1-10 replicas
+│   ├── service.yaml
+│   └── hpa.yaml
+├── training-service/
+│   └── cronjob.yaml         # Monthly retraining CronJob
+├── postgresql/
+│   └── statefulset.yaml
+├── redis/
+│   └── statefulset.yaml
+├── rabbitmq/
+│   └── statefulset.yaml
+├── minio/
+│   └── statefulset.yaml
+└── monitoring/
+    ├── prometheus/
+    ├── grafana/
+    └── loki/
+```
+
+### Container Images
+
+| Service | Base Image | Language |
+|---|---|---|
+| Detection Service | python:3.11-slim | Python / FastAPI |
+| Challenge Service | python:3.11-slim | Python / FastAPI |
+| ML Inference Service | pytorch/torchserve:latest | Python / TorchServe |
+| Training Service | python:3.11-slim | Python / scikit-learn |
+| Behavioral SDK | node:20-alpine (build) | TypeScript |
+
+### Environment Configuration
+
+All secrets injected via Kubernetes Secrets or a secrets manager (Vault, Doppler, etc.):
+
+```yaml
+env:
+  - name: DATABASE_URL
+    valueFrom: { secretKeyRef: { name: bot-detection-secrets, key: database-url } }
+  - name: REDIS_URL
+    valueFrom: { secretKeyRef: { name: bot-detection-secrets, key: redis-url } }
+  - name: ML_INFERENCE_URL
+    value: "http://ml-inference-service:8080"
+  - name: TOKEN_SIGNING_KEY
+    valueFrom: { secretKeyRef: { name: bot-detection-secrets, key: signing-key } }
+  - name: MINIO_ENDPOINT
+    value: "http://minio-service:9000"
+```
 
 
 ## Correctness Properties
@@ -1029,19 +744,14 @@ Health check endpoint for monitoring.
 
 ### Property Reflection
 
-After analyzing all acceptance criteria, I identified the following consolidation opportunities to eliminate redundancy:
+After analyzing all acceptance criteria, the following consolidations eliminate redundancy:
 
-**Consolidated Properties:**
-- Properties 1.2, 1.3, 1.4 (risk score decision logic) can be combined into a single comprehensive property about decision thresholds
-- Properties 4.2, 4.3 (challenge type selection) can be combined into one property about challenge type mapping
-- Properties 5.4, 5.5 (token structure) can be combined into one property about token completeness
-- Properties 2.2, 2.3 (data completeness) can be combined into one property about behavioral data completeness
-- Properties 3.2, 3.3 (model quality gates) can be combined into one property about deployment validation
-
-**Unique Properties Retained:**
-- Performance properties (1.1, 2.4, 4.6, 7.6, 10.4) remain separate as they test different latency requirements
-- Logging properties (1.5, 8.1) remain separate as they test different aspects of observability
-- Token lifecycle properties (5.6, 6.1) remain separate as they test different behaviors
+- Requirements 1.2, 1.3, 1.4 (risk score decision logic) → combined into Property 2
+- Requirements 2.2, 2.3 (behavioral data completeness) → combined into Property 5
+- Requirements 3.2, 3.3 (model quality gates) → combined into Property 8
+- Requirements 4.2, 4.3 (challenge type selection) → combined into Property 10
+- Requirements 5.4, 5.5 (token structure) → combined into Property 16
+- Requirements 7.2, 7.3 (rate limiting + response format) → combined into Property 23
 
 ### Property 1: Detection Latency
 
@@ -1051,13 +761,13 @@ After analyzing all acceptance criteria, I identified the following consolidatio
 
 ### Property 2: Risk Score Decision Thresholds
 
-*For any* calculated risk score, the Bot_Detection_Service SHALL return 'block' when score > 80, 'challenge' when 50 ≤ score ≤ 80, and 'allow' with verification token when score < 50.
+*For any* calculated risk score, the Bot_Detection_Service SHALL return 'block' when score > 80, 'challenge' when 50 ≤ score ≤ 80, and 'allow' with a verification token when score < 50.
 
 **Validates: Requirements 1.2, 1.3, 1.4**
 
 ### Property 3: Blocked Request Logging
 
-*For any* purchase request that is blocked, the Bot_Detection_Service SHALL create a CloudWatch log entry containing the risk score, decision, and behavioral indicators.
+*For any* purchase request that is blocked, the Bot_Detection_Service SHALL create a log entry containing the risk score, decision, and behavioral indicators.
 
 **Validates: Requirements 1.5**
 
@@ -1075,13 +785,13 @@ After analyzing all acceptance criteria, I identified the following consolidatio
 
 ### Property 6: Data Transmission Latency
 
-*For any* collected behavioral data, the Behavioral_Analyzer SHALL transmit the data to AWS Lambda within 5 seconds of collection completion.
+*For any* collected behavioral data, the Behavioral_Analyzer SHALL transmit the data to the API_Server within 5 seconds of collection completion.
 
 **Validates: Requirements 2.4**
 
 ### Property 7: Data Retention TTL
 
-*For any* behavioral data record stored in DynamoDB, the record SHALL have a TTL attribute set to 90 days from the creation timestamp.
+*For any* behavioral data record stored in the Database, the expires_at field SHALL be set to exactly 90 days from the created_at timestamp.
 
 **Validates: Requirements 2.6**
 
@@ -1099,7 +809,7 @@ After analyzing all acceptance criteria, I identified the following consolidatio
 
 ### Property 10: Challenge Type Selection
 
-*For any* risk score requiring a challenge, the Challenge_Engine SHALL present image_selection for scores 50-65, and multi_step for scores 65-80.
+*For any* risk score requiring a challenge, the Challenge_Engine SHALL present image_selection for scores 50–65, and multi_step for scores 65–80.
 
 **Validates: Requirements 4.2, 4.3**
 
@@ -1135,7 +845,7 @@ After analyzing all acceptance criteria, I identified the following consolidatio
 
 ### Property 16: Token Structure and Validity
 
-*For any* generated Verification_Token, the token SHALL include walletAddress, timestamp, cryptographic signature, and have expiresAt set to exactly 5 minutes from issuance.
+*For any* generated Verification_Token, the token SHALL include walletAddress, timestamp, cryptographic signature, and have expiresAt set to exactly 5 minutes from issuedAt.
 
 **Validates: Requirements 5.4, 5.5**
 
@@ -1175,132 +885,113 @@ After analyzing all acceptance criteria, I identified the following consolidatio
 
 **Validates: Requirements 6.5**
 
-### Property 23: API Rate Limiting
+### Property 23: Rate Limiting Enforcement
 
-*For any* API key, when request rate exceeds 100 requests per second, the AWS_API_Gateway SHALL throttle subsequent requests.
+*For any* API key, when request rate exceeds 100 requests per second, the API_Server SHALL throttle subsequent requests and return HTTP 429 with a Retry-After header.
 
-**Validates: Requirements 7.2**
+**Validates: Requirements 7.2, 7.3**
 
-### Property 24: Rate Limit Response Format
-
-*For any* throttled API request, the AWS_API_Gateway SHALL return HTTP status code 429 with a retry-after header.
-
-**Validates: Requirements 7.3**
-
-### Property 25: Lambda Auto-Scaling
-
-*For any* time period when concurrent Lambda requests exceed 80% of provisioned capacity, the Bot_Detection_Service SHALL automatically scale up Lambda function instances.
-
-**Validates: Requirements 7.5**
-
-### Property 26: API Response Time P99
+### Property 24: API Response Time P99
 
 *For any* 100-request sample window, at least 99 requests SHALL complete within 300 milliseconds.
 
 **Validates: Requirements 7.6**
 
-### Property 27: Detection Event Logging
+### Property 25: Detection Event Logging
 
-*For any* bot detection analysis, the Bot_Detection_Service SHALL create a CloudWatch log entry with severity level, risk score, and decision.
+*For any* bot detection analysis, the Bot_Detection_Service SHALL create a log entry with severity level, risk score, and decision.
 
 **Validates: Requirements 8.1**
 
-### Property 28: High Bot Detection Rate Alerting
+### Property 26: High Bot Detection Rate Alerting
 
 *For any* time window, when the ratio of blocked/challenged requests to total requests exceeds 20%, the Bot_Detection_Service SHALL trigger a high-priority alert.
 
 **Validates: Requirements 8.2**
 
-### Property 29: Lambda Error Rate Alerting
+### Property 27: Service Error Rate Alerting
 
-*For any* time window, when AWS Lambda function error rate exceeds 1%, the Bot_Detection_Service SHALL trigger an alert to platform administrators.
+*For any* time window, when service error rate exceeds 1%, the Bot_Detection_Service SHALL trigger an alert to platform administrators.
 
 **Validates: Requirements 8.3**
 
-### Property 30: SageMaker Latency Alerting
+### Property 28: ML Inference Latency Alerting
 
-*For any* time window, when AWS SageMaker endpoint latency exceeds 500 milliseconds, the Bot_Detection_Service SHALL trigger a performance alert.
+*For any* time window, when ML_Inference_Service latency exceeds 500 milliseconds, the Bot_Detection_Service SHALL trigger a performance alert.
 
 **Validates: Requirements 8.4**
 
-### Property 31: CloudWatch Metrics Publishing
+### Property 29: Metrics Publishing
 
-*For any* detection operation, the Bot_Detection_Service SHALL publish metrics to CloudWatch including detection rate, false positive rate, and average risk score.
+*For any* detection operation, the Bot_Detection_Service SHALL publish metrics to the Monitoring_Service including detection rate, false positive rate, and average risk score.
 
 **Validates: Requirements 8.5**
 
-### Property 32: User Identifier Anonymization
+### Property 30: User Identifier Anonymization
 
-*For any* behavioral data stored in DynamoDB, user wallet addresses SHALL be hashed using SHA-256 before storage, not stored in plaintext.
+*For any* behavioral data stored in the Database, user wallet addresses SHALL be hashed using SHA-256 before storage, not stored in plaintext.
 
 **Validates: Requirements 9.1**
 
-### Property 33: Data Deletion Compliance
+### Property 31: Data Deletion Compliance
 
-*For any* user data deletion request, all associated behavioral data SHALL be removed from DynamoDB and S3 within 30 days.
+*For any* user data deletion request, all associated behavioral data SHALL be removed from the Database and Object_Storage within 30 days.
 
 **Validates: Requirements 9.3**
 
-### Property 34: PII Exclusion from Logs
+### Property 32: PII Exclusion from Logs
 
-*For any* CloudWatch log entry, the entry SHALL NOT contain personally identifiable information such as raw wallet addresses or full IP addresses.
+*For any* log entry, the entry SHALL NOT contain personally identifiable information such as raw wallet addresses or full IP addresses.
 
 **Validates: Requirements 9.4**
 
-### Property 35: Data Access Audit Logging
+### Property 33: Data Access Audit Logging
 
 *For any* data access operation on behavioral data or risk scores, the Bot_Detection_Service SHALL create an audit log entry with timestamp, accessor identity, and operation type.
 
 **Validates: Requirements 9.6**
 
-### Property 36: Fallback Mode Activation
+### Property 34: Fallback Mode Activation
 
 *For any* time period when the Bot_Detection_Service health check fails, the Rexell_Platform SHALL activate fallback mode allowing purchases with basic rate limiting.
 
 **Validates: Requirements 10.1**
 
-### Property 37: Fallback Mode Purchase Limits
+### Property 35: Fallback Mode Purchase Limits
 
 *For any* purchase request in fallback mode, the Rexell_Platform SHALL enforce a maximum of 2 tickets per wallet address per event.
 
 **Validates: Requirements 10.2**
 
-### Property 38: Service Recovery Time
+### Property 36: Service Recovery Time
 
 *For any* Bot_Detection_Service recovery from an outage, normal bot detection operations SHALL resume within 60 seconds of health check success.
 
 **Validates: Requirements 10.3**
 
-### Property 39: Health Check Latency
+### Property 37: Health Check Latency
 
 *For any* health check request to the Bot_Detection_Service, the response SHALL be returned within 50 milliseconds.
 
 **Validates: Requirements 10.4**
 
-### Property 40: Availability Zone Failover
+### Property 38: Data Archival Lifecycle
 
-*For any* AWS availability zone failure, the Bot_Detection_Service SHALL automatically route traffic to healthy zones without manual intervention.
-
-**Validates: Requirements 10.6**
-
-### Property 41: Data Archival Lifecycle
-
-*For any* behavioral data record older than 90 days, the Bot_Detection_Service SHALL move the data from DynamoDB to S3 Glacier storage.
+*For any* behavioral data record older than 90 days, the Bot_Detection_Service SHALL move the data from the Database to Object_Storage for long-term storage.
 
 **Validates: Requirements 11.3**
 
-### Property 42: Test Data Isolation
+### Property 39: Test Data Isolation
 
 *For any* detection request with testing mode enabled, all generated data and results SHALL be tagged with a test identifier to prevent contamination of production datasets.
 
 **Validates: Requirements 12.3**
 
-### Property 43: Model Deployment Validation
+### Property 40: Model Deployment Validation
 
 *For any* model deployment, the Bot_Detection_Service SHALL validate model performance against a holdout test dataset before making the model available for inference.
 
 **Validates: Requirements 12.5**
-
 
 
 ## Error Handling
@@ -1308,508 +999,206 @@ After analyzing all acceptance criteria, I identified the following consolidatio
 ### Error Categories
 
 **Client Errors (4xx)**
-
-1. **400 Bad Request**
-   - Invalid behavioral data format
-   - Missing required fields
-   - Malformed JSON payload
-   - Response: Error code, field-level validation messages
-
-2. **401 Unauthorized**
-   - Missing API key
-   - Invalid API key
-   - Expired credentials
-   - Response: Authentication error message
-
-3. **403 Forbidden**
-   - API key lacks required permissions
-   - Account suspended
-   - Response: Permission denied message
-
-4. **404 Not Found**
-   - Challenge ID not found
-   - Token ID not found
-   - Response: Resource not found message
-
-5. **429 Too Many Requests**
-   - Rate limit exceeded
-   - Burst capacity exceeded
-   - Response: HTTP 429 with Retry-After header
+- 400 Bad Request: Invalid behavioral data format, missing required fields, malformed JSON
+- 401 Unauthorized: Missing or invalid API key
+- 403 Forbidden: API key lacks required permissions
+- 404 Not Found: Challenge ID or token ID not found
+- 429 Too Many Requests: Rate limit exceeded; includes Retry-After header
 
 **Server Errors (5xx)**
-
-1. **500 Internal Server Error**
-   - Lambda function exception
-   - Unhandled error in business logic
-   - Response: Generic error message, correlation ID for support
-
-2. **503 Service Unavailable**
-   - SageMaker endpoint unavailable
-   - DynamoDB throttling
-   - Fallback mode active
-   - Response: Service unavailable message, retry guidance
-
-3. **504 Gateway Timeout**
-   - Lambda timeout (>10 seconds)
-   - SageMaker inference timeout
-   - Response: Timeout message, correlation ID
+- 500 Internal Server Error: Unhandled exception in business logic
+- 503 Service Unavailable: ML Inference Service unavailable, database connection failure, fallback mode active
+- 504 Gateway Timeout: ML inference or database query exceeded timeout
 
 ### Error Handling Strategies
 
 **Retry Logic**
 
-```typescript
-interface RetryConfig {
-  maxRetries: 3;
-  baseDelay: 100; // milliseconds
-  maxDelay: 2000; // milliseconds
-  backoffMultiplier: 2;
-  retryableErrors: [
-    'ServiceUnavailable',
-    'ThrottlingException',
-    'RequestTimeout',
-    'InternalServerError'
-  ];
-}
-
-async function retryWithBackoff<T>(
-  operation: () => Promise<T>,
-  config: RetryConfig
-): Promise<T> {
-  let lastError: Error;
-  
-  for (let attempt = 0; attempt <= config.maxRetries; attempt++) {
-    try {
-      return await operation();
-    } catch (error) {
-      lastError = error;
-      
-      if (!isRetryable(error, config) || attempt === config.maxRetries) {
-        throw error;
-      }
-      
-      const delay = Math.min(
-        config.baseDelay * Math.pow(config.backoffMultiplier, attempt),
-        config.maxDelay
-      );
-      
-      await sleep(delay);
-    }
-  }
-  
-  throw lastError;
-}
+```python
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=0.1, max=2),
+    retry=retry_if_exception_type((ServiceUnavailableError, TimeoutError))
+)
+async def call_ml_inference(features: FeatureVector) -> float:
+    ...
 ```
 
 **Circuit Breaker Pattern**
 
-For SageMaker endpoint calls, implement circuit breaker to prevent cascading failures:
+For ML Inference Service calls: 5 consecutive failures → circuit opens for 60 seconds → half-open probe → close on success.
 
-```typescript
-class CircuitBreaker {
-  private state: 'CLOSED' | 'OPEN' | 'HALF_OPEN' = 'CLOSED';
-  private failureCount: number = 0;
-  private lastFailureTime: number = 0;
-  
-  private readonly failureThreshold = 5;
-  private readonly timeout = 60000; // 60 seconds
-  private readonly halfOpenAttempts = 3;
-  
-  async execute<T>(operation: () => Promise<T>): Promise<T> {
-    if (this.state === 'OPEN') {
-      if (Date.now() - this.lastFailureTime > this.timeout) {
-        this.state = 'HALF_OPEN';
-      } else {
-        throw new Error('Circuit breaker is OPEN');
-      }
-    }
-    
-    try {
-      const result = await operation();
-      this.onSuccess();
-      return result;
-    } catch (error) {
-      this.onFailure();
-      throw error;
-    }
-  }
-  
-  private onSuccess(): void {
-    this.failureCount = 0;
-    this.state = 'CLOSED';
-  }
-  
-  private onFailure(): void {
-    this.failureCount++;
-    this.lastFailureTime = Date.now();
-    
-    if (this.failureCount >= this.failureThreshold) {
-      this.state = 'OPEN';
-    }
-  }
-}
+```python
+class CircuitBreaker:
+    CLOSED = "CLOSED"
+    OPEN = "OPEN"
+    HALF_OPEN = "HALF_OPEN"
+
+    def __init__(self, failure_threshold=5, timeout=60):
+        self.state = self.CLOSED
+        self.failure_count = 0
+        self.last_failure_time = 0
+        self.failure_threshold = failure_threshold
+        self.timeout = timeout
 ```
 
 **Fallback Mechanisms**
 
-1. **SageMaker Unavailable**: Use rule-based risk scoring
-   - Calculate risk score based on heuristics (session duration, mouse velocity variance)
-   - Apply conservative thresholds (challenge at score 40 instead of 50)
+1. **ML Inference Service Unavailable**: Rule-based risk scoring using heuristics (session duration, mouse velocity variance). Conservative thresholds applied (challenge at score 40 instead of 50).
+2. **Database Connection Failure**: Serve cached reputation scores from Redis; accept stale data for up to 5 minutes.
+3. **Complete Service Failure**: Activate fallback mode — basic rate limiting (2 tickets per wallet per event), log all transactions for post-incident analysis, alert administrators immediately.
 
-2. **DynamoDB Throttling**: Use in-memory cache
-   - Cache user reputation scores for 5 minutes
-   - Accept stale data during throttling events
+### Structured Error Logging
 
-3. **Complete Service Failure**: Fallback mode
-   - Basic rate limiting: 2 tickets per wallet per event
-   - Log all transactions for post-incident analysis
-   - Alert administrators immediately
-
-### Error Logging and Monitoring
-
-**Structured Error Logging**
-
-```typescript
-interface ErrorLog {
-  timestamp: number;
-  correlationId: string;
-  errorType: string;
-  errorMessage: string;
-  errorCode: string;
-  stackTrace?: string;
-  context: {
-    sessionId?: string;
-    walletAddress?: string; // hashed
-    eventId?: string;
-    operation: string;
-  };
-  severity: 'ERROR' | 'CRITICAL';
-}
+```python
+@dataclass
+class ErrorLog:
+    timestamp: int
+    correlation_id: str
+    error_type: str
+    error_message: str
+    error_code: str
+    context: dict  # session_id, user_hash, event_id, operation
+    severity: Literal["ERROR", "CRITICAL"]
 ```
-
-**Error Metrics**
-
-CloudWatch metrics for error tracking:
-- `ErrorRate`: Percentage of requests resulting in errors
-- `ErrorsByType`: Count of errors by error type
-- `CircuitBreakerState`: Current state of circuit breakers
-- `FallbackModeActive`: Boolean indicating fallback mode status
-
-**Alerting Thresholds**
-
-- Error rate > 1%: Warning alert
-- Error rate > 5%: Critical alert
-- Circuit breaker OPEN: Critical alert
-- Fallback mode active: Critical alert
-- SageMaker endpoint errors > 10/minute: Warning alert
 
 ## Testing Strategy
 
 ### Dual Testing Approach
 
-The bot detection system requires both unit testing and property-based testing for comprehensive coverage:
-
 - **Unit tests**: Verify specific examples, edge cases, error conditions, and integration points
 - **Property tests**: Verify universal properties across all inputs through randomization
 
-Both testing approaches are complementary and necessary. Unit tests catch concrete bugs in specific scenarios, while property tests verify general correctness across a wide input space.
+Both are complementary and necessary. Unit tests catch concrete bugs; property tests verify general correctness across a wide input space.
 
 ### Property-Based Testing
 
 **Framework Selection**
-
-- **JavaScript/TypeScript**: fast-check library
-- **Python**: Hypothesis library (for ML model testing)
+- **Python**: Hypothesis library
+- **TypeScript (SDK)**: fast-check library
 
 **Configuration**
 
 Each property test MUST:
-- Run minimum 100 iterations (due to randomization)
+- Run minimum 100 iterations
 - Include a comment tag referencing the design property
-- Tag format: `// Feature: rexell-ai-bot-detection-integration, Property {number}: {property_text}`
+- Tag format: `# Feature: rexell-ai-bot-detection-integration, Property {N}: {property_text}`
 
-**Example Property Test**
+**Example Property Test (Python / Hypothesis)**
 
-```typescript
-import fc from 'fast-check';
+```python
+from hypothesis import given, settings
+import hypothesis.strategies as st
 
-// Feature: rexell-ai-bot-detection-integration, Property 2: Risk Score Decision Thresholds
-describe('Risk Score Decision Thresholds', () => {
-  it('should return correct decision for any risk score', () => {
-    fc.assert(
-      fc.property(
-        fc.integer({ min: 0, max: 100 }), // Generate random risk scores
-        (riskScore) => {
-          const decision = determineDecision(riskScore);
-          
-          if (riskScore > 80) {
-            expect(decision).toBe('block');
-          } else if (riskScore >= 50 && riskScore <= 80) {
-            expect(decision).toBe('challenge');
-          } else {
-            expect(decision).toBe('allow');
-            expect(decision.verificationToken).toBeDefined();
-          }
-        }
-      ),
-      { numRuns: 100 }
-    );
-  });
-});
+# Feature: rexell-ai-bot-detection-integration, Property 2: Risk Score Decision Thresholds
+@given(st.integers(min_value=0, max_value=100))
+@settings(max_examples=100)
+def test_risk_score_decision_thresholds(risk_score):
+    decision = determine_decision(risk_score)
+    if risk_score > 80:
+        assert decision == "block"
+    elif 50 <= risk_score <= 80:
+        assert decision == "challenge"
+    else:
+        assert decision == "allow"
 ```
-
-**Property Test Coverage**
-
-Property tests MUST be written for:
-- All 43 correctness properties defined in this document
-- Each property maps to one or more property-based tests
-- Tests use generators to create random valid inputs
-- Tests verify the property holds across all generated inputs
 
 **Custom Generators**
 
-```typescript
-// Generator for behavioral data
-const behavioralDataArbitrary = fc.record({
-  mouseMovements: fc.array(
-    fc.record({
-      timestamp: fc.integer({ min: 0, max: Date.now() }),
-      x: fc.integer({ min: 0, max: 1920 }),
-      y: fc.integer({ min: 0, max: 1080 }),
-      eventType: fc.constantFrom('move', 'click', 'scroll')
-    }),
-    { minLength: 10, maxLength: 1000 }
-  ),
-  keystrokes: fc.array(
-    fc.record({
-      timestamp: fc.integer({ min: 0, max: Date.now() }),
-      keyCode: fc.string({ minLength: 1, maxLength: 10 }),
-      pressTime: fc.integer({ min: 10, max: 500 }),
-      eventType: fc.constantFrom('keydown', 'keyup')
-    }),
-    { minLength: 0, maxLength: 500 }
-  ),
-  navigationEvents: fc.array(
-    fc.record({
-      timestamp: fc.integer({ min: 0, max: Date.now() }),
-      fromPage: fc.constantFrom('/events', '/event/123', '/profile'),
-      toPage: fc.constantFrom('/events', '/event/123', '/profile', '/checkout'),
-      dwellTime: fc.integer({ min: 100, max: 60000 })
-    }),
-    { minLength: 1, maxLength: 20 }
-  ),
-  sessionDuration: fc.integer({ min: 1000, max: 300000 })
-});
-
-// Generator for wallet addresses
-const walletAddressArbitrary = fc.hexaString({ minLength: 40, maxLength: 40 })
-  .map(hex => `0x${hex}`);
-
-// Generator for risk scores
-const riskScoreArbitrary = fc.integer({ min: 0, max: 100 });
+```python
+behavioral_data_strategy = st.fixed_dictionaries({
+    "mouseMovements": st.lists(
+        st.fixed_dictionaries({
+            "timestamp": st.integers(min_value=0),
+            "x": st.integers(min_value=0, max_value=1920),
+            "y": st.integers(min_value=0, max_value=1080),
+            "eventType": st.sampled_from(["move", "click", "scroll"])
+        }),
+        min_size=10, max_size=1000
+    ),
+    "keystrokes": st.lists(
+        st.fixed_dictionaries({
+            "timestamp": st.integers(min_value=0),
+            "keyCode": st.text(min_size=1, max_size=10),
+            "pressTime": st.integers(min_value=10, max_value=500),
+            "eventType": st.sampled_from(["keydown", "keyup"])
+        }),
+        min_size=0, max_size=500
+    ),
+    "navigationEvents": st.lists(
+        st.fixed_dictionaries({
+            "timestamp": st.integers(min_value=0),
+            "fromPage": st.sampled_from(["/events", "/event/123", "/profile"]),
+            "toPage": st.sampled_from(["/events", "/event/123", "/checkout"]),
+            "dwellTime": st.integers(min_value=100, max_value=60000)
+        }),
+        min_size=1, max_size=20
+    ),
+    "sessionDuration": st.integers(min_value=1000, max_value=300000)
+})
 ```
 
 ### Unit Testing
 
-**Unit Test Focus Areas**
-
-1. **Specific Examples**
-   - Test known bot patterns (e.g., perfectly linear mouse movement)
-   - Test known human patterns (e.g., natural mouse acceleration curves)
-   - Test boundary conditions (e.g., risk score exactly 50, exactly 80)
-
-2. **Edge Cases**
-   - Empty behavioral data
-   - Minimal behavioral data (1 mouse event)
-   - Extremely large behavioral data (10,000+ events)
-   - Malformed data (negative timestamps, invalid coordinates)
-
-3. **Error Conditions**
-   - SageMaker endpoint timeout
-   - DynamoDB throttling
-   - Invalid API keys
-   - Expired tokens
-   - Consumed tokens
-
-4. **Integration Points**
-   - Token generation and validation flow
-   - Challenge generation and validation flow
-   - Fallback mode activation and deactivation
-   - CloudWatch logging integration
-
-**Example Unit Tests**
-
-```typescript
-describe('Bot Detection Service', () => {
-  describe('Token Generation', () => {
-    it('should generate token with 5-minute expiration', () => {
-      const token = generateToken('0x123...', 'event-1', 2);
-      const decoded = decodeToken(token);
-      
-      expect(decoded.expiresAt - decoded.issuedAt).toBe(5 * 60 * 1000);
-    });
-    
-    it('should include required fields in token', () => {
-      const token = generateToken('0x123...', 'event-1', 2);
-      const decoded = decodeToken(token);
-      
-      expect(decoded).toHaveProperty('tokenId');
-      expect(decoded).toHaveProperty('walletAddress');
-      expect(decoded).toHaveProperty('eventId');
-      expect(decoded).toHaveProperty('signature');
-    });
-    
-    it('should reject token with invalid signature', () => {
-      const token = generateToken('0x123...', 'event-1', 2);
-      const tampered = token.replace(/.$/, 'X'); // Tamper with last character
-      
-      expect(() => validateToken(tampered, '0x123...')).toThrow('Invalid signature');
-    });
-  });
-  
-  describe('Fallback Mode', () => {
-    it('should activate fallback when health check fails', async () => {
-      mockHealthCheck.mockRejectedValue(new Error('Service unavailable'));
-      
-      await checkServiceHealth();
-      
-      expect(isFallbackModeActive()).toBe(true);
-    });
-    
-    it('should enforce 2-ticket limit in fallback mode', async () => {
-      activateFallbackMode();
-      
-      const result = await attemptPurchase('0x123...', 'event-1', 3);
-      
-      expect(result.success).toBe(false);
-      expect(result.error).toContain('Maximum 2 tickets');
-    });
-  });
-});
-```
+**Focus Areas**
+1. Specific examples: known bot patterns (linear movement), known human patterns (natural curves), boundary conditions (risk score exactly 50, 80)
+2. Edge cases: empty behavioral data, single event, 10,000+ events, negative timestamps
+3. Error conditions: ML service timeout, database connection failure, invalid API keys, expired/consumed tokens
+4. Integration points: token generation/validation flow, challenge flow, fallback mode activation
 
 ### Integration Testing
 
-**Test Environments**
-
-- **Development**: Isolated AWS account with mock data
-- **Staging**: Production-like environment with synthetic traffic
-- **Production**: Canary deployments with 5% traffic
-
-**Integration Test Scenarios**
-
-1. **End-to-End Purchase Flow**
-   - User navigates to event page
-   - Behavioral data collected
-   - Bot detection analysis performed
-   - Token generated and validated
-   - Smart contract transaction executed
-
-2. **Challenge Flow**
-   - Medium-risk user triggers challenge
-   - Challenge presented and completed
-   - Risk score adjusted
-   - Token generated after success
-
-3. **Fallback Flow**
-   - Simulate SageMaker outage
-   - Verify fallback mode activation
-   - Verify rate limiting enforcement
-   - Verify normal operation resumption
-
-4. **Resale Detection Flow**
-   - Simulate rapid resale requests
-   - Verify account flagging
-   - Verify additional verification requirement
+**Test Scenarios**
+1. End-to-end purchase flow (low-risk user → token → transaction)
+2. Challenge flow (medium-risk → challenge → success → token → transaction)
+3. Fallback flow (ML service outage → fallback activation → rate limiting → recovery)
+4. Resale detection flow (rapid requests → flagging → additional verification)
 
 ### Load Testing
 
-**Load Test Scenarios**
+**Scenarios and Targets**
 
-1. **Normal Load**: 50 req/sec sustained for 1 hour
-2. **Peak Load**: 200 req/sec sustained for 15 minutes
-3. **Spike Load**: 0 to 500 req/sec in 10 seconds
-4. **Sustained High Load**: 150 req/sec for 4 hours
+| Scenario | Rate | Duration | P50 | P95 | P99 | Error Rate |
+|---|---|---|---|---|---|---|
+| Normal | 50 req/s | 1 hour | <150ms | <250ms | <300ms | <0.1% |
+| Peak | 200 req/s | 15 min | <150ms | <250ms | <300ms | <0.1% |
+| Spike | 0→500 req/s | 10 sec | — | — | — | <1% |
+| Sustained | 150 req/s | 4 hours | <150ms | <250ms | <300ms | <0.1% |
 
-**Performance Targets**
-
-- P50 latency: < 150ms
-- P95 latency: < 250ms
-- P99 latency: < 300ms
-- Error rate: < 0.1%
-- Throughput: 200 req/sec sustained
-
-**Load Testing Tools**
-
-- Artillery.io for HTTP load generation
-- AWS Lambda for distributed load generation
-- CloudWatch for metrics collection
-- Custom dashboards for real-time monitoring
+**Load Testing Tools**: k6 or Locust for HTTP load generation; Prometheus for metrics collection.
 
 ### ML Model Testing
 
-**Model Validation**
-
-1. **Accuracy Metrics**
-   - Overall accuracy: ≥95%
-   - Precision: ≥93%
-   - Recall: ≥90%
-   - F1 Score: ≥91%
-
-2. **Fairness Metrics**
-   - False positive rate: <2%
-   - False negative rate: <5%
-   - Consistent performance across user segments
-
-3. **Robustness Testing**
-   - Adversarial examples (slightly perturbed bot patterns)
-   - Out-of-distribution data (new bot techniques)
-   - Temporal stability (performance over time)
+**Validation Metrics**
+- Overall accuracy: ≥95%
+- False positive rate: <2%
+- False negative rate: <5%
+- F1 Score: ≥91%
 
 **A/B Testing**
-
 - Deploy new models to 10% of traffic initially
 - Monitor for 48 hours before full rollout
-- Compare metrics: accuracy, false positive rate, latency
-- Automatic rollback if metrics degrade >5%
+- Automatic rollback if accuracy degrades >5%
 
 ### Monitoring and Observability
 
-**Key Metrics**
+**Key Prometheus Metrics**
+- `bot_detection_requests_total{decision}` — counter by decision type
+- `bot_detection_risk_score_histogram` — distribution of risk scores
+- `bot_detection_latency_seconds{quantile}` — P50/P95/P99 latency
+- `bot_detection_error_rate` — error percentage
+- `ml_inference_latency_seconds` — ML service response time
+- `challenge_completion_rate` — ratio of successful challenges
+- `fallback_mode_active` — gauge (0 or 1)
 
-- Detection rate (% of requests blocked/challenged)
-- False positive rate (estimated from challenge success rate)
-- Average risk score
-- API latency (P50, P95, P99)
-- Error rate
-- Token generation rate
-- Challenge completion rate
-- Fallback mode activation count
+**Grafana Dashboards**
+1. Operational: request volume, error rates, latency percentiles, service health
+2. Detection: detection rate over time, risk score distribution, challenge success rate
+3. Infrastructure: container CPU/memory, database connections, Redis hit rate
 
-**Dashboards**
-
-1. **Operational Dashboard**
-   - Request volume
-   - Error rates
-   - Latency percentiles
-   - Service health status
-
-2. **Detection Dashboard**
-   - Detection rate over time
-   - Risk score distribution
-   - Challenge success rate
-   - Top blocked events
-
-3. **Cost Dashboard**
-   - Lambda invocations and duration
-   - SageMaker inference costs
-   - DynamoDB read/write units
-   - Data transfer costs
-
-**Alerting**
-
-- PagerDuty integration for critical alerts
-- Slack notifications for warnings
-- Email summaries for daily reports
-- Escalation policy: 5 minutes → 15 minutes → 30 minutes
-
+**Alerting Rules (Grafana/Prometheus)**
+- Detection rate > 20%: high-priority alert
+- Error rate > 1%: warning; > 5%: critical
+- ML inference latency > 500ms: warning
+- Fallback mode active: critical
+- Model accuracy < 90%: critical

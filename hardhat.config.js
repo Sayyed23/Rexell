@@ -16,7 +16,7 @@ module.exports = {
     },
     networks: {
         Sepolia: {
-            url: "https://celo-sepolia.drpc.org",
+            url: "https://forno.celo-sepolia.celo-testnet.org",
             accounts: [process.env.PRIVATE_KEY],
             chainId: 11142220,
         },

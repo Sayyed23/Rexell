@@ -2,13 +2,13 @@
 
 ## Introduction
 
-This document specifies the requirements for integrating AI-powered bot detection capabilities into the Rexell ticketing platform using AWS services. The system will detect and prevent automated bot attacks during ticket purchasing, resale verification, and other platform interactions to ensure fair access for legitimate users and protect event organizers from scalping operations.
+This document specifies the requirements for integrating AI-powered bot detection capabilities into the Rexell ticketing platform. The system will detect and prevent automated bot attacks during ticket purchasing, resale verification, and other platform interactions to ensure fair access for legitimate users and protect event organizers from scalping operations.
 
-The integration will leverage AWS machine learning services, serverless computing, and real-time analytics to provide scalable, cost-effective bot detection without compromising user experience or platform performance.
+The integration will leverage open-source machine learning frameworks, containerized microservices, and real-time analytics to provide scalable, cost-effective bot detection without compromising user experience or platform performance. The architecture is cloud-agnostic and deployable on any cloud provider or on-premises infrastructure.
 
 ## Glossary
 
-- **Bot_Detection_Service**: The AWS-based AI/ML system that analyzes user behavior and identifies automated bot activity
+- **Bot_Detection_Service**: The AI/ML system that analyzes user behavior and identifies automated bot activity
 - **Behavioral_Analyzer**: Component that processes user interaction patterns including mouse movements, keystroke dynamics, and navigation patterns
 - **Risk_Scorer**: Component that calculates a risk score (0-100) indicating the likelihood that a user is a bot
 - **Challenge_Engine**: Component that presents adaptive verification challenges to suspicious users
@@ -16,11 +16,12 @@ The integration will leverage AWS machine learning services, serverless computin
 - **Event_Organizer**: User who creates and manages events on the Rexell platform
 - **Ticket_Buyer**: User who purchases tickets for events
 - **Reseller**: User who requests verification to resell tickets on the secondary market
-- **AWS_Lambda**: Serverless compute service for executing bot detection logic
-- **AWS_SageMaker**: Machine learning service for training and deploying bot detection models
-- **AWS_API_Gateway**: Service for exposing bot detection APIs to the Rexell platform
-- **DynamoDB**: NoSQL database for storing behavioral data and detection results
-- **CloudWatch**: Monitoring and logging service for bot detection operations
+- **API_Server**: The REST API server (e.g., FastAPI or Express.js) exposing bot detection endpoints to the Rexell platform
+- **ML_Inference_Service**: The containerized service hosting trained bot detection models for real-time inference
+- **Database**: The primary data store (PostgreSQL or MongoDB) for behavioral data and detection results
+- **Message_Queue**: Asynchronous message broker (e.g., RabbitMQ or Redis) for decoupled processing
+- **Monitoring_Service**: Observability stack (Prometheus/Grafana) for metrics, logging, and alerting
+- **Object_Storage**: File storage system (MinIO or filesystem) for model artifacts and archived data
 - **Verification_Token**: Cryptographic token issued after successful bot detection verification
 - **Behavioral_Biometrics**: Unique patterns in user behavior such as typing rhythm, mouse movements, and touch gestures
 - **Session**: A continuous period of user interaction with the Rexell platform
@@ -34,11 +35,11 @@ The integration will leverage AWS machine learning services, serverless computin
 
 #### Acceptance Criteria
 
-1. WHEN a Ticket Buyer initiates a ticket purchase request, THE Bot_Detection_Service SHALL analyze the request within 200 milliseconds
+1. WHEN a Ticket_Buyer initiates a ticket purchase request, THE Bot_Detection_Service SHALL analyze the request within 200 milliseconds
 2. WHEN the Risk_Scorer calculates a risk score above 80, THE Bot_Detection_Service SHALL block the purchase request and return an error code
 3. WHEN the Risk_Scorer calculates a risk score between 50 and 80, THE Challenge_Engine SHALL present an adaptive verification challenge to the user
 4. WHEN the Risk_Scorer calculates a risk score below 50, THE Bot_Detection_Service SHALL issue a Verification_Token and allow the purchase to proceed
-5. WHEN a purchase request is blocked, THE Bot_Detection_Service SHALL log the event details to CloudWatch with the calculated risk score and behavioral indicators
+5. WHEN a purchase request is blocked, THE Bot_Detection_Service SHALL log the event details with the calculated risk score and behavioral indicators
 
 ### Requirement 2: Behavioral Biometrics Collection and Analysis
 
@@ -49,9 +50,9 @@ The integration will leverage AWS machine learning services, serverless computin
 1. WHEN a user interacts with the Rexell_Platform, THE Behavioral_Analyzer SHALL collect mouse movement coordinates at a minimum sampling rate of 10 samples per second
 2. WHEN a user types into form fields, THE Behavioral_Analyzer SHALL record keystroke timing data including key press duration and inter-key intervals
 3. WHEN a user navigates between pages, THE Behavioral_Analyzer SHALL track navigation patterns including page sequence and dwell time
-4. THE Behavioral_Analyzer SHALL transmit collected behavioral data to AWS_Lambda functions within 5 seconds of collection
+4. THE Behavioral_Analyzer SHALL transmit collected behavioral data to the API_Server within 5 seconds of collection
 5. THE Behavioral_Analyzer SHALL encrypt all behavioral data using TLS 1.3 before transmission
-6. WHEN behavioral data is received, THE Bot_Detection_Service SHALL store the data in DynamoDB with a retention period of 90 days
+6. WHEN behavioral data is received, THE Bot_Detection_Service SHALL store the data in the Database with a retention period of 90 days
 
 ### Requirement 3: Machine Learning Model Training and Deployment
 
@@ -59,16 +60,16 @@ The integration will leverage AWS machine learning services, serverless computin
 
 #### Acceptance Criteria
 
-1. THE Bot_Detection_Service SHALL use AWS_SageMaker to train bot detection models on historical behavioral data
+1. THE Bot_Detection_Service SHALL use open-source ML frameworks (scikit-learn, XGBoost, or PyTorch) to train bot detection models on historical behavioral data
 2. WHEN a new model is trained, THE Bot_Detection_Service SHALL achieve a minimum accuracy of 95 percent on validation datasets before deployment
 3. WHEN a new model is trained, THE Bot_Detection_Service SHALL achieve a false positive rate below 2 percent on validation datasets
-4. THE Bot_Detection_Service SHALL deploy trained models to AWS_SageMaker endpoints with auto-scaling enabled
+4. THE Bot_Detection_Service SHALL deploy trained models to the ML_Inference_Service with horizontal scaling enabled
 5. WHEN model performance degrades below 90 percent accuracy, THE Bot_Detection_Service SHALL trigger an alert to platform administrators
 6. THE Bot_Detection_Service SHALL retrain models monthly using accumulated behavioral data from the previous 90 days
 
 ### Requirement 4: Adaptive Challenge Presentation
 
-**User Story:** As a Ticket Buyer, I want to complete verification challenges quickly when flagged as suspicious, so that I can purchase tickets without excessive friction.
+**User Story:** As a Ticket_Buyer, I want to complete verification challenges quickly when flagged as suspicious, so that I can purchase tickets without excessive friction.
 
 #### Acceptance Criteria
 
@@ -94,7 +95,7 @@ The integration will leverage AWS machine learning services, serverless computin
 
 ### Requirement 6: Resale Market Bot Detection
 
-**User Story:** As an Event Organizer, I want to detect bots attempting to manipulate the resale market, so that ticket resale remains fair and controlled.
+**User Story:** As an Event_Organizer, I want to detect bots attempting to manipulate the resale market, so that ticket resale remains fair and controlled.
 
 #### Acceptance Criteria
 
@@ -104,17 +105,17 @@ The integration will leverage AWS machine learning services, serverless computin
 4. WHEN a Reseller demonstrates consistent human-like behavior over 30 days, THE Bot_Detection_Service SHALL assign a trusted status reducing future verification requirements
 5. WHEN a trusted Reseller exhibits sudden behavioral changes, THE Bot_Detection_Service SHALL revoke trusted status and reinstate full verification
 
-### Requirement 7: API Gateway and Rate Limiting
+### Requirement 7: API Rate Limiting and Availability
 
 **User Story:** As a Platform Administrator, I want API rate limiting and throttling, so that the bot detection service remains available during traffic spikes.
 
 #### Acceptance Criteria
 
-1. THE Bot_Detection_Service SHALL expose APIs through AWS_API_Gateway with authentication required for all endpoints
-2. THE AWS_API_Gateway SHALL enforce a rate limit of 100 requests per second per API key
-3. WHEN rate limits are exceeded, THE AWS_API_Gateway SHALL return HTTP status code 429 with retry-after headers
-4. THE AWS_API_Gateway SHALL implement burst capacity of 200 requests to handle temporary traffic spikes
-5. THE Bot_Detection_Service SHALL scale AWS_Lambda functions automatically when concurrent requests exceed 80 percent of provisioned capacity
+1. THE Bot_Detection_Service SHALL expose APIs through the API_Server with authentication required for all endpoints
+2. THE API_Server SHALL enforce a rate limit of 100 requests per second per API key
+3. WHEN rate limits are exceeded, THE API_Server SHALL return HTTP status code 429 with retry-after headers
+4. THE API_Server SHALL implement burst capacity of 200 requests to handle temporary traffic spikes
+5. THE Bot_Detection_Service SHALL scale service instances automatically when concurrent requests exceed 80 percent of provisioned capacity
 6. THE Bot_Detection_Service SHALL maintain API response times below 300 milliseconds at the 99th percentile
 
 ### Requirement 8: Monitoring and Alerting
@@ -123,23 +124,23 @@ The integration will leverage AWS machine learning services, serverless computin
 
 #### Acceptance Criteria
 
-1. THE Bot_Detection_Service SHALL log all detection events to CloudWatch with severity levels
+1. THE Bot_Detection_Service SHALL log all detection events with severity levels
 2. WHEN bot detection rate exceeds 20 percent of total traffic, THE Bot_Detection_Service SHALL trigger a high-priority alert
-3. WHEN AWS_Lambda function error rate exceeds 1 percent, THE Bot_Detection_Service SHALL trigger an alert to platform administrators
-4. WHEN AWS_SageMaker endpoint latency exceeds 500 milliseconds, THE Bot_Detection_Service SHALL trigger a performance alert
-5. THE Bot_Detection_Service SHALL publish metrics to CloudWatch including detection rate, false positive rate, and average risk scores
+3. WHEN service error rate exceeds 1 percent, THE Bot_Detection_Service SHALL trigger an alert to platform administrators
+4. WHEN ML_Inference_Service latency exceeds 500 milliseconds, THE Bot_Detection_Service SHALL trigger a performance alert
+5. THE Bot_Detection_Service SHALL publish metrics to the Monitoring_Service including detection rate, false positive rate, and average risk scores
 6. THE Bot_Detection_Service SHALL generate daily summary reports of bot detection activity and model performance
 
 ### Requirement 9: Data Privacy and Compliance
 
-**User Story:** As a Ticket Buyer, I want my behavioral data handled securely and privately, so that my personal information is protected.
+**User Story:** As a Ticket_Buyer, I want my behavioral data handled securely and privately, so that my personal information is protected.
 
 #### Acceptance Criteria
 
 1. THE Bot_Detection_Service SHALL anonymize all behavioral data by hashing user identifiers before storage
-2. THE Bot_Detection_Service SHALL encrypt all data at rest in DynamoDB using AWS KMS encryption
+2. THE Bot_Detection_Service SHALL encrypt all data at rest in the Database using AES-256 encryption
 3. WHEN a user requests data deletion, THE Bot_Detection_Service SHALL remove all associated behavioral data within 30 days
-4. THE Bot_Detection_Service SHALL not store or log personally identifiable information in CloudWatch logs
+4. THE Bot_Detection_Service SHALL not store or log personally identifiable information in application logs
 5. THE Bot_Detection_Service SHALL implement data retention policies compliant with GDPR and CCPA regulations
 6. THE Bot_Detection_Service SHALL provide audit logs of all data access for compliance verification
 
@@ -153,21 +154,21 @@ The integration will leverage AWS machine learning services, serverless computin
 2. WHEN operating in fallback mode, THE Rexell_Platform SHALL limit purchases to 2 tickets per wallet address per event
 3. WHEN the Bot_Detection_Service recovers from an outage, THE Rexell_Platform SHALL resume normal bot detection operations within 60 seconds
 4. THE Bot_Detection_Service SHALL implement health check endpoints returning status within 50 milliseconds
-5. THE Bot_Detection_Service SHALL deploy across multiple AWS availability zones for high availability
-6. WHEN an AWS availability zone fails, THE Bot_Detection_Service SHALL automatically route traffic to healthy zones with no manual intervention
+5. THE Bot_Detection_Service SHALL deploy across multiple container replicas for high availability
+6. WHEN a service replica fails, THE Bot_Detection_Service SHALL automatically route traffic to healthy replicas with no manual intervention
 
-### Requirement 11: Cost Optimization
+### Requirement 11: Resource Optimization
 
-**User Story:** As a Platform Administrator, I want to optimize AWS service costs, so that bot detection remains economically sustainable.
+**User Story:** As a Platform Administrator, I want to optimize infrastructure resource usage, so that bot detection remains economically sustainable.
 
 #### Acceptance Criteria
 
-1. THE Bot_Detection_Service SHALL use AWS_Lambda with provisioned concurrency only during peak traffic hours
-2. THE Bot_Detection_Service SHALL implement DynamoDB on-demand pricing for variable workload patterns
-3. WHEN behavioral data exceeds 90 days retention, THE Bot_Detection_Service SHALL archive data to S3 Glacier for long-term storage
-4. THE Bot_Detection_Service SHALL use AWS_SageMaker inference endpoints with auto-scaling based on request volume
-5. THE Bot_Detection_Service SHALL implement CloudWatch log retention of 30 days with automatic deletion of older logs
-6. THE Bot_Detection_Service SHALL provide monthly cost reports breaking down expenses by AWS service component
+1. THE Bot_Detection_Service SHALL use horizontal pod autoscaling to scale only during peak traffic periods
+2. THE Bot_Detection_Service SHALL implement connection pooling for database access to reduce resource consumption
+3. WHEN behavioral data exceeds 90 days retention, THE Bot_Detection_Service SHALL archive data to Object_Storage for long-term storage
+4. THE Bot_Detection_Service SHALL use ML_Inference_Service auto-scaling based on request volume
+5. THE Bot_Detection_Service SHALL implement log retention of 30 days with automatic deletion of older logs
+6. THE Bot_Detection_Service SHALL provide monthly usage reports breaking down resource consumption by service component
 
 ### Requirement 12: Testing and Validation
 
@@ -180,5 +181,4 @@ The integration will leverage AWS machine learning services, serverless computin
 3. WHEN testing mode is enabled, THE Bot_Detection_Service SHALL tag all data and results to prevent contamination of production datasets
 4. THE Bot_Detection_Service SHALL provide synthetic bot traffic generators for load testing
 5. THE Bot_Detection_Service SHALL validate model performance against a holdout test dataset before each deployment
-6. THE Bot_Detection_Service SHALL maintain separate AWS environments for development, staging, and production
-
+6. THE Bot_Detection_Service SHALL maintain separate environments (development, staging, production) with isolated configurations

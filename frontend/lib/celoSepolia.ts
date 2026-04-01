@@ -10,10 +10,10 @@ export const celoSepolia = defineChain({
   },
   rpcUrls: {
     default: {
-      http: ['https://celo-sepolia.drpc.org'],
+      http: ['https://forno.celo-sepolia.celo-testnet.org'],
     },
     public: {
-      http: ['https://celo-sepolia.drpc.org'],
+      http: ['https://forno.celo-sepolia.celo-testnet.org'],
     },
   },
   blockExplorers: {
