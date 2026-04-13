@@ -8,7 +8,7 @@ The implementation follows a phased approach: project foundation and data layer,
 
 ## Tasks
 
-- [ ] 1. Set up project structure and core interfaces
+- [x] 1. Set up project structure and core interfaces
   - Create monorepo directory structure: `services/detection`, `services/challenge`, `services/training`, `sdk/`, `k8s/`, `docker/`
   - Define shared Python Pydantic models and TypeScript interfaces for BehavioralData, FeatureVector, DetectionRequest/Response, VerificationToken
   - Set up Docker Compose for local development (PostgreSQL, Redis, RabbitMQ, MinIO)
@@ -16,13 +16,13 @@ The implementation follows a phased approach: project foundation and data layer,
   - _Requirements: 1.1, 7.1_
 
 
-- [ ] 2. Implement PostgreSQL data layer
-  - [ ] 2.1 Create database schema migrations
+- [x] 2. Implement PostgreSQL data layer
+  - [x] 2.1 Create database schema migrations
     - Write Alembic migrations for all tables: behavioral_data, risk_scores, verification_tokens, user_reputation, challenge_state, audit_log
     - Add indexes, TTL-equivalent expires_at columns, and constraints per the schema in the design document
     - _Requirements: 2.6, 9.2, 11.2_
 
-  - [ ] 2.2 Implement data access layer (Python)
+  - [x] 2.2 Implement data access layer (Python)
     - Create async SQLAlchemy repository classes for each table
     - Implement CRUD operations with connection pooling (asyncpg)
     - Add wallet address hashing (SHA-256 + salt) utility
@@ -40,13 +40,13 @@ The implementation follows a phased approach: project foundation and data layer,
     - _Requirements: 2.6, 9.1_
 
 
-- [ ] 3. Implement Behavioral Analyzer component
-  - [ ] 3.1 Create behavioral data types and validation
+- [x] 3. Implement Behavioral Analyzer component
+  - [x] 3.1 Create behavioral data types and validation
     - Define Pydantic models for BehavioralData, MouseEvent, KeystrokeEvent, NavigationEvent
     - Implement field-level validation with descriptive error messages
     - _Requirements: 2.1, 2.2, 2.3_
 
-  - [ ] 3.2 Implement feature extraction algorithms
+  - [x] 3.2 Implement feature extraction algorithms
     - Extract mouse velocity statistics (mean, std, acceleration) using NumPy
     - Calculate mouse curvature and click frequency
     - Extract keystroke timing features (flight time mean/std, dwell time mean)

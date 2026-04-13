@@ -1,0 +1,1835 @@
+{
+ "Description": "Rexell AI Bot Detection Infrastructure (dev)",
+ "Resources": {
+  "KmsKeysDynamoDbEncryptionKey8C3FFF2B": {
+   "Type": "AWS::KMS::Key",
+   "Properties": {
+    "Description": "CMK for encrypting bot detection DynamoDB tables",
+    "EnableKeyRotation": true,
+    "KeyPolicy": {
+     "Statement": [
+      {
+       "Action": "kms:*",
+       "Effect": "Allow",
+       "Principal": {
+        "AWS": {
+         "Fn::Join": [
+          "",
+          [
+           "arn:",
+           {
+            "Ref": "AWS::Partition"
+           },
+           ":iam::959856142013:root"
+          ]
+         ]
+        }
+       },
+       "Resource": "*"
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PendingWindowInDays": 30
+   },
+   "UpdateReplacePolicy": "Retain",
+   "DeletionPolicy": "Retain",
+   "Metadata": {
+    "aws:cdk:path": "RexellBotDetection-dev/KmsKeys/DynamoDbEncryptionKey/Resource"
+   }
+  },
+  "KmsKeysDynamoDbEncryptionKeyAlias43B3C6F2": {
+   "Type": "AWS::KMS::Alias",
+   "Properties": {
+    "AliasName": "alias/rexell-bot-detection/dynamodb",
+    "TargetKeyId": {
+     "Fn::GetAtt": [
+      "KmsKeysDynamoDbEncryptionKey8C3FFF2B",
+      "Arn"
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "RexellBotDetection-dev/KmsKeys/DynamoDbEncryptionKey/Alias/Resource"
+   }
+  },
+  "KmsKeysS3EncryptionKeyA6B742FE": {
+   "Type": "AWS::KMS::Key",
+   "Properties": {
+    "Description": "CMK for encrypting bot detection S3 buckets (models, archives)",
+    "EnableKeyRotation": true,
+    "KeyPolicy": {
+     "Statement": [
+      {
+       "Action": "kms:*",
+       "Effect": "Allow",
+       "Principal": {
+        "AWS": {
+         "Fn::Join": [
+          "",
+          [
+           "arn:",
+           {
+            "Ref": "AWS::Partition"
+           },
+           ":iam::959856142013:root"
+          ]
+         ]
+        }
+       },
+       "Resource": "*"
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PendingWindowInDays": 30
+   },
+   "UpdateReplacePolicy": "Retain",
+   "DeletionPolicy": "Retain",
+   "Metadata": {
+    "aws:cdk:path": "RexellBotDetection-dev/KmsKeys/S3EncryptionKey/Resource"
+   }
+  },
+  "KmsKeysS3EncryptionKeyAliasAED5F4D7": {
+   "Type": "AWS::KMS::Alias",
+   "Properties": {
+    "AliasName": "alias/rexell-bot-detection/s3",
+    "TargetKeyId": {
+     "Fn::GetAtt": [
+      "KmsKeysS3EncryptionKeyA6B742FE",
+      "Arn"
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "RexellBotDetection-dev/KmsKeys/S3EncryptionKey/Alias/Resource"
+   }
+  },
+  "VpcBotDetectionVpcF60838E1": {
+   "Type": "AWS::EC2::VPC",
+   "Properties": {
+    "CidrBlock": "10.0.0.0/16",
+    "EnableDnsHostnames": true,
+    "EnableDnsSupport": true,
+    "InstanceTenancy": "default",
+    "Tags": [
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "Name",
+      "Value": "RexellBotDetection-dev/Vpc/BotDetectionVpc"
+     },
+     {
+      "Key": "Project",
+      "Value": "RexellBotDetection"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "RexellBotDetection-dev/Vpc/BotDetectionVpc/Resource"
+   }
+  },
+  "VpcBotDetectionVpcPublicSubnet1Subnet6EFAEA51": {
+   "Type": "AWS::EC2::Subnet",
+   "Properties": {
+    "AvailabilityZone": "us-east-1a",
+    "CidrBlock": "10.0.0.0/24",
+    "MapPublicIpOnLaunch": true,
+    "Tags": [
+     {
+      "Key": "aws-cdk:subnet-name",
+      "Value": "Public"
+     },
+     {
+      "Key": "aws-cdk:subnet-type",
+      "Value": "Public"
+     },
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "Name",
+      "Value": "RexellBotDetection-dev/Vpc/BotDetectionVpc/PublicSubnet1"
+     },
+     {
+      "Key": "Project",
+      "Value": "RexellBotDetection"
+     }
+    ],
+    "VpcId": {
+     "Ref": "VpcBotDetectionVpcF60838E1"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "RexellBotDetection-dev/Vpc/BotDetectionVpc/PublicSubnet1/Subnet"
+   }
+  },
+  "VpcBotDetectionVpcPublicSubnet1RouteTable87E8D6D1": {
+   "Type": "AWS::EC2::RouteTable",
+   "Properties": {
+    "Tags": [
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "Name",
+      "Value": "RexellBotDetection-dev/Vpc/BotDetectionVpc/PublicSubnet1"
+     },
+     {
+      "Key": "Project",
+      "Value": "RexellBotDetection"
+     }
+    ],
+    "VpcId": {
+     "Ref": "VpcBotDetectionVpcF60838E1"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "RexellBotDetection-dev/Vpc/BotDetectionVpc/PublicSubnet1/RouteTable"
+   }
+  },
+  "VpcBotDetectionVpcPublicSubnet1RouteTableAssociation05338928": {
+   "Type": "AWS::EC2::SubnetRouteTableAssociation",
+   "Properties": {
+    "RouteTableId": {
+     "Ref": "VpcBotDetectionVpcPublicSubnet1RouteTable87E8D6D1"
+    },
+    "SubnetId": {
+     "Ref": "VpcBotDetectionVpcPublicSubnet1Subnet6EFAEA51"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "RexellBotDetection-dev/Vpc/BotDetectionVpc/PublicSubnet1/RouteTableAssociation"
+   }
+  },
+  "VpcBotDetectionVpcPublicSubnet1DefaultRouteCA3F55C2": {
+   "Type": "AWS::EC2::Route",
+   "Properties": {
+    "DestinationCidrBlock": "0.0.0.0/0",
+    "GatewayId": {
+     "Ref": "VpcBotDetectionVpcIGW799FD994"
+    },
+    "RouteTableId": {
+     "Ref": "VpcBotDetectionVpcPublicSubnet1RouteTable87E8D6D1"
+    }
+   },
+   "DependsOn": [
+    "VpcBotDetectionVpcVPCGW28C1CB4E"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "RexellBotDetection-dev/Vpc/BotDetectionVpc/PublicSubnet1/DefaultRoute"
+   }
+  },
+  "VpcBotDetectionVpcPublicSubnet1EIP6B7606E8": {
+   "Type": "AWS::EC2::EIP",
+   "Properties": {
+    "Domain": "vpc",
+    "Tags": [
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "Name",
+      "Value": "RexellBotDetection-dev/Vpc/BotDetectionVpc/PublicSubnet1"
+     },
+     {
+      "Key": "Project",
+      "Value": "RexellBotDetection"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "RexellBotDetection-dev/Vpc/BotDetectionVpc/PublicSubnet1/EIP"
+   }
+  },
+  "VpcBotDetectionVpcPublicSubnet1NATGateway984F1366": {
+   "Type": "AWS::EC2::NatGateway",
+   "Properties": {
+    "AllocationId": {
+     "Fn::GetAtt": [
+      "VpcBotDetectionVpcPublicSubnet1EIP6B7606E8",
+      "AllocationId"
+     ]
+    },
+    "SubnetId": {
+     "Ref": "VpcBotDetectionVpcPublicSubnet1Subnet6EFAEA51"
+    },
+    "Tags": [
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "Name",
+      "Value": "RexellBotDetection-dev/Vpc/BotDetectionVpc/PublicSubnet1"
+     },
+     {
+      "Key": "Project",
+      "Value": "RexellBotDetection"
+     }
+    ]
+   },
+   "DependsOn": [
+    "VpcBotDetectionVpcPublicSubnet1DefaultRouteCA3F55C2",
+    "VpcBotDetectionVpcPublicSubnet1RouteTableAssociation05338928"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "RexellBotDetection-dev/Vpc/BotDetectionVpc/PublicSubnet1/NATGateway"
+   }
+  },
+  "VpcBotDetectionVpcPublicSubnet2SubnetE2703268": {
+   "Type": "AWS::EC2::Subnet",
+   "Properties": {
+    "AvailabilityZone": "us-east-1b",
+    "CidrBlock": "10.0.1.0/24",
+    "MapPublicIpOnLaunch": true,
+    "Tags": [
+     {
+      "Key": "aws-cdk:subnet-name",
+      "Value": "Public"
+     },
+     {
+      "Key": "aws-cdk:subnet-type",
+      "Value": "Public"
+     },
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "Name",
+      "Value": "RexellBotDetection-dev/Vpc/BotDetectionVpc/PublicSubnet2"
+     },
+     {
+      "Key": "Project",
+      "Value": "RexellBotDetection"
+     }
+    ],
+    "VpcId": {
+     "Ref": "VpcBotDetectionVpcF60838E1"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "RexellBotDetection-dev/Vpc/BotDetectionVpc/PublicSubnet2/Subnet"
+   }
+  },
+  "VpcBotDetectionVpcPublicSubnet2RouteTable506BF504": {
+   "Type": "AWS::EC2::RouteTable",
+   "Properties": {
+    "Tags": [
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "Name",
+      "Value": "RexellBotDetection-dev/Vpc/BotDetectionVpc/PublicSubnet2"
+     },
+     {
+      "Key": "Project",
+      "Value": "RexellBotDetection"
+     }
+    ],
+    "VpcId": {
+     "Ref": "VpcBotDetectionVpcF60838E1"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "RexellBotDetection-dev/Vpc/BotDetectionVpc/PublicSubnet2/RouteTable"
+   }
+  },
+  "VpcBotDetectionVpcPublicSubnet2RouteTableAssociationDF02704E": {
+   "Type": "AWS::EC2::SubnetRouteTableAssociation",
+   "Properties": {
+    "RouteTableId": {
+     "Ref": "VpcBotDetectionVpcPublicSubnet2RouteTable506BF504"
+    },
+    "SubnetId": {
+     "Ref": "VpcBotDetectionVpcPublicSubnet2SubnetE2703268"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "RexellBotDetection-dev/Vpc/BotDetectionVpc/PublicSubnet2/RouteTableAssociation"
+   }
+  },
+  "VpcBotDetectionVpcPublicSubnet2DefaultRoute6272A325": {
+   "Type": "AWS::EC2::Route",
+   "Properties": {
+    "DestinationCidrBlock": "0.0.0.0/0",
+    "GatewayId": {
+     "Ref": "VpcBotDetectionVpcIGW799FD994"
+    },
+    "RouteTableId": {
+     "Ref": "VpcBotDetectionVpcPublicSubnet2RouteTable506BF504"
+    }
+   },
+   "DependsOn": [
+    "VpcBotDetectionVpcVPCGW28C1CB4E"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "RexellBotDetection-dev/Vpc/BotDetectionVpc/PublicSubnet2/DefaultRoute"
+   }
+  },
+  "VpcBotDetectionVpcPublicSubnet2EIPA33B2B77": {
+   "Type": "AWS::EC2::EIP",
+   "Properties": {
+    "Domain": "vpc",
+    "Tags": [
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "Name",
+      "Value": "RexellBotDetection-dev/Vpc/BotDetectionVpc/PublicSubnet2"
+     },
+     {
+      "Key": "Project",
+      "Value": "RexellBotDetection"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "RexellBotDetection-dev/Vpc/BotDetectionVpc/PublicSubnet2/EIP"
+   }
+  },
+  "VpcBotDetectionVpcPublicSubnet2NATGatewayDC428BE4": {
+   "Type": "AWS::EC2::NatGateway",
+   "Properties": {
+    "AllocationId": {
+     "Fn::GetAtt": [
+      "VpcBotDetectionVpcPublicSubnet2EIPA33B2B77",
+      "AllocationId"
+     ]
+    },
+    "SubnetId": {
+     "Ref": "VpcBotDetectionVpcPublicSubnet2SubnetE2703268"
+    },
+    "Tags": [
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "Name",
+      "Value": "RexellBotDetection-dev/Vpc/BotDetectionVpc/PublicSubnet2"
+     },
+     {
+      "Key": "Project",
+      "Value": "RexellBotDetection"
+     }
+    ]
+   },
+   "DependsOn": [
+    "VpcBotDetectionVpcPublicSubnet2DefaultRoute6272A325",
+    "VpcBotDetectionVpcPublicSubnet2RouteTableAssociationDF02704E"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "RexellBotDetection-dev/Vpc/BotDetectionVpc/PublicSubnet2/NATGateway"
+   }
+  },
+  "VpcBotDetectionVpcPublicSubnet3Subnet124E5847": {
+   "Type": "AWS::EC2::Subnet",
+   "Properties": {
+    "AvailabilityZone": "us-east-1c",
+    "CidrBlock": "10.0.2.0/24",
+    "MapPublicIpOnLaunch": true,
+    "Tags": [
+     {
+      "Key": "aws-cdk:subnet-name",
+      "Value": "Public"
+     },
+     {
+      "Key": "aws-cdk:subnet-type",
+      "Value": "Public"
+     },
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "Name",
+      "Value": "RexellBotDetection-dev/Vpc/BotDetectionVpc/PublicSubnet3"
+     },
+     {
+      "Key": "Project",
+      "Value": "RexellBotDetection"
+     }
+    ],
+    "VpcId": {
+     "Ref": "VpcBotDetectionVpcF60838E1"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "RexellBotDetection-dev/Vpc/BotDetectionVpc/PublicSubnet3/Subnet"
+   }
+  },
+  "VpcBotDetectionVpcPublicSubnet3RouteTable33A39232": {
+   "Type": "AWS::EC2::RouteTable",
+   "Properties": {
+    "Tags": [
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "Name",
+      "Value": "RexellBotDetection-dev/Vpc/BotDetectionVpc/PublicSubnet3"
+     },
+     {
+      "Key": "Project",
+      "Value": "RexellBotDetection"
+     }
+    ],
+    "VpcId": {
+     "Ref": "VpcBotDetectionVpcF60838E1"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "RexellBotDetection-dev/Vpc/BotDetectionVpc/PublicSubnet3/RouteTable"
+   }
+  },
+  "VpcBotDetectionVpcPublicSubnet3RouteTableAssociationF42C3B0D": {
+   "Type": "AWS::EC2::SubnetRouteTableAssociation",
+   "Properties": {
+    "RouteTableId": {
+     "Ref": "VpcBotDetectionVpcPublicSubnet3RouteTable33A39232"
+    },
+    "SubnetId": {
+     "Ref": "VpcBotDetectionVpcPublicSubnet3Subnet124E5847"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "RexellBotDetection-dev/Vpc/BotDetectionVpc/PublicSubnet3/RouteTableAssociation"
+   }
+  },
+  "VpcBotDetectionVpcPublicSubnet3DefaultRoute3CC58BA2": {
+   "Type": "AWS::EC2::Route",
+   "Properties": {
+    "DestinationCidrBlock": "0.0.0.0/0",
+    "GatewayId": {
+     "Ref": "VpcBotDetectionVpcIGW799FD994"
+    },
+    "RouteTableId": {
+     "Ref": "VpcBotDetectionVpcPublicSubnet3RouteTable33A39232"
+    }
+   },
+   "DependsOn": [
+    "VpcBotDetectionVpcVPCGW28C1CB4E"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "RexellBotDetection-dev/Vpc/BotDetectionVpc/PublicSubnet3/DefaultRoute"
+   }
+  },
+  "VpcBotDetectionVpcPublicSubnet3EIP7697F5D1": {
+   "Type": "AWS::EC2::EIP",
+   "Properties": {
+    "Domain": "vpc",
+    "Tags": [
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "Name",
+      "Value": "RexellBotDetection-dev/Vpc/BotDetectionVpc/PublicSubnet3"
+     },
+     {
+      "Key": "Project",
+      "Value": "RexellBotDetection"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "RexellBotDetection-dev/Vpc/BotDetectionVpc/PublicSubnet3/EIP"
+   }
+  },
+  "VpcBotDetectionVpcPublicSubnet3NATGateway4FF3814A": {
+   "Type": "AWS::EC2::NatGateway",
+   "Properties": {
+    "AllocationId": {
+     "Fn::GetAtt": [
+      "VpcBotDetectionVpcPublicSubnet3EIP7697F5D1",
+      "AllocationId"
+     ]
+    },
+    "SubnetId": {
+     "Ref": "VpcBotDetectionVpcPublicSubnet3Subnet124E5847"
+    },
+    "Tags": [
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "Name",
+      "Value": "RexellBotDetection-dev/Vpc/BotDetectionVpc/PublicSubnet3"
+     },
+     {
+      "Key": "Project",
+      "Value": "RexellBotDetection"
+     }
+    ]
+   },
+   "DependsOn": [
+    "VpcBotDetectionVpcPublicSubnet3DefaultRoute3CC58BA2",
+    "VpcBotDetectionVpcPublicSubnet3RouteTableAssociationF42C3B0D"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "RexellBotDetection-dev/Vpc/BotDetectionVpc/PublicSubnet3/NATGateway"
+   }
+  },
+  "VpcBotDetectionVpcPrivateSubnet1SubnetC5F43B7A": {
+   "Type": "AWS::EC2::Subnet",
+   "Properties": {
+    "AvailabilityZone": "us-east-1a",
+    "CidrBlock": "10.0.3.0/24",
+    "MapPublicIpOnLaunch": false,
+    "Tags": [
+     {
+      "Key": "aws-cdk:subnet-name",
+      "Value": "Private"
+     },
+     {
+      "Key": "aws-cdk:subnet-type",
+      "Value": "Private"
+     },
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "Name",
+      "Value": "RexellBotDetection-dev/Vpc/BotDetectionVpc/PrivateSubnet1"
+     },
+     {
+      "Key": "Project",
+      "Value": "RexellBotDetection"
+     }
+    ],
+    "VpcId": {
+     "Ref": "VpcBotDetectionVpcF60838E1"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "RexellBotDetection-dev/Vpc/BotDetectionVpc/PrivateSubnet1/Subnet"
+   }
+  },
+  "VpcBotDetectionVpcPrivateSubnet1RouteTable3A4312B2": {
+   "Type": "AWS::EC2::RouteTable",
+   "Properties": {
+    "Tags": [
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "Name",
+      "Value": "RexellBotDetection-dev/Vpc/BotDetectionVpc/PrivateSubnet1"
+     },
+     {
+      "Key": "Project",
+      "Value": "RexellBotDetection"
+     }
+    ],
+    "VpcId": {
+     "Ref": "VpcBotDetectionVpcF60838E1"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "RexellBotDetection-dev/Vpc/BotDetectionVpc/PrivateSubnet1/RouteTable"
+   }
+  },
+  "VpcBotDetectionVpcPrivateSubnet1RouteTableAssociationADF24704": {
+   "Type": "AWS::EC2::SubnetRouteTableAssociation",
+   "Properties": {
+    "RouteTableId": {
+     "Ref": "VpcBotDetectionVpcPrivateSubnet1RouteTable3A4312B2"
+    },
+    "SubnetId": {
+     "Ref": "VpcBotDetectionVpcPrivateSubnet1SubnetC5F43B7A"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "RexellBotDetection-dev/Vpc/BotDetectionVpc/PrivateSubnet1/RouteTableAssociation"
+   }
+  },
+  "VpcBotDetectionVpcPrivateSubnet1DefaultRoute845DE4F6": {
+   "Type": "AWS::EC2::Route",
+   "Properties": {
+    "DestinationCidrBlock": "0.0.0.0/0",
+    "NatGatewayId": {
+     "Ref": "VpcBotDetectionVpcPublicSubnet1NATGateway984F1366"
+    },
+    "RouteTableId": {
+     "Ref": "VpcBotDetectionVpcPrivateSubnet1RouteTable3A4312B2"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "RexellBotDetection-dev/Vpc/BotDetectionVpc/PrivateSubnet1/DefaultRoute"
+   }
+  },
+  "VpcBotDetectionVpcPrivateSubnet2Subnet7E6B6D83": {
+   "Type": "AWS::EC2::Subnet",
+   "Properties": {
+    "AvailabilityZone": "us-east-1b",
+    "CidrBlock": "10.0.4.0/24",
+    "MapPublicIpOnLaunch": false,
+    "Tags": [
+     {
+      "Key": "aws-cdk:subnet-name",
+      "Value": "Private"
+     },
+     {
+      "Key": "aws-cdk:subnet-type",
+      "Value": "Private"
+     },
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "Name",
+      "Value": "RexellBotDetection-dev/Vpc/BotDetectionVpc/PrivateSubnet2"
+     },
+     {
+      "Key": "Project",
+      "Value": "RexellBotDetection"
+     }
+    ],
+    "VpcId": {
+     "Ref": "VpcBotDetectionVpcF60838E1"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "RexellBotDetection-dev/Vpc/BotDetectionVpc/PrivateSubnet2/Subnet"
+   }
+  },
+  "VpcBotDetectionVpcPrivateSubnet2RouteTable75588BBA": {
+   "Type": "AWS::EC2::RouteTable",
+   "Properties": {
+    "Tags": [
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "Name",
+      "Value": "RexellBotDetection-dev/Vpc/BotDetectionVpc/PrivateSubnet2"
+     },
+     {
+      "Key": "Project",
+      "Value": "RexellBotDetection"
+     }
+    ],
+    "VpcId": {
+     "Ref": "VpcBotDetectionVpcF60838E1"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "RexellBotDetection-dev/Vpc/BotDetectionVpc/PrivateSubnet2/RouteTable"
+   }
+  },
+  "VpcBotDetectionVpcPrivateSubnet2RouteTableAssociation20336855": {
+   "Type": "AWS::EC2::SubnetRouteTableAssociation",
+   "Properties": {
+    "RouteTableId": {
+     "Ref": "VpcBotDetectionVpcPrivateSubnet2RouteTable75588BBA"
+    },
+    "SubnetId": {
+     "Ref": "VpcBotDetectionVpcPrivateSubnet2Subnet7E6B6D83"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "RexellBotDetection-dev/Vpc/BotDetectionVpc/PrivateSubnet2/RouteTableAssociation"
+   }
+  },
+  "VpcBotDetectionVpcPrivateSubnet2DefaultRouteC8E00139": {
+   "Type": "AWS::EC2::Route",
+   "Properties": {
+    "DestinationCidrBlock": "0.0.0.0/0",
+    "NatGatewayId": {
+     "Ref": "VpcBotDetectionVpcPublicSubnet2NATGatewayDC428BE4"
+    },
+    "RouteTableId": {
+     "Ref": "VpcBotDetectionVpcPrivateSubnet2RouteTable75588BBA"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "RexellBotDetection-dev/Vpc/BotDetectionVpc/PrivateSubnet2/DefaultRoute"
+   }
+  },
+  "VpcBotDetectionVpcPrivateSubnet3Subnet19E66283": {
+   "Type": "AWS::EC2::Subnet",
+   "Properties": {
+    "AvailabilityZone": "us-east-1c",
+    "CidrBlock": "10.0.5.0/24",
+    "MapPublicIpOnLaunch": false,
+    "Tags": [
+     {
+      "Key": "aws-cdk:subnet-name",
+      "Value": "Private"
+     },
+     {
+      "Key": "aws-cdk:subnet-type",
+      "Value": "Private"
+     },
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "Name",
+      "Value": "RexellBotDetection-dev/Vpc/BotDetectionVpc/PrivateSubnet3"
+     },
+     {
+      "Key": "Project",
+      "Value": "RexellBotDetection"
+     }
+    ],
+    "VpcId": {
+     "Ref": "VpcBotDetectionVpcF60838E1"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "RexellBotDetection-dev/Vpc/BotDetectionVpc/PrivateSubnet3/Subnet"
+   }
+  },
+  "VpcBotDetectionVpcPrivateSubnet3RouteTableB8F45A0E": {
+   "Type": "AWS::EC2::RouteTable",
+   "Properties": {
+    "Tags": [
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "Name",
+      "Value": "RexellBotDetection-dev/Vpc/BotDetectionVpc/PrivateSubnet3"
+     },
+     {
+      "Key": "Project",
+      "Value": "RexellBotDetection"
+     }
+    ],
+    "VpcId": {
+     "Ref": "VpcBotDetectionVpcF60838E1"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "RexellBotDetection-dev/Vpc/BotDetectionVpc/PrivateSubnet3/RouteTable"
+   }
+  },
+  "VpcBotDetectionVpcPrivateSubnet3RouteTableAssociationE8ED7C01": {
+   "Type": "AWS::EC2::SubnetRouteTableAssociation",
+   "Properties": {
+    "RouteTableId": {
+     "Ref": "VpcBotDetectionVpcPrivateSubnet3RouteTableB8F45A0E"
+    },
+    "SubnetId": {
+     "Ref": "VpcBotDetectionVpcPrivateSubnet3Subnet19E66283"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "RexellBotDetection-dev/Vpc/BotDetectionVpc/PrivateSubnet3/RouteTableAssociation"
+   }
+  },
+  "VpcBotDetectionVpcPrivateSubnet3DefaultRouteE913A1E1": {
+   "Type": "AWS::EC2::Route",
+   "Properties": {
+    "DestinationCidrBlock": "0.0.0.0/0",
+    "NatGatewayId": {
+     "Ref": "VpcBotDetectionVpcPublicSubnet3NATGateway4FF3814A"
+    },
+    "RouteTableId": {
+     "Ref": "VpcBotDetectionVpcPrivateSubnet3RouteTableB8F45A0E"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "RexellBotDetection-dev/Vpc/BotDetectionVpc/PrivateSubnet3/DefaultRoute"
+   }
+  },
+  "VpcBotDetectionVpcIsolatedSubnet1Subnet4A55AFB1": {
+   "Type": "AWS::EC2::Subnet",
+   "Properties": {
+    "AvailabilityZone": "us-east-1a",
+    "CidrBlock": "10.0.6.0/24",
+    "MapPublicIpOnLaunch": false,
+    "Tags": [
+     {
+      "Key": "aws-cdk:subnet-name",
+      "Value": "Isolated"
+     },
+     {
+      "Key": "aws-cdk:subnet-type",
+      "Value": "Isolated"
+     },
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "Name",
+      "Value": "RexellBotDetection-dev/Vpc/BotDetectionVpc/IsolatedSubnet1"
+     },
+     {
+      "Key": "Project",
+      "Value": "RexellBotDetection"
+     }
+    ],
+    "VpcId": {
+     "Ref": "VpcBotDetectionVpcF60838E1"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "RexellBotDetection-dev/Vpc/BotDetectionVpc/IsolatedSubnet1/Subnet"
+   }
+  },
+  "VpcBotDetectionVpcIsolatedSubnet1RouteTable0A875132": {
+   "Type": "AWS::EC2::RouteTable",
+   "Properties": {
+    "Tags": [
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "Name",
+      "Value": "RexellBotDetection-dev/Vpc/BotDetectionVpc/IsolatedSubnet1"
+     },
+     {
+      "Key": "Project",
+      "Value": "RexellBotDetection"
+     }
+    ],
+    "VpcId": {
+     "Ref": "VpcBotDetectionVpcF60838E1"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "RexellBotDetection-dev/Vpc/BotDetectionVpc/IsolatedSubnet1/RouteTable"
+   }
+  },
+  "VpcBotDetectionVpcIsolatedSubnet1RouteTableAssociation022DB279": {
+   "Type": "AWS::EC2::SubnetRouteTableAssociation",
+   "Properties": {
+    "RouteTableId": {
+     "Ref": "VpcBotDetectionVpcIsolatedSubnet1RouteTable0A875132"
+    },
+    "SubnetId": {
+     "Ref": "VpcBotDetectionVpcIsolatedSubnet1Subnet4A55AFB1"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "RexellBotDetection-dev/Vpc/BotDetectionVpc/IsolatedSubnet1/RouteTableAssociation"
+   }
+  },
+  "VpcBotDetectionVpcIsolatedSubnet2Subnet822CC74F": {
+   "Type": "AWS::EC2::Subnet",
+   "Properties": {
+    "AvailabilityZone": "us-east-1b",
+    "CidrBlock": "10.0.7.0/24",
+    "MapPublicIpOnLaunch": false,
+    "Tags": [
+     {
+      "Key": "aws-cdk:subnet-name",
+      "Value": "Isolated"
+     },
+     {
+      "Key": "aws-cdk:subnet-type",
+      "Value": "Isolated"
+     },
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "Name",
+      "Value": "RexellBotDetection-dev/Vpc/BotDetectionVpc/IsolatedSubnet2"
+     },
+     {
+      "Key": "Project",
+      "Value": "RexellBotDetection"
+     }
+    ],
+    "VpcId": {
+     "Ref": "VpcBotDetectionVpcF60838E1"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "RexellBotDetection-dev/Vpc/BotDetectionVpc/IsolatedSubnet2/Subnet"
+   }
+  },
+  "VpcBotDetectionVpcIsolatedSubnet2RouteTable6CA84412": {
+   "Type": "AWS::EC2::RouteTable",
+   "Properties": {
+    "Tags": [
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "Name",
+      "Value": "RexellBotDetection-dev/Vpc/BotDetectionVpc/IsolatedSubnet2"
+     },
+     {
+      "Key": "Project",
+      "Value": "RexellBotDetection"
+     }
+    ],
+    "VpcId": {
+     "Ref": "VpcBotDetectionVpcF60838E1"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "RexellBotDetection-dev/Vpc/BotDetectionVpc/IsolatedSubnet2/RouteTable"
+   }
+  },
+  "VpcBotDetectionVpcIsolatedSubnet2RouteTableAssociation65F1DF0F": {
+   "Type": "AWS::EC2::SubnetRouteTableAssociation",
+   "Properties": {
+    "RouteTableId": {
+     "Ref": "VpcBotDetectionVpcIsolatedSubnet2RouteTable6CA84412"
+    },
+    "SubnetId": {
+     "Ref": "VpcBotDetectionVpcIsolatedSubnet2Subnet822CC74F"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "RexellBotDetection-dev/Vpc/BotDetectionVpc/IsolatedSubnet2/RouteTableAssociation"
+   }
+  },
+  "VpcBotDetectionVpcIsolatedSubnet3Subnet5138309B": {
+   "Type": "AWS::EC2::Subnet",
+   "Properties": {
+    "AvailabilityZone": "us-east-1c",
+    "CidrBlock": "10.0.8.0/24",
+    "MapPublicIpOnLaunch": false,
+    "Tags": [
+     {
+      "Key": "aws-cdk:subnet-name",
+      "Value": "Isolated"
+     },
+     {
+      "Key": "aws-cdk:subnet-type",
+      "Value": "Isolated"
+     },
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "Name",
+      "Value": "RexellBotDetection-dev/Vpc/BotDetectionVpc/IsolatedSubnet3"
+     },
+     {
+      "Key": "Project",
+      "Value": "RexellBotDetection"
+     }
+    ],
+    "VpcId": {
+     "Ref": "VpcBotDetectionVpcF60838E1"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "RexellBotDetection-dev/Vpc/BotDetectionVpc/IsolatedSubnet3/Subnet"
+   }
+  },
+  "VpcBotDetectionVpcIsolatedSubnet3RouteTable10637BDF": {
+   "Type": "AWS::EC2::RouteTable",
+   "Properties": {
+    "Tags": [
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "Name",
+      "Value": "RexellBotDetection-dev/Vpc/BotDetectionVpc/IsolatedSubnet3"
+     },
+     {
+      "Key": "Project",
+      "Value": "RexellBotDetection"
+     }
+    ],
+    "VpcId": {
+     "Ref": "VpcBotDetectionVpcF60838E1"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "RexellBotDetection-dev/Vpc/BotDetectionVpc/IsolatedSubnet3/RouteTable"
+   }
+  },
+  "VpcBotDetectionVpcIsolatedSubnet3RouteTableAssociationF312D6FD": {
+   "Type": "AWS::EC2::SubnetRouteTableAssociation",
+   "Properties": {
+    "RouteTableId": {
+     "Ref": "VpcBotDetectionVpcIsolatedSubnet3RouteTable10637BDF"
+    },
+    "SubnetId": {
+     "Ref": "VpcBotDetectionVpcIsolatedSubnet3Subnet5138309B"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "RexellBotDetection-dev/Vpc/BotDetectionVpc/IsolatedSubnet3/RouteTableAssociation"
+   }
+  },
+  "VpcBotDetectionVpcIGW799FD994": {
+   "Type": "AWS::EC2::InternetGateway",
+   "Properties": {
+    "Tags": [
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "Name",
+      "Value": "RexellBotDetection-dev/Vpc/BotDetectionVpc"
+     },
+     {
+      "Key": "Project",
+      "Value": "RexellBotDetection"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "RexellBotDetection-dev/Vpc/BotDetectionVpc/IGW"
+   }
+  },
+  "VpcBotDetectionVpcVPCGW28C1CB4E": {
+   "Type": "AWS::EC2::VPCGatewayAttachment",
+   "Properties": {
+    "InternetGatewayId": {
+     "Ref": "VpcBotDetectionVpcIGW799FD994"
+    },
+    "VpcId": {
+     "Ref": "VpcBotDetectionVpcF60838E1"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "RexellBotDetection-dev/Vpc/BotDetectionVpc/VPCGW"
+   }
+  },
+  "VpcBotDetectionVpcVpcFlowLogsIAMRole3469C131": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "vpc-flow-logs.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "Tags": [
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "Name",
+      "Value": "RexellBotDetection-dev/Vpc/BotDetectionVpc/VpcFlowLogs"
+     },
+     {
+      "Key": "Project",
+      "Value": "RexellBotDetection"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "RexellBotDetection-dev/Vpc/BotDetectionVpc/VpcFlowLogs/IAMRole/Resource"
+   }
+  },
+  "VpcBotDetectionVpcVpcFlowLogsIAMRoleDefaultPolicyA8AAA330": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": [
+        "logs:CreateLogStream",
+        "logs:PutLogEvents",
+        "logs:DescribeLogStreams"
+       ],
+       "Effect": "Allow",
+       "Resource": {
+        "Fn::GetAtt": [
+         "VpcBotDetectionVpcVpcFlowLogsLogGroup30FB901B",
+         "Arn"
+        ]
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "VpcBotDetectionVpcVpcFlowLogsIAMRoleDefaultPolicyA8AAA330",
+    "Roles": [
+     {
+      "Ref": "VpcBotDetectionVpcVpcFlowLogsIAMRole3469C131"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "RexellBotDetection-dev/Vpc/BotDetectionVpc/VpcFlowLogs/IAMRole/DefaultPolicy/Resource"
+   }
+  },
+  "VpcBotDetectionVpcVpcFlowLogsLogGroup30FB901B": {
+   "Type": "AWS::Logs::LogGroup",
+   "Properties": {
+    "RetentionInDays": 731,
+    "Tags": [
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "Name",
+      "Value": "RexellBotDetection-dev/Vpc/BotDetectionVpc/VpcFlowLogs"
+     },
+     {
+      "Key": "Project",
+      "Value": "RexellBotDetection"
+     }
+    ]
+   },
+   "UpdateReplacePolicy": "Retain",
+   "DeletionPolicy": "Retain",
+   "Metadata": {
+    "aws:cdk:path": "RexellBotDetection-dev/Vpc/BotDetectionVpc/VpcFlowLogs/LogGroup/Resource"
+   }
+  },
+  "VpcBotDetectionVpcVpcFlowLogsFlowLog21F516CC": {
+   "Type": "AWS::EC2::FlowLog",
+   "Properties": {
+    "DeliverLogsPermissionArn": {
+     "Fn::GetAtt": [
+      "VpcBotDetectionVpcVpcFlowLogsIAMRole3469C131",
+      "Arn"
+     ]
+    },
+    "LogDestinationType": "cloud-watch-logs",
+    "LogGroupName": {
+     "Ref": "VpcBotDetectionVpcVpcFlowLogsLogGroup30FB901B"
+    },
+    "ResourceId": {
+     "Ref": "VpcBotDetectionVpcF60838E1"
+    },
+    "ResourceType": "VPC",
+    "Tags": [
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "Name",
+      "Value": "RexellBotDetection-dev/Vpc/BotDetectionVpc/VpcFlowLogs"
+     },
+     {
+      "Key": "Project",
+      "Value": "RexellBotDetection"
+     }
+    ],
+    "TrafficType": "ALL"
+   },
+   "Metadata": {
+    "aws:cdk:path": "RexellBotDetection-dev/Vpc/BotDetectionVpc/VpcFlowLogs/FlowLog"
+   }
+  },
+  "SecurityGroupsLambdaSecurityGroup6D9DE76B": {
+   "Type": "AWS::EC2::SecurityGroup",
+   "Properties": {
+    "GroupDescription": "Security group for bot detection Lambda functions",
+    "SecurityGroupEgress": [
+     {
+      "CidrIp": "0.0.0.0/0",
+      "Description": "Allow outbound HTTPS to AWS services",
+      "FromPort": 443,
+      "IpProtocol": "tcp",
+      "ToPort": 443
+     }
+    ],
+    "VpcId": {
+     "Ref": "VpcBotDetectionVpcF60838E1"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "RexellBotDetection-dev/SecurityGroups/LambdaSecurityGroup/Resource"
+   }
+  },
+  "SecurityGroupsSageMakerSecurityGroup00C81016": {
+   "Type": "AWS::EC2::SecurityGroup",
+   "Properties": {
+    "GroupDescription": "Security group for SageMaker bot detection endpoint",
+    "SecurityGroupEgress": [
+     {
+      "CidrIp": "0.0.0.0/0",
+      "Description": "Allow outbound HTTPS for S3 model downloads",
+      "FromPort": 443,
+      "IpProtocol": "tcp",
+      "ToPort": 443
+     }
+    ],
+    "VpcId": {
+     "Ref": "VpcBotDetectionVpcF60838E1"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "RexellBotDetection-dev/SecurityGroups/SageMakerSecurityGroup/Resource"
+   }
+  },
+  "SecurityGroupsSageMakerSecurityGroupfromRexellBotDetectiondevSecurityGroupsLambdaSecurityGroup2E4F792D44394F00B45": {
+   "Type": "AWS::EC2::SecurityGroupIngress",
+   "Properties": {
+    "Description": "Allow inbound HTTPS from Lambda functions",
+    "FromPort": 443,
+    "GroupId": {
+     "Fn::GetAtt": [
+      "SecurityGroupsSageMakerSecurityGroup00C81016",
+      "GroupId"
+     ]
+    },
+    "IpProtocol": "tcp",
+    "SourceSecurityGroupId": {
+     "Fn::GetAtt": [
+      "SecurityGroupsLambdaSecurityGroup6D9DE76B",
+      "GroupId"
+     ]
+    },
+    "ToPort": 443
+   },
+   "Metadata": {
+    "aws:cdk:path": "RexellBotDetection-dev/SecurityGroups/SageMakerSecurityGroup/from RexellBotDetectiondevSecurityGroupsLambdaSecurityGroup2E4F792D:443"
+   }
+  },
+  "IamRolesDetectionLambdaRoleEE4329C2": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "lambda.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "Description": "Execution role for the bot detection Lambda function",
+    "ManagedPolicyArns": [
+     {
+      "Fn::Join": [
+       "",
+       [
+        "arn:",
+        {
+         "Ref": "AWS::Partition"
+        },
+        ":iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
+       ]
+      ]
+     }
+    ],
+    "MaxSessionDuration": 3600,
+    "RoleName": "RexellBotDetection-DetectionLambdaRole"
+   },
+   "Metadata": {
+    "aws:cdk:path": "RexellBotDetection-dev/IamRoles/DetectionLambdaRole/Resource"
+   }
+  },
+  "IamRolesDetectionLambdaRoleDefaultPolicy7B45496D": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": [
+        "dynamodb:GetItem",
+        "dynamodb:PutItem",
+        "dynamodb:UpdateItem",
+        "dynamodb:Query",
+        "dynamodb:BatchGetItem",
+        "dynamodb:BatchWriteItem"
+       ],
+       "Condition": {
+        "ForAllValues:StringLike": {
+         "dynamodb:tableName": "RexellBotDetection-*"
+        }
+       },
+       "Effect": "Allow",
+       "Resource": "*",
+       "Sid": "DynamoDBAccess"
+      },
+      {
+       "Action": "sagemaker:InvokeEndpoint",
+       "Effect": "Allow",
+       "Resource": "*",
+       "Sid": "SageMakerInvoke"
+      },
+      {
+       "Action": [
+        "secretsmanager:GetSecretValue",
+        "secretsmanager:DescribeSecret"
+       ],
+       "Condition": {
+        "StringLike": {
+         "secretsmanager:ResourceTag/Project": "RexellBotDetection"
+        }
+       },
+       "Effect": "Allow",
+       "Resource": "*",
+       "Sid": "SecretsManagerRead"
+      },
+      {
+       "Action": "kms:Decrypt",
+       "Effect": "Allow",
+       "Resource": {
+        "Fn::GetAtt": [
+         "KmsKeysDynamoDbEncryptionKey8C3FFF2B",
+         "Arn"
+        ]
+       }
+      },
+      {
+       "Action": "cloudwatch:PutMetricData",
+       "Condition": {
+        "StringEquals": {
+         "cloudwatch:namespace": "RexellBotDetection"
+        }
+       },
+       "Effect": "Allow",
+       "Resource": "*",
+       "Sid": "CloudWatchMetrics"
+      },
+      {
+       "Action": [
+        "secretsmanager:GetSecretValue",
+        "secretsmanager:DescribeSecret"
+       ],
+       "Effect": "Allow",
+       "Resource": {
+        "Ref": "SecretsApiKeySecretCEC8F618"
+       }
+      },
+      {
+       "Action": [
+        "secretsmanager:GetSecretValue",
+        "secretsmanager:DescribeSecret"
+       ],
+       "Effect": "Allow",
+       "Resource": {
+        "Ref": "SecretsSigningKeySecret632285AB"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "IamRolesDetectionLambdaRoleDefaultPolicy7B45496D",
+    "Roles": [
+     {
+      "Ref": "IamRolesDetectionLambdaRoleEE4329C2"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "RexellBotDetection-dev/IamRoles/DetectionLambdaRole/DefaultPolicy/Resource"
+   }
+  },
+  "IamRolesChallengeLambdaRoleD595F47A": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "lambda.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "Description": "Execution role for the challenge verification Lambda function",
+    "ManagedPolicyArns": [
+     {
+      "Fn::Join": [
+       "",
+       [
+        "arn:",
+        {
+         "Ref": "AWS::Partition"
+        },
+        ":iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
+       ]
+      ]
+     }
+    ],
+    "MaxSessionDuration": 3600,
+    "RoleName": "RexellBotDetection-ChallengeLambdaRole"
+   },
+   "Metadata": {
+    "aws:cdk:path": "RexellBotDetection-dev/IamRoles/ChallengeLambdaRole/Resource"
+   }
+  },
+  "IamRolesChallengeLambdaRoleDefaultPolicy22132D7C": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": [
+        "dynamodb:GetItem",
+        "dynamodb:PutItem",
+        "dynamodb:UpdateItem",
+        "dynamodb:Query"
+       ],
+       "Condition": {
+        "ForAllValues:StringLike": {
+         "dynamodb:tableName": "RexellBotDetection-*"
+        }
+       },
+       "Effect": "Allow",
+       "Resource": "*",
+       "Sid": "DynamoDBAccess"
+      },
+      {
+       "Action": "kms:Decrypt",
+       "Effect": "Allow",
+       "Resource": {
+        "Fn::GetAtt": [
+         "KmsKeysDynamoDbEncryptionKey8C3FFF2B",
+         "Arn"
+        ]
+       }
+      },
+      {
+       "Action": "cloudwatch:PutMetricData",
+       "Condition": {
+        "StringEquals": {
+         "cloudwatch:namespace": "RexellBotDetection"
+        }
+       },
+       "Effect": "Allow",
+       "Resource": "*",
+       "Sid": "CloudWatchMetrics"
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "IamRolesChallengeLambdaRoleDefaultPolicy22132D7C",
+    "Roles": [
+     {
+      "Ref": "IamRolesChallengeLambdaRoleD595F47A"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "RexellBotDetection-dev/IamRoles/ChallengeLambdaRole/DefaultPolicy/Resource"
+   }
+  },
+  "IamRolesTrainingLambdaRole34B2455E": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "lambda.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "Description": "Execution role for the ML model training Lambda function",
+    "ManagedPolicyArns": [
+     {
+      "Fn::Join": [
+       "",
+       [
+        "arn:",
+        {
+         "Ref": "AWS::Partition"
+        },
+        ":iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
+       ]
+      ]
+     }
+    ],
+    "MaxSessionDuration": 3600,
+    "RoleName": "RexellBotDetection-TrainingLambdaRole"
+   },
+   "Metadata": {
+    "aws:cdk:path": "RexellBotDetection-dev/IamRoles/TrainingLambdaRole/Resource"
+   }
+  },
+  "IamRolesTrainingLambdaRoleDefaultPolicy7D89E388": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": [
+        "sagemaker:CreateTrainingJob",
+        "sagemaker:DescribeTrainingJob",
+        "sagemaker:CreateModel",
+        "sagemaker:CreateEndpointConfig",
+        "sagemaker:UpdateEndpoint",
+        "sagemaker:DescribeEndpoint"
+       ],
+       "Effect": "Allow",
+       "Resource": "*",
+       "Sid": "SageMakerTraining"
+      },
+      {
+       "Action": [
+        "s3:GetObject",
+        "s3:PutObject",
+        "s3:ListBucket",
+        "s3:DeleteObject"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        "arn:aws:s3:::rexell-bot-detection-models",
+        "arn:aws:s3:::rexell-bot-detection-models/*"
+       ],
+       "Sid": "S3ModelAccess"
+      },
+      {
+       "Action": [
+        "dynamodb:GetItem",
+        "dynamodb:Query",
+        "dynamodb:Scan",
+        "dynamodb:BatchGetItem"
+       ],
+       "Condition": {
+        "ForAllValues:StringLike": {
+         "dynamodb:tableName": "RexellBotDetection-*"
+        }
+       },
+       "Effect": "Allow",
+       "Resource": "*",
+       "Sid": "DynamoDBRead"
+      },
+      {
+       "Action": "kms:Decrypt",
+       "Effect": "Allow",
+       "Resource": {
+        "Fn::GetAtt": [
+         "KmsKeysDynamoDbEncryptionKey8C3FFF2B",
+         "Arn"
+        ]
+       }
+      },
+      {
+       "Action": [
+        "kms:Decrypt",
+        "kms:Encrypt",
+        "kms:ReEncrypt*",
+        "kms:GenerateDataKey*"
+       ],
+       "Effect": "Allow",
+       "Resource": {
+        "Fn::GetAtt": [
+         "KmsKeysS3EncryptionKeyA6B742FE",
+         "Arn"
+        ]
+       }
+      },
+      {
+       "Action": "iam:PassRole",
+       "Condition": {
+        "StringEquals": {
+         "iam:PassedToService": "sagemaker.amazonaws.com"
+        }
+       },
+       "Effect": "Allow",
+       "Resource": "*",
+       "Sid": "PassRoleToSageMaker"
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "IamRolesTrainingLambdaRoleDefaultPolicy7D89E388",
+    "Roles": [
+     {
+      "Ref": "IamRolesTrainingLambdaRole34B2455E"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "RexellBotDetection-dev/IamRoles/TrainingLambdaRole/DefaultPolicy/Resource"
+   }
+  },
+  "SecretsApiKeySecretCEC8F618": {
+   "Type": "AWS::SecretsManager::Secret",
+   "Properties": {
+    "Description": "API key for bot detection API Gateway authentication",
+    "GenerateSecretString": {
+     "ExcludePunctuation": true,
+     "PasswordLength": 64
+    },
+    "Name": "rexell/bot-detection/api-key",
+    "Tags": [
+     {
+      "Key": "Project",
+      "Value": "RexellBotDetection"
+     }
+    ]
+   },
+   "UpdateReplacePolicy": "Retain",
+   "DeletionPolicy": "Retain",
+   "Metadata": {
+    "aws:cdk:path": "RexellBotDetection-dev/Secrets/ApiKeySecret/Resource"
+   }
+  },
+  "SecretsSigningKeySecret632285AB": {
+   "Type": "AWS::SecretsManager::Secret",
+   "Properties": {
+    "Description": "HMAC-SHA256 signing key for verification token generation",
+    "GenerateSecretString": {
+     "ExcludePunctuation": false,
+     "PasswordLength": 64
+    },
+    "Name": "rexell/bot-detection/signing-key",
+    "Tags": [
+     {
+      "Key": "Project",
+      "Value": "RexellBotDetection"
+     }
+    ]
+   },
+   "UpdateReplacePolicy": "Retain",
+   "DeletionPolicy": "Retain",
+   "Metadata": {
+    "aws:cdk:path": "RexellBotDetection-dev/Secrets/SigningKeySecret/Resource"
+   }
+  },
+  "CDKMetadata": {
+   "Type": "AWS::CDK::Metadata",
+   "Properties": {
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/32PwW7CMBBEv4W7cVHEDyDUIlTURknFtdqYbWri2Mi7JkKW/71yAuTW07wZr3bWhSzWa7lawEBLdeqWRjcy1gyqEzDQd+x6kvEdb2L7Y7NsjAbKZoQkUBUyHi8qR8dyK8rQGK3q0FjknM1UucD4BY3BOZ+zDZFTGlg7+xzO8Lovs3wA74BxgJsovb4C47x4bxm9xefAdMndbZhB/fZoWbwZNxxcm98fWKMKXvNt5124jGf9G+xt65EoCQ29jJWbvjJq6YxWY/dESRjXkowH1z53PTgJQuWRqQcLLXoZ69Hf+zxySqJCcsGrseEz8CVwEtadUJ7p5VoUsljJ1eJMWi99sKx7lNWkf2EQokjSAQAA"
+   },
+   "Metadata": {
+    "aws:cdk:path": "RexellBotDetection-dev/CDKMetadata/Default"
+   }
+  }
+ },
+ "Outputs": {
+  "VpcId": {
+   "Description": "VPC ID for bot detection infrastructure",
+   "Value": {
+    "Ref": "VpcBotDetectionVpcF60838E1"
+   },
+   "Export": {
+    "Name": "RexellBotDetection-dev-VpcId"
+   }
+  },
+  "DynamoDbKmsKeyArn": {
+   "Description": "KMS Key ARN for DynamoDB encryption",
+   "Value": {
+    "Fn::GetAtt": [
+     "KmsKeysDynamoDbEncryptionKey8C3FFF2B",
+     "Arn"
+    ]
+   },
+   "Export": {
+    "Name": "RexellBotDetection-dev-DynamoDbKmsKeyArn"
+   }
+  },
+  "S3KmsKeyArn": {
+   "Description": "KMS Key ARN for S3 encryption",
+   "Value": {
+    "Fn::GetAtt": [
+     "KmsKeysS3EncryptionKeyA6B742FE",
+     "Arn"
+    ]
+   },
+   "Export": {
+    "Name": "RexellBotDetection-dev-S3KmsKeyArn"
+   }
+  },
+  "DetectionLambdaRoleArn": {
+   "Description": "IAM Role ARN for Detection Lambda",
+   "Value": {
+    "Fn::GetAtt": [
+     "IamRolesDetectionLambdaRoleEE4329C2",
+     "Arn"
+    ]
+   },
+   "Export": {
+    "Name": "RexellBotDetection-dev-DetectionLambdaRoleArn"
+   }
+  },
+  "ChallengeLambdaRoleArn": {
+   "Description": "IAM Role ARN for Challenge Lambda",
+   "Value": {
+    "Fn::GetAtt": [
+     "IamRolesChallengeLambdaRoleD595F47A",
+     "Arn"
+    ]
+   },
+   "Export": {
+    "Name": "RexellBotDetection-dev-ChallengeLambdaRoleArn"
+   }
+  },
+  "TrainingLambdaRoleArn": {
+   "Description": "IAM Role ARN for Training Lambda",
+   "Value": {
+    "Fn::GetAtt": [
+     "IamRolesTrainingLambdaRole34B2455E",
+     "Arn"
+    ]
+   },
+   "Export": {
+    "Name": "RexellBotDetection-dev-TrainingLambdaRoleArn"
+   }
+  }
+ },
+ "Parameters": {
+  "BootstrapVersion": {
+   "Type": "AWS::SSM::Parameter::Value<String>",
+   "Default": "/cdk-bootstrap/hnb659fds/version",
+   "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]"
+  }
+ },
+ "Rules": {
+  "CheckBootstrapVersion": {
+   "Assertions": [
+    {
+     "Assert": {
+      "Fn::Not": [
+       {
+        "Fn::Contains": [
+         [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+         ],
+         {
+          "Ref": "BootstrapVersion"
+         }
+        ]
+       }
+      ]
+     },
+     "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI."
+    }
+   ]
+  }
+ }
+}

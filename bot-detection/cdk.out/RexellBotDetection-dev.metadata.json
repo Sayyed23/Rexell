@@ -1,0 +1,441 @@
+{
+  "/RexellBotDetection-dev": [
+    {
+      "type": "aws:cdk:stack-tags",
+      "data": [
+        {
+          "key": "Environment",
+          "value": "dev"
+        },
+        {
+          "key": "ManagedBy",
+          "value": "CDK"
+        },
+        {
+          "key": "Project",
+          "value": "RexellBotDetection"
+        }
+      ]
+    }
+  ],
+  "/RexellBotDetection-dev/VpcId": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcId"
+    }
+  ],
+  "/RexellBotDetection-dev/DynamoDbKmsKeyArn": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "DynamoDbKmsKeyArn"
+    }
+  ],
+  "/RexellBotDetection-dev/S3KmsKeyArn": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "S3KmsKeyArn"
+    }
+  ],
+  "/RexellBotDetection-dev/DetectionLambdaRoleArn": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "DetectionLambdaRoleArn"
+    }
+  ],
+  "/RexellBotDetection-dev/ChallengeLambdaRoleArn": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ChallengeLambdaRoleArn"
+    }
+  ],
+  "/RexellBotDetection-dev/TrainingLambdaRoleArn": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "TrainingLambdaRoleArn"
+    }
+  ],
+  "/RexellBotDetection-dev/BootstrapVersion": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "BootstrapVersion"
+    }
+  ],
+  "/RexellBotDetection-dev/CheckBootstrapVersion": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CheckBootstrapVersion"
+    }
+  ],
+  "/RexellBotDetection-dev/CDKMetadata/Default": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CDKMetadata"
+    }
+  ],
+  "/RexellBotDetection-dev/KmsKeys/DynamoDbEncryptionKey/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "KmsKeysDynamoDbEncryptionKey8C3FFF2B"
+    }
+  ],
+  "/RexellBotDetection-dev/KmsKeys/S3EncryptionKey/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "KmsKeysS3EncryptionKeyA6B742FE"
+    }
+  ],
+  "/RexellBotDetection-dev/Vpc/BotDetectionVpc/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcBotDetectionVpcF60838E1"
+    }
+  ],
+  "/RexellBotDetection-dev/Vpc/BotDetectionVpc/IGW": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcBotDetectionVpcIGW799FD994"
+    }
+  ],
+  "/RexellBotDetection-dev/Vpc/BotDetectionVpc/VPCGW": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcBotDetectionVpcVPCGW28C1CB4E"
+    }
+  ],
+  "/RexellBotDetection-dev/SecurityGroups/LambdaSecurityGroup/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "SecurityGroupsLambdaSecurityGroup6D9DE76B"
+    }
+  ],
+  "/RexellBotDetection-dev/SecurityGroups/SageMakerSecurityGroup/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "SecurityGroupsSageMakerSecurityGroup00C81016"
+    }
+  ],
+  "/RexellBotDetection-dev/SecurityGroups/SageMakerSecurityGroup/from RexellBotDetectiondevSecurityGroupsLambdaSecurityGroup2E4F792D:443": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "SecurityGroupsSageMakerSecurityGroupfromRexellBotDetectiondevSecurityGroupsLambdaSecurityGroup2E4F792D44394F00B45"
+    }
+  ],
+  "/RexellBotDetection-dev/IamRoles/DetectionLambdaRole/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "IamRolesDetectionLambdaRoleEE4329C2"
+    }
+  ],
+  "/RexellBotDetection-dev/IamRoles/ChallengeLambdaRole/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "IamRolesChallengeLambdaRoleD595F47A"
+    }
+  ],
+  "/RexellBotDetection-dev/IamRoles/TrainingLambdaRole/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "IamRolesTrainingLambdaRole34B2455E"
+    }
+  ],
+  "/RexellBotDetection-dev/Secrets/ApiKeySecret/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "SecretsApiKeySecretCEC8F618"
+    }
+  ],
+  "/RexellBotDetection-dev/Secrets/SigningKeySecret/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "SecretsSigningKeySecret632285AB"
+    }
+  ],
+  "/RexellBotDetection-dev/KmsKeys/DynamoDbEncryptionKey/Alias/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "KmsKeysDynamoDbEncryptionKeyAlias43B3C6F2"
+    }
+  ],
+  "/RexellBotDetection-dev/KmsKeys/S3EncryptionKey/Alias/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "KmsKeysS3EncryptionKeyAliasAED5F4D7"
+    }
+  ],
+  "/RexellBotDetection-dev/Vpc/BotDetectionVpc/PublicSubnet1/Subnet": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcBotDetectionVpcPublicSubnet1Subnet6EFAEA51"
+    }
+  ],
+  "/RexellBotDetection-dev/Vpc/BotDetectionVpc/PublicSubnet1/RouteTable": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcBotDetectionVpcPublicSubnet1RouteTable87E8D6D1"
+    }
+  ],
+  "/RexellBotDetection-dev/Vpc/BotDetectionVpc/PublicSubnet1/RouteTableAssociation": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcBotDetectionVpcPublicSubnet1RouteTableAssociation05338928"
+    }
+  ],
+  "/RexellBotDetection-dev/Vpc/BotDetectionVpc/PublicSubnet1/DefaultRoute": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcBotDetectionVpcPublicSubnet1DefaultRouteCA3F55C2"
+    }
+  ],
+  "/RexellBotDetection-dev/Vpc/BotDetectionVpc/PublicSubnet1/EIP": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcBotDetectionVpcPublicSubnet1EIP6B7606E8"
+    }
+  ],
+  "/RexellBotDetection-dev/Vpc/BotDetectionVpc/PublicSubnet1/NATGateway": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcBotDetectionVpcPublicSubnet1NATGateway984F1366"
+    }
+  ],
+  "/RexellBotDetection-dev/Vpc/BotDetectionVpc/PublicSubnet2/Subnet": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcBotDetectionVpcPublicSubnet2SubnetE2703268"
+    }
+  ],
+  "/RexellBotDetection-dev/Vpc/BotDetectionVpc/PublicSubnet2/RouteTable": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcBotDetectionVpcPublicSubnet2RouteTable506BF504"
+    }
+  ],
+  "/RexellBotDetection-dev/Vpc/BotDetectionVpc/PublicSubnet2/RouteTableAssociation": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcBotDetectionVpcPublicSubnet2RouteTableAssociationDF02704E"
+    }
+  ],
+  "/RexellBotDetection-dev/Vpc/BotDetectionVpc/PublicSubnet2/DefaultRoute": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcBotDetectionVpcPublicSubnet2DefaultRoute6272A325"
+    }
+  ],
+  "/RexellBotDetection-dev/Vpc/BotDetectionVpc/PublicSubnet2/EIP": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcBotDetectionVpcPublicSubnet2EIPA33B2B77"
+    }
+  ],
+  "/RexellBotDetection-dev/Vpc/BotDetectionVpc/PublicSubnet2/NATGateway": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcBotDetectionVpcPublicSubnet2NATGatewayDC428BE4"
+    }
+  ],
+  "/RexellBotDetection-dev/Vpc/BotDetectionVpc/PublicSubnet3/Subnet": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcBotDetectionVpcPublicSubnet3Subnet124E5847"
+    }
+  ],
+  "/RexellBotDetection-dev/Vpc/BotDetectionVpc/PublicSubnet3/RouteTable": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcBotDetectionVpcPublicSubnet3RouteTable33A39232"
+    }
+  ],
+  "/RexellBotDetection-dev/Vpc/BotDetectionVpc/PublicSubnet3/RouteTableAssociation": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcBotDetectionVpcPublicSubnet3RouteTableAssociationF42C3B0D"
+    }
+  ],
+  "/RexellBotDetection-dev/Vpc/BotDetectionVpc/PublicSubnet3/DefaultRoute": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcBotDetectionVpcPublicSubnet3DefaultRoute3CC58BA2"
+    }
+  ],
+  "/RexellBotDetection-dev/Vpc/BotDetectionVpc/PublicSubnet3/EIP": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcBotDetectionVpcPublicSubnet3EIP7697F5D1"
+    }
+  ],
+  "/RexellBotDetection-dev/Vpc/BotDetectionVpc/PublicSubnet3/NATGateway": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcBotDetectionVpcPublicSubnet3NATGateway4FF3814A"
+    }
+  ],
+  "/RexellBotDetection-dev/Vpc/BotDetectionVpc/PrivateSubnet1/Subnet": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcBotDetectionVpcPrivateSubnet1SubnetC5F43B7A"
+    }
+  ],
+  "/RexellBotDetection-dev/Vpc/BotDetectionVpc/PrivateSubnet1/RouteTable": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcBotDetectionVpcPrivateSubnet1RouteTable3A4312B2"
+    }
+  ],
+  "/RexellBotDetection-dev/Vpc/BotDetectionVpc/PrivateSubnet1/RouteTableAssociation": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcBotDetectionVpcPrivateSubnet1RouteTableAssociationADF24704"
+    }
+  ],
+  "/RexellBotDetection-dev/Vpc/BotDetectionVpc/PrivateSubnet1/DefaultRoute": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcBotDetectionVpcPrivateSubnet1DefaultRoute845DE4F6"
+    }
+  ],
+  "/RexellBotDetection-dev/Vpc/BotDetectionVpc/PrivateSubnet2/Subnet": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcBotDetectionVpcPrivateSubnet2Subnet7E6B6D83"
+    }
+  ],
+  "/RexellBotDetection-dev/Vpc/BotDetectionVpc/PrivateSubnet2/RouteTable": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcBotDetectionVpcPrivateSubnet2RouteTable75588BBA"
+    }
+  ],
+  "/RexellBotDetection-dev/Vpc/BotDetectionVpc/PrivateSubnet2/RouteTableAssociation": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcBotDetectionVpcPrivateSubnet2RouteTableAssociation20336855"
+    }
+  ],
+  "/RexellBotDetection-dev/Vpc/BotDetectionVpc/PrivateSubnet2/DefaultRoute": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcBotDetectionVpcPrivateSubnet2DefaultRouteC8E00139"
+    }
+  ],
+  "/RexellBotDetection-dev/Vpc/BotDetectionVpc/PrivateSubnet3/Subnet": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcBotDetectionVpcPrivateSubnet3Subnet19E66283"
+    }
+  ],
+  "/RexellBotDetection-dev/Vpc/BotDetectionVpc/PrivateSubnet3/RouteTable": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcBotDetectionVpcPrivateSubnet3RouteTableB8F45A0E"
+    }
+  ],
+  "/RexellBotDetection-dev/Vpc/BotDetectionVpc/PrivateSubnet3/RouteTableAssociation": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcBotDetectionVpcPrivateSubnet3RouteTableAssociationE8ED7C01"
+    }
+  ],
+  "/RexellBotDetection-dev/Vpc/BotDetectionVpc/PrivateSubnet3/DefaultRoute": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcBotDetectionVpcPrivateSubnet3DefaultRouteE913A1E1"
+    }
+  ],
+  "/RexellBotDetection-dev/Vpc/BotDetectionVpc/IsolatedSubnet1/Subnet": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcBotDetectionVpcIsolatedSubnet1Subnet4A55AFB1"
+    }
+  ],
+  "/RexellBotDetection-dev/Vpc/BotDetectionVpc/IsolatedSubnet1/RouteTable": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcBotDetectionVpcIsolatedSubnet1RouteTable0A875132"
+    }
+  ],
+  "/RexellBotDetection-dev/Vpc/BotDetectionVpc/IsolatedSubnet1/RouteTableAssociation": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcBotDetectionVpcIsolatedSubnet1RouteTableAssociation022DB279"
+    }
+  ],
+  "/RexellBotDetection-dev/Vpc/BotDetectionVpc/IsolatedSubnet2/Subnet": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcBotDetectionVpcIsolatedSubnet2Subnet822CC74F"
+    }
+  ],
+  "/RexellBotDetection-dev/Vpc/BotDetectionVpc/IsolatedSubnet2/RouteTable": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcBotDetectionVpcIsolatedSubnet2RouteTable6CA84412"
+    }
+  ],
+  "/RexellBotDetection-dev/Vpc/BotDetectionVpc/IsolatedSubnet2/RouteTableAssociation": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcBotDetectionVpcIsolatedSubnet2RouteTableAssociation65F1DF0F"
+    }
+  ],
+  "/RexellBotDetection-dev/Vpc/BotDetectionVpc/IsolatedSubnet3/Subnet": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcBotDetectionVpcIsolatedSubnet3Subnet5138309B"
+    }
+  ],
+  "/RexellBotDetection-dev/Vpc/BotDetectionVpc/IsolatedSubnet3/RouteTable": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcBotDetectionVpcIsolatedSubnet3RouteTable10637BDF"
+    }
+  ],
+  "/RexellBotDetection-dev/Vpc/BotDetectionVpc/IsolatedSubnet3/RouteTableAssociation": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcBotDetectionVpcIsolatedSubnet3RouteTableAssociationF312D6FD"
+    }
+  ],
+  "/RexellBotDetection-dev/Vpc/BotDetectionVpc/VpcFlowLogs/FlowLog": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcBotDetectionVpcVpcFlowLogsFlowLog21F516CC"
+    }
+  ],
+  "/RexellBotDetection-dev/IamRoles/DetectionLambdaRole/DefaultPolicy/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "IamRolesDetectionLambdaRoleDefaultPolicy7B45496D"
+    }
+  ],
+  "/RexellBotDetection-dev/IamRoles/ChallengeLambdaRole/DefaultPolicy/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "IamRolesChallengeLambdaRoleDefaultPolicy22132D7C"
+    }
+  ],
+  "/RexellBotDetection-dev/IamRoles/TrainingLambdaRole/DefaultPolicy/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "IamRolesTrainingLambdaRoleDefaultPolicy7D89E388"
+    }
+  ],
+  "/RexellBotDetection-dev/Vpc/BotDetectionVpc/VpcFlowLogs/IAMRole/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcBotDetectionVpcVpcFlowLogsIAMRole3469C131"
+    }
+  ],
+  "/RexellBotDetection-dev/Vpc/BotDetectionVpc/VpcFlowLogs/LogGroup/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcBotDetectionVpcVpcFlowLogsLogGroup30FB901B"
+    }
+  ],
+  "/RexellBotDetection-dev/Vpc/BotDetectionVpc/VpcFlowLogs/IAMRole/DefaultPolicy/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "VpcBotDetectionVpcVpcFlowLogsIAMRoleDefaultPolicyA8AAA330"
+    }
+  ]
+}

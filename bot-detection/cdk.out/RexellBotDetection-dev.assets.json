@@ -1,0 +1,21 @@
+{
+  "version": "52.0.0",
+  "files": {
+    "b9e334cf407a23baad13561306e47b9d4f5510df9606a7fb5db0b183b6627e7b": {
+      "displayName": "RexellBotDetection-dev Template",
+      "source": {
+        "path": "RexellBotDetection-dev.template.json",
+        "packaging": "file"
+      },
+      "destinations": {
+        "959856142013-us-east-1-4314cd23": {
+          "bucketName": "cdk-hnb659fds-assets-959856142013-us-east-1",
+          "objectKey": "b9e334cf407a23baad13561306e47b9d4f5510df9606a7fb5db0b183b6627e7b.json",
+          "region": "us-east-1",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::959856142013:role/cdk-hnb659fds-file-publishing-role-959856142013-us-east-1"
+        }
+      }
+    }
+  },
+  "dockerImages": {}
+}
