@@ -29,11 +29,11 @@ The implementation follows a phased approach: project foundation and data layer,
     - Implement expires_at calculation utilities (90-day TTL for behavioral_data)
     - _Requirements: 2.6, 9.1, 11.2_
 
-  - [ ]* 2.3 Write property test for data retention TTL
+  - [x]* 2.3 Write property test for data retention TTL
     - **Property 7: Data Retention TTL** — for any behavioral data record, expires_at SHALL be exactly 90 days from created_at
     - **Validates: Requirements 2.6**
 
-  - [ ]* 2.4 Write unit tests for data access layer
+  - [x]* 2.4 Write unit tests for data access layer
     - Test CRUD operations with test database
     - Test wallet address hashing produces consistent, anonymized output
     - Test TTL calculation correctness
@@ -69,27 +69,27 @@ The implementation follows a phased approach: project foundation and data layer,
     - _Requirements: 2.1, 2.2, 2.3_
 
 
-- [ ] 4. Implement Risk Scorer component
-  - [ ] 4.1 Create risk scoring interfaces and types
+- [x] 4. Implement Risk Scorer component
+  - [x] 4.1 Create risk scoring interfaces and types
     - Define Pydantic models for RiskContext, RiskScore, RiskFactor, ReputationScore
     - Define decision threshold constants: allow (<50), challenge (50–80), block (>80)
     - _Requirements: 1.2, 1.3, 1.4_
 
-  - [ ] 4.2 Implement ML Inference Service HTTP client
+  - [x] 4.2 Implement ML Inference Service HTTP client
     - Create async HTTP client for ML Inference Service (TorchServe/Triton REST API at POST /predictions)
     - Implement circuit breaker pattern (5 consecutive failures → open for 60 seconds → half-open probe)
     - Add retry logic with exponential backoff using tenacity library
     - Implement rule-based fallback scoring when ML service is unavailable (conservative thresholds: challenge at 40)
     - _Requirements: 1.1, 3.4_
 
-  - [ ] 4.3 Implement reputation scoring system
+  - [x] 4.3 Implement reputation scoring system
     - Calculate reputation score from transaction history in PostgreSQL user_reputation table
     - Cache reputation scores in Redis with 5-minute TTL using key pattern `reputation:{user_hash}`
     - Implement trusted status logic: assign after 30 days of consistent human-like behavior
     - Apply reputation adjustments to final risk scores
     - _Requirements: 6.3, 6.4_
 
-  - [ ] 4.4 Implement final risk score calculation and decision logic
+  - [x] 4.4 Implement final risk score calculation and decision logic
     - Combine ML model score with contextual signals (account age, transaction history, recent failures)
     - Apply 1.5x multiplier for bulk ticket purchases (buyTickets)
     - Calculate risk factors with contribution values
@@ -112,19 +112,19 @@ The implementation follows a phased approach: project foundation and data layer,
 
 
 - [ ] 5. Implement Challenge Engine component
-  - [ ] 5.1 Create challenge types and Pydantic models
+  - [~] 5.1 Create challenge types and Pydantic models
     - Define Challenge, ChallengeContent, ChallengeResponse, ChallengeResult models
     - Define ChallengeType enum: image_selection, behavioral_confirmation, multi_step
     - _Requirements: 4.1, 4.2, 4.3_
 
-  - [ ] 5.2 Implement challenge generation logic
+  - [~] 5.2 Implement challenge generation logic
     - Select challenge type based on risk score: image_selection for 50–65, multi_step for 65–80
     - Load challenge images from MinIO challenge-content bucket
     - Store challenge state in Redis with 5-minute TTL using key `challenge:{challenge_id}`
     - Return challenge with unique UUID, type, content, and expiration
     - _Requirements: 4.2, 4.3_
 
-  - [ ] 5.3 Implement challenge validation logic
+  - [~] 5.3 Implement challenge validation logic
     - Retrieve challenge state from Redis by challenge_id
     - Validate user response against encrypted correct answer
     - Track attempt count and enforce max 3 attempts per session
@@ -155,8 +155,8 @@ The implementation follows a phased approach: project foundation and data layer,
     - _Requirements: 4.2, 4.3, 4.4, 4.5_
 
 
-- [ ] 6. Implement verification token system
-  - [ ] 6.1 Create token generation functions
+- [x] 6. Implement verification token system
+  - [x] 6.1 Create token generation functions
     - Generate UUID v4 for token_id
     - Create token payload with wallet_address, event_id, max_quantity, issued_at, expires_at (5 minutes)
     - Calculate HMAC-SHA256 signature using signing key from environment secret
@@ -164,7 +164,7 @@ The implementation follows a phased approach: project foundation and data layer,
     - Store token in PostgreSQL verification_tokens table
     - _Requirements: 5.4, 5.5_
 
-  - [ ] 6.2 Implement token validation functions
+  - [x] 6.2 Implement token validation functions
     - Decode base64 token and parse JSON payload
     - Verify HMAC signature matches
     - Check expiration (5 minutes from issuance)
@@ -172,7 +172,7 @@ The implementation follows a phased approach: project foundation and data layer,
     - Check token not already consumed
     - _Requirements: 5.3, 5.6_
 
-  - [ ] 6.3 Implement token consumption tracking
+  - [x] 6.3 Implement token consumption tracking
     - Mark token as consumed in PostgreSQL with consumed_at timestamp and tx_hash
     - Prevent reuse of consumed tokens
     - _Requirements: 5.6_
@@ -198,14 +198,14 @@ The implementation follows a phased approach: project foundation and data layer,
 
 
 - [ ] 7. Implement Detection Service (FastAPI)
-  - [ ] 7.1 Create FastAPI app and routing
+  - [~] 7.1 Create FastAPI app and routing
     - Set up FastAPI application with lifespan context manager (DB pool, Redis connection)
     - Implement POST /v1/detect endpoint with Pydantic request validation
     - Configure API key authentication middleware (header-based)
     - Configure Redis-based sliding window rate limiting middleware (100 req/s per key, burst 200)
     - _Requirements: 1.1, 7.1, 7.2_
 
-  - [ ] 7.2 Implement bot detection orchestration handler
+  - [~] 7.2 Implement bot detection orchestration handler
     - Validate incoming behavioral data
     - Query user history from PostgreSQL (cache miss) or Redis (cache hit)
     - Extract features using Behavioral_Analyzer
@@ -216,13 +216,13 @@ The implementation follows a phased approach: project foundation and data layer,
     - Store risk score and decision in PostgreSQL risk_scores table
     - _Requirements: 1.1, 1.2, 1.3, 1.4_
 
-  - [ ] 7.3 Implement structured logging
+  - [~] 7.3 Implement structured logging
     - Log all detection events with severity level, risk score, decision, session_id, user_hash
     - Anonymize wallet addresses in logs (use user_hash, never raw address)
     - Add correlation IDs for distributed request tracing
     - _Requirements: 1.5, 8.1, 9.4_
 
-  - [ ] 7.4 Implement error handling and fallback
+  - [~] 7.4 Implement error handling and fallback
     - Add exception handlers for all error categories (400, 401, 403, 429, 500, 503, 504)
     - Handle ML service unavailability with rule-based scoring fallback
     - Return structured error bodies with error_code and message
@@ -240,7 +240,7 @@ The implementation follows a phased approach: project foundation and data layer,
     - **Property 25: Detection Event Logging** — for any bot detection analysis, a log entry SHALL be created with severity level, risk score, and decision
     - **Validates: Requirements 8.1**
 
-  - [ ]* 7.8 Write unit tests for Detection Service
+  - [x]* 7.8 Write unit tests for Detection Service
     - Test request validation with invalid/missing fields
     - Test low/medium/high risk score flows end-to-end
     - Test error handling for database and ML service failures
@@ -249,12 +249,12 @@ The implementation follows a phased approach: project foundation and data layer,
 
 
 - [ ] 8. Implement Challenge Service (FastAPI)
-  - [ ] 8.1 Create FastAPI app for challenge operations
+  - [~] 8.1 Create FastAPI app for challenge operations
     - Set up FastAPI application with POST /v1/verify-challenge endpoint
     - Add Pydantic request validation and API key authentication
     - _Requirements: 4.1, 4.6_
 
-  - [ ] 8.2 Implement challenge verification flow
+  - [~] 8.2 Implement challenge verification flow
     - Retrieve challenge state from Redis by challenge_id
     - Validate challenge response against correct answer
     - Update attempt count in Redis and PostgreSQL challenge_state
@@ -270,7 +270,7 @@ The implementation follows a phased approach: project foundation and data layer,
     - _Requirements: 4.4, 4.5, 4.6_
 
 - [ ] 9. Implement token validation, consumption, and health endpoints
-  - [ ] 9.1 Add token and health endpoints to Detection Service
+  - [~] 9.1 Add token and health endpoints to Detection Service
     - Implement POST /v1/validate-token endpoint (validates signature, expiry, wallet match)
     - Implement POST /v1/consume-token endpoint (marks token consumed with tx_hash)
     - Implement GET /v1/health endpoint checking PostgreSQL, Redis, and ML Inference Service status
@@ -291,19 +291,19 @@ The implementation follows a phased approach: project foundation and data layer,
     - Test health check response format and dependent service status reporting
     - _Requirements: 5.2, 5.3, 5.6, 10.4_
 
-- [ ] 10. Checkpoint — Ensure all tests pass
+- [~] 10. Checkpoint — Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 
 - [ ] 11. Implement resale detection logic
-  - [ ] 11.1 Create resale pattern analyzer
+  - [~] 11.1 Create resale pattern analyzer
     - Track resale request frequency per user_hash using Redis sorted sets
     - Detect multiple requests within 60-second window and flag account
     - Write flag to PostgreSQL user_reputation table
     - Require additional verification for all subsequent resale requests from flagged accounts
     - _Requirements: 6.1, 6.2_
 
-  - [ ] 11.2 Implement trusted status management
+  - [~] 11.2 Implement trusted status management
     - Calculate behavioral consistency score over 30 days from PostgreSQL risk_scores history
     - Assign trusted_status=true in user_reputation when threshold met
     - Monitor trusted users for behavioral anomalies exceeding anomaly threshold
@@ -333,7 +333,7 @@ The implementation follows a phased approach: project foundation and data layer,
 
 
 - [ ] 12. Implement fallback mode logic
-  - [ ] 12.1 Create fallback mode controller
+  - [~] 12.1 Create fallback mode controller
     - Poll health check endpoint on configurable interval
     - Activate fallback mode by setting Redis key `fallback:active` when health check fails
     - Implement basic rate limiting in fallback mode: 2 tickets per wallet per event using Redis counters
@@ -359,13 +359,13 @@ The implementation follows a phased approach: project foundation and data layer,
     - _Requirements: 10.1, 10.2, 10.3_
 
 - [ ] 13. Implement rate limiting and API authentication
-  - [ ] 13.1 Implement Redis sliding window rate limiter
+  - [~] 13.1 Implement Redis sliding window rate limiter
     - Implement sliding window counter in Redis using key `rate_limit:{api_key}:{window}` (TTL: 1s)
     - Enforce 100 req/s per API key with burst capacity of 200 requests
     - Return HTTP 429 with Retry-After header when limit exceeded
     - _Requirements: 7.2, 7.3, 7.4_
 
-  - [ ] 13.2 Implement API key authentication middleware
+  - [~] 13.2 Implement API key authentication middleware
     - Validate API key from request header against stored keys
     - Return HTTP 401 for missing keys, HTTP 403 for invalid permissions
     - _Requirements: 7.1_
@@ -386,31 +386,31 @@ The implementation follows a phased approach: project foundation and data layer,
 
 
 - [ ] 14. Implement frontend Behavioral SDK (TypeScript)
-  - [ ] 14.1 Create TypeScript SDK package structure
+  - [~] 14.1 Create TypeScript SDK package structure
     - Set up npm package with TypeScript and tsconfig
     - Define SDK configuration interface (apiUrl, apiKey, samplingRate)
     - Create SDK initialization function with API client
     - _Requirements: 2.1, 2.2, 2.3_
 
-  - [ ] 14.2 Implement mouse movement tracking
+  - [~] 14.2 Implement mouse movement tracking
     - Add event listeners for mousemove, click, scroll events
     - Sample mouse coordinates at minimum 10 samples per second using requestAnimationFrame
     - Store events in circular buffer to limit memory usage
     - _Requirements: 2.1_
 
-  - [ ] 14.3 Implement keystroke tracking
+  - [~] 14.3 Implement keystroke tracking
     - Add event listeners for keydown, keyup events
     - Record key press duration (pressTime) and inter-key intervals
     - Filter sensitive keys (password fields, credit card inputs) to avoid capturing PII
     - _Requirements: 2.2_
 
-  - [ ] 14.4 Implement navigation tracking
+  - [~] 14.4 Implement navigation tracking
     - Track page transitions using History API (pushState, popstate)
     - Record page dwell times from entry to exit
     - Store navigation events with fromPage, toPage, dwellTime
     - _Requirements: 2.3_
 
-  - [ ] 14.5 Implement data transmission
+  - [~] 14.5 Implement data transmission
     - Send collected behavioral data to API Server within 5 seconds of collection completion
     - Implement retry logic for failed transmissions (exponential backoff)
     - Use TLS 1.3 enforced by HTTPS endpoint configuration
@@ -429,19 +429,19 @@ The implementation follows a phased approach: project foundation and data layer,
 
 
 - [ ] 15. Implement challenge UI components (React)
-  - [ ] 15.1 Create React challenge component library
+  - [~] 15.1 Create React challenge component library
     - Set up React component package with TypeScript
     - Create base challenge container component with loading and error states
     - _Requirements: 4.1_
 
-  - [ ] 15.2 Implement image selection challenge component
+  - [~] 15.2 Implement image selection challenge component
     - Display grid of images loaded from MinIO/CDN URL
     - Handle image selection interactions and selection state
     - Submit selected images to Challenge Service POST /v1/verify-challenge
     - Display success/failure feedback to user
     - _Requirements: 4.2_
 
-  - [ ] 15.3 Implement multi-step challenge component
+  - [~] 15.3 Implement multi-step challenge component
     - Combine image selection and behavioral confirmation steps
     - Manage multi-step flow state machine
     - Display progress indicator
@@ -453,19 +453,19 @@ The implementation follows a phased approach: project foundation and data layer,
     - Test multi-step flow transitions
     - _Requirements: 4.1, 4.2, 4.3_
 
-- [ ] 16. Checkpoint — Ensure all tests pass
+- [~] 16. Checkpoint — Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 
 - [ ] 17. Integrate with Rexell backend service
-  - [ ] 17.1 Create bot detection client library (TypeScript)
+  - [~] 17.1 Create bot detection client library (TypeScript)
     - Create HTTP client for bot detection API with typed request/response models
     - Implement methods: detectBot, validateToken, consumeToken
     - Add error handling and retry logic with exponential backoff
     - Configure API key from environment variables
     - _Requirements: 5.1, 5.2_
 
-  - [ ] 17.2 Integrate with buyTicket flow
+  - [~] 17.2 Integrate with buyTicket flow
     - Add bot detection check before buyTicket smart contract transaction
     - Request verification token from bot detection service
     - Handle challenge responses from frontend (poll or webhook)
@@ -473,12 +473,12 @@ The implementation follows a phased approach: project foundation and data layer,
     - Consume token after successful transaction
     - _Requirements: 5.1, 5.2, 5.6_
 
-  - [ ] 17.3 Integrate with buyTickets bulk purchase flow
+  - [~] 17.3 Integrate with buyTickets bulk purchase flow
     - Apply 1.5x risk score multiplier for bulk purchases in detection request context
     - Enforce token max_quantity limits against requested ticket quantity
     - _Requirements: 5.1_
 
-  - [ ] 17.4 Integrate with requestResaleVerification flow
+  - [~] 17.4 Integrate with requestResaleVerification flow
     - Add bot detection check for resale requests
     - Track resale request frequency via Detection Service
     - Apply trusted status benefits (reduced verification requirements)
@@ -493,7 +493,7 @@ The implementation follows a phased approach: project foundation and data layer,
 
 
 - [ ] 18. Implement ML model training pipeline
-  - [ ] 18.1 Create training data preparation script
+  - [~] 18.1 Create training data preparation script
     - Query behavioral data from PostgreSQL (last 90 days) using date range filter
     - Extract features using Behavioral_Analyzer
     - Label data based on challenge outcomes and manual review flags
@@ -501,14 +501,14 @@ The implementation follows a phased approach: project foundation and data layer,
     - Export to Parquet format and upload to MinIO training-data bucket
     - _Requirements: 3.1, 3.6_
 
-  - [ ] 18.2 Implement model training script (scikit-learn / XGBoost)
+  - [~] 18.2 Implement model training script (scikit-learn / XGBoost)
     - Train GradientBoostingClassifier or XGBClassifier on prepared feature data
     - Define hyperparameters and cross-validation strategy
     - Track experiment with MLflow (parameters, metrics, artifacts)
     - Save model artifacts to MinIO with semantic versioning (v{major}.{minor}.{patch})
     - _Requirements: 3.1_
 
-  - [ ] 18.3 Implement model validation and quality gates
+  - [~] 18.3 Implement model validation and quality gates
     - Calculate accuracy, precision, recall, F1, and false positive rate on validation set
     - Enforce quality gates: ≥95% accuracy AND <2% false positive rate
     - Block deployment if quality gates not met; publish alert via RabbitMQ
@@ -536,13 +536,13 @@ The implementation follows a phased approach: project foundation and data layer,
 
 
 - [ ] 19. Deploy ML Inference Service
-  - [ ] 19.1 Create TorchServe / Triton model handler
+  - [~] 19.1 Create TorchServe / Triton model handler
     - Write model handler that loads XGBoost/scikit-learn model artifact from MinIO on startup
     - Implement preprocessing (feature normalization to [0,1]) in handler
     - Expose REST endpoint POST /predictions returning bot probability score (0–1)
     - _Requirements: 3.4_
 
-  - [ ] 19.2 Implement model deployment automation script
+  - [~] 19.2 Implement model deployment automation script
     - Download model artifacts from MinIO by version
     - Register model version in MLflow Model Registry
     - Update ML Inference Service to load new model version via rolling update
