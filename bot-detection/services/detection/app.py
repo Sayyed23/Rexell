@@ -28,6 +28,7 @@ from .handler import DetectionHandler
 from .logger import configure_logging, get_logger, set_correlation_id
 from .rate_limiter import SlidingWindowRateLimiter, rate_limit_dependency
 from .token_validator import validate_token, consume_token
+from fastapi import Response
 
 logger = get_logger(__name__)
 
@@ -47,6 +48,21 @@ try:
         UserReputationRepository,
     )
     from shared.config import settings
+    from shared.resale_analyzer import (
+        ResalePatternAnalyzer,
+        TrustedStatusManager,
+    )
+    from shared.fallback import FallbackController, make_health_check
+    from shared.metrics import BotDetectionMetrics, CONTENT_TYPE_LATEST
+    from shared.audit import hash_api_key, record_access
+    from shared.privacy import anonymize_behavioral_payload
+    from shared.db.models import (
+        BehavioralDataModel,
+        RiskScoreModel,
+        UserReputationModel,
+        ChallengeStateModel,
+    )
+    from sqlalchemy import delete as _sql_delete
 except ImportError as exc:
     raise ImportError(
         "Failed to import shared modules. Ensure PYTHONPATH includes "
@@ -101,6 +117,23 @@ async def lifespan(app: FastAPI):
     http_client = httpx.AsyncClient(base_url=ml_url)
     app.state.http_client = http_client
 
+    # Prometheus metrics
+    app.state.metrics = BotDetectionMetrics()
+
+    # Fallback-mode controller polls the local /v1/health endpoint. The
+    # controller itself only takes action via Redis so this stays lightweight.
+    async def _self_health() -> bool:
+        try:
+            await redis_client.ping()
+            return True
+        except Exception:  # noqa: BLE001
+            return False
+
+    fallback = FallbackController(redis_client, _self_health)
+    app.state.fallback = fallback
+    if os.getenv("FALLBACK_CONTROLLER_ENABLED", "false").lower() == "true":
+        await fallback.start()
+
     logger.info(
         "Detection Service ready",
         event="startup_complete",
@@ -112,6 +145,7 @@ async def lifespan(app: FastAPI):
 
     # Teardown
     logger.info("Detection Service shutting down", event="shutdown")
+    await fallback.stop()
     await redis_client.aclose()
     await http_client.aclose()
     await engine.dispose()
@@ -232,16 +266,27 @@ def create_app() -> FastAPI:
         Rate limited to 100 req/s per API key (burst: 200).
         """
         cid = getattr(request.state, "correlation_id", str(uuid.uuid4()))
+        metrics = request.app.state.metrics
 
         # Build per-request handler with fresh DB session
-        async with request.app.state.session_factory() as session:
-            handler = _build_handler(request, session)
-            try:
-                response = await handler.handle(body, correlation_id=cid)
-            except Exception as exc:
-                # Attempt rule-based fallback for ML service failures
-                response = await _handle_with_fallback(request, body, exc, cid)
+        with metrics.observe_latency("/v1/detect"):
+            async with request.app.state.session_factory() as session:
+                handler = _build_handler(request, session)
+                try:
+                    response = await handler.handle(body, correlation_id=cid)
+                    await session.commit()
+                except Exception as exc:
+                    metrics.record_error("detection_pipeline")
+                    # Attempt rule-based fallback for ML service failures
+                    response = await _handle_with_fallback(request, body, exc, cid)
 
+        metrics.record_decision(response.decision.value, response.riskScore)
+        fallback = getattr(request.app.state, "fallback", None)
+        if fallback is not None:
+            try:
+                metrics.set_fallback(await fallback.is_active())
+            except Exception:  # noqa: BLE001
+                pass
         return response
 
     # ------------------------------------------------------------------
@@ -415,6 +460,112 @@ def create_app() -> FastAPI:
                 "ml_inference": ml_status,
             },
         }
+
+    # ------------------------------------------------------------------
+    # POST /v1/resale-check: resale detection pattern analyser (Task 11)
+    # ------------------------------------------------------------------
+
+    class ResaleCheckRequest(BaseModel):
+        walletAddress: str
+        ticketId: Optional[str] = None
+
+    class ResaleCheckResponse(BaseModel):
+        flagged: bool
+        requiresAdditionalVerification: bool
+        trusted: bool
+        requestsInWindow: int
+
+    @app.post(
+        "/v1/resale-check",
+        response_model=ResaleCheckResponse,
+        status_code=status.HTTP_200_OK,
+        summary="Track resale request and determine trusted/flag status",
+        dependencies=[Depends(rate_limit_dependency)],
+    )
+    async def resale_check(
+        request: Request,
+        body: ResaleCheckRequest,
+        api_key: str = Depends(require_api_key),
+    ) -> ResaleCheckResponse:
+        from shared.utils.crypto import hash_wallet_address as _hw
+
+        user_hash = _hw(body.walletAddress)
+        async with request.app.state.session_factory() as session:
+            reputation_repo = UserReputationRepository(session)
+            analyzer = ResalePatternAnalyzer(
+                redis_client=request.app.state.redis,
+                reputation_repo=reputation_repo,
+            )
+            count = await analyzer.record_request(user_hash)
+            record = await reputation_repo.get_or_create(user_hash)
+            await session.commit()
+
+        return ResaleCheckResponse(
+            flagged=bool(record.flagged),
+            requiresAdditionalVerification=bool(record.flagged)
+            and not bool(record.trusted_status),
+            trusted=bool(record.trusted_status),
+            requestsInWindow=count,
+        )
+
+    # ------------------------------------------------------------------
+    # DELETE /v1/user-data: GDPR/CCPA data deletion endpoint (Task 22.2)
+    # ------------------------------------------------------------------
+
+    class DeleteUserDataRequest(BaseModel):
+        walletAddress: str
+
+    class DeleteUserDataResponse(BaseModel):
+        deleted: bool
+        tables: dict
+
+    @app.delete(
+        "/v1/user-data",
+        response_model=DeleteUserDataResponse,
+        status_code=status.HTTP_200_OK,
+        summary="Delete all data for the given wallet address",
+    )
+    async def delete_user_data(
+        request: Request,
+        body: DeleteUserDataRequest,
+        api_key: str = Depends(require_api_key),
+    ) -> DeleteUserDataResponse:
+        from shared.utils.crypto import hash_wallet_address as _hw
+
+        user_hash = _hw(body.walletAddress)
+        tables_deleted: dict[str, int] = {}
+
+        async with request.app.state.session_factory() as session:
+            for model in (
+                BehavioralDataModel,
+                RiskScoreModel,
+                ChallengeStateModel,
+                UserReputationModel,
+            ):
+                stmt = _sql_delete(model).where(model.user_hash == user_hash)
+                result = await session.execute(stmt)
+                tables_deleted[model.__tablename__] = int(result.rowcount or 0)
+
+            await record_access(
+                session,
+                accessor=hash_api_key(api_key),
+                operation_type="DELETE",
+                resource_type="user_data",
+                resource_id=user_hash,
+                details={"tables": tables_deleted},
+            )
+            await session.commit()
+
+        return DeleteUserDataResponse(deleted=True, tables=tables_deleted)
+
+    # ------------------------------------------------------------------
+    # GET /metrics: Prometheus scrape endpoint (Task 21.1)
+    # ------------------------------------------------------------------
+
+    @app.get("/metrics", include_in_schema=False)
+    async def metrics_endpoint(request: Request) -> Response:
+        payload, content_type = request.app.state.metrics.render()
+        return Response(content=payload, media_type=content_type)
 
     return app
 

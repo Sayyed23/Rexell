@@ -1,0 +1,16 @@
+# Grafana-provisioning configuration for notification channels.
+apiVersion: 1
+notifiers:
+  - name: email-ops
+    type: email
+    uid: email-ops
+    is_default: true
+    settings:
+      addresses: "ops@rexell.example"
+  - name: slack-ops
+    type: slack
+    uid: slack-ops
+    settings:
+      url: "${SLACK_WEBHOOK_URL}"
+      recipient: "#rexell-ops"
+      username: "rexell-alerts"

@@ -1,0 +1,23 @@
+# syntax=docker/dockerfile:1.6
+FROM python:3.11-slim AS builder
+WORKDIR /app
+
+COPY services/challenge/requirements.txt services/challenge/requirements.txt 2>/dev/null || true
+COPY services/detection/requirements.txt /tmp/fallback.txt
+RUN pip install --upgrade pip && \
+    pip install --prefix=/install -r /tmp/fallback.txt
+
+FROM python:3.11-slim AS runtime
+WORKDIR /app
+
+RUN useradd --create-home --shell /bin/bash rexell
+COPY --from=builder /install /usr/local
+COPY services /app/services
+
+ENV PYTHONPATH=/app/services/shared/src \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+USER rexell
+
+EXPOSE 8001
+CMD ["uvicorn", "services.challenge.app:app", "--host", "0.0.0.0", "--port", "8001"]

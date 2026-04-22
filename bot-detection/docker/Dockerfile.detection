@@ -1,0 +1,29 @@
+# syntax=docker/dockerfile:1.6
+# Multi-stage build for the Detection Service (Task 26.1)
+FROM python:3.11-slim AS builder
+WORKDIR /app
+
+COPY services/detection/requirements.txt services/detection/requirements.txt
+COPY services/shared/pyproject.toml services/shared/pyproject.toml
+RUN pip install --upgrade pip && \
+    pip install --prefix=/install -r services/detection/requirements.txt
+
+FROM python:3.11-slim AS runtime
+WORKDIR /app
+
+# Non-root user
+RUN useradd --create-home --shell /bin/bash rexell
+COPY --from=builder /install /usr/local
+COPY services /app/services
+
+ENV PYTHONPATH=/app/services/shared/src \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+USER rexell
+
+EXPOSE 8000
+HEALTHCHECK --interval=15s --timeout=3s --start-period=20s --retries=5 \
+  CMD python -c "import urllib.request,sys;\
+  urllib.request.urlopen('http://localhost:8000/v1/health',timeout=2)" || exit 1
+
+CMD ["uvicorn", "services.detection.app:app", "--host", "0.0.0.0", "--port", "8000"]
