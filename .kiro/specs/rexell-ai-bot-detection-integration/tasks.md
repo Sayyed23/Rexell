@@ -112,12 +112,12 @@ The implementation follows a phased approach: project foundation and data layer,
 
 
 - [ ] 5. Implement Challenge Engine component
-  - [~] 5.1 Create challenge types and Pydantic models
+  - [x] 5.1 Create challenge types and Pydantic models
     - Define Challenge, ChallengeContent, ChallengeResponse, ChallengeResult models
     - Define ChallengeType enum: image_selection, behavioral_confirmation, multi_step
     - _Requirements: 4.1, 4.2, 4.3_
 
-  - [~] 5.2 Implement challenge generation logic
+  - [-] 5.2 Implement challenge generation logic
     - Select challenge type based on risk score: image_selection for 50–65, multi_step for 65–80
     - Load challenge images from MinIO challenge-content bucket
     - Store challenge state in Redis with 5-minute TTL using key `challenge:{challenge_id}`
@@ -549,7 +549,7 @@ The implementation follows a phased approach: project foundation and data layer,
     - Validate endpoint health after deployment
     - _Requirements: 3.4_
 
-  - [ ] 19.3 Implement A/B testing for model updates
+  - [~] 19.3 Implement A/B testing for model updates
     - Route 10% of inference traffic to new model version using weighted routing
     - Monitor accuracy and latency for 48 hours before full rollout
     - Implement automatic rollback if metrics degrade >5%
@@ -562,7 +562,7 @@ The implementation follows a phased approach: project foundation and data layer,
     - _Requirements: 3.4, 3.5_
 
 - [ ] 20. Implement monthly model retraining CronJob
-  - [ ] 20.1 Create Training Service as Kubernetes CronJob
+  - [~] 20.1 Create Training Service as Kubernetes CronJob
     - Implement monthly trigger (Kubernetes CronJob schedule: `0 2 1 * *`)
     - Query last 90 days of behavioral data from PostgreSQL
     - Invoke training pipeline (tasks 18.1–18.3)
@@ -578,24 +578,24 @@ The implementation follows a phased approach: project foundation and data layer,
 
 
 - [ ] 21. Implement Prometheus metrics and Grafana dashboards
-  - [ ] 21.1 Add Prometheus metrics to Detection and Challenge Services
+  - [~] 21.1 Add Prometheus metrics to Detection and Challenge Services
     - Instrument all endpoints with request counter (`bot_detection_requests_total{decision}`), latency histogram (`bot_detection_latency_seconds`), and error counter
     - Publish custom metrics: `bot_detection_risk_score_histogram`, `challenge_completion_rate`, `fallback_mode_active`, `ml_inference_latency_seconds`
     - Expose /metrics endpoint on each service
     - _Requirements: 8.5_
 
-  - [ ] 21.2 Configure Prometheus scrape targets and alert rules
+  - [~] 21.2 Configure Prometheus scrape targets and alert rules
     - Write Prometheus scrape config for all services
     - Define alert rules: detection rate >20% (high-priority), error rate >1% (warning) / >5% (critical), ML latency >500ms (warning), fallback active (critical), model accuracy <90% (critical)
     - _Requirements: 8.2, 8.3, 8.4_
 
-  - [ ] 21.3 Create Grafana dashboards
+  - [~] 21.3 Create Grafana dashboards
     - Create operational dashboard: request volume, error rates, latency P50/P95/P99, service health
     - Create detection dashboard: detection rate over time, risk score distribution, challenge success rate
     - Configure Grafana alert notification channels (email/Slack)
     - _Requirements: 8.5_
 
-  - [ ] 21.4 Implement daily summary report generation
+  - [~] 21.4 Implement daily summary report generation
     - Create scheduled job to generate daily summary of detection activity and model performance
     - Export report data to MinIO or send via configured notification channel
     - _Requirements: 8.6_
@@ -623,14 +623,14 @@ The implementation follows a phased approach: project foundation and data layer,
 
 
 - [ ] 22. Implement data privacy and compliance features
-  - [ ] 22.1 Implement data anonymization utilities
+  - [~] 22.1 Implement data anonymization utilities
     - Hash wallet addresses with SHA-256 + per-deployment salt before any storage
     - Truncate IP addresses to /24 subnet (remove last octet)
     - Normalize user agents to browser family only
     - Remove all PII from log output (no raw wallet addresses, no full IPs)
     - _Requirements: 9.1, 9.4_
 
-  - [ ] 22.2 Implement data deletion endpoint
+  - [~] 22.2 Implement data deletion endpoint
     - Create DELETE /v1/user-data endpoint accepting wallet address
     - Hash wallet address and query all tables for matching user_hash records
     - Delete records from PostgreSQL (behavioral_data, risk_scores, user_reputation, challenge_state)
@@ -638,13 +638,13 @@ The implementation follows a phased approach: project foundation and data layer,
     - Complete deletion within 30 days via async RabbitMQ job
     - _Requirements: 9.3_
 
-  - [ ] 22.3 Implement audit logging
+  - [~] 22.3 Implement audit logging
     - Log all data access operations to audit_log table in PostgreSQL
     - Include timestamp, accessor identity (API key hash), operation type, and resource identifier
     - Retain audit logs for 7 years per compliance requirements
     - _Requirements: 9.6_
 
-  - [ ] 22.4 Implement data retention policy enforcement
+  - [~] 22.4 Implement data retention policy enforcement
     - Implement GDPR/CCPA compliant data retention policies in code
     - Enforce 90-day behavioral data retention via expires_at column and cleanup job
     - Implement 30-day log retention with automatic deletion
@@ -675,13 +675,13 @@ The implementation follows a phased approach: project foundation and data layer,
 
 
 - [ ] 23. Implement MinIO data archival
-  - [ ] 23.1 Configure MinIO buckets and lifecycle policies
+  - [~] 23.1 Configure MinIO buckets and lifecycle policies
     - Create bot-detection-models bucket for ML artifacts with versioning enabled
     - Create bot-detection-archive bucket for long-term behavioral data storage
     - Configure MinIO lifecycle policy to transition data older than 90 days to archive bucket
     - _Requirements: 11.3_
 
-  - [ ] 23.2 Implement PostgreSQL to MinIO archival job
+  - [~] 23.2 Implement PostgreSQL to MinIO archival job
     - Create async job triggered via RabbitMQ for archiving expired behavioral data
     - Export records to Parquet format, compress with gzip
     - Upload to MinIO organized by year/month/day path structure
@@ -698,26 +698,26 @@ The implementation follows a phased approach: project foundation and data layer,
     - Test MinIO upload and PostgreSQL cleanup after successful archive
     - _Requirements: 11.3_
 
-- [ ] 24. Checkpoint — Ensure all tests pass
+- [~] 24. Checkpoint — Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 
 - [ ] 25. Implement testing infrastructure
-  - [ ] 25.1 Create testing mode and test data isolation
+  - [~] 25.1 Create testing mode and test data isolation
     - Add `X-Test-Mode: true` header support to all endpoints
     - Tag all test data with `test_run_id` in PostgreSQL to prevent production contamination
     - Route test data to separate Redis key namespace (`test:{test_run_id}:...`)
     - Exclude test-tagged data from production metrics and dashboards
     - _Requirements: 12.1, 12.3_
 
-  - [ ] 25.2 Create synthetic bot traffic generator
+  - [~] 25.2 Create synthetic bot traffic generator
     - Generate bot-like behavioral patterns: linear mouse movement, constant keystroke timing
     - Generate human-like behavioral patterns: natural curves, variable timing, realistic dwell times
     - Support configurable traffic volume and pattern mix ratio
     - Output traffic to testing API endpoint (POST /v1/detect with test mode header)
     - _Requirements: 12.4_
 
-  - [ ] 25.3 Implement scenario replay functionality
+  - [~] 25.3 Implement scenario replay functionality
     - Store historical detection scenarios (request + result) in MinIO
     - Create POST /v1/replay endpoint accepting scenario_id
     - Load scenario data and re-execute detection pipeline
@@ -736,14 +736,14 @@ The implementation follows a phased approach: project foundation and data layer,
 
 
 - [ ] 26. Create Kubernetes manifests and Docker images
-  - [ ] 26.1 Write Dockerfiles for all services
+  - [~] 26.1 Write Dockerfiles for all services
     - Detection Service Dockerfile (python:3.11-slim, multi-stage build)
     - Challenge Service Dockerfile (python:3.11-slim)
     - Training Service Dockerfile (python:3.11-slim with scikit-learn/XGBoost)
     - ML Inference Service Dockerfile (pytorch/torchserve base)
     - _Requirements: 10.5_
 
-  - [ ] 26.2 Write Kubernetes manifests
+  - [~] 26.2 Write Kubernetes manifests
     - Deployments with resource limits, liveness probes, and readiness probes for all services
     - HorizontalPodAutoscaler for Detection Service and ML Inference Service (min 2, max 10 replicas, scale at 80% CPU)
     - Services, ConfigMaps, and Secrets (referencing Kubernetes Secrets for DB URL, Redis URL, signing key)
@@ -751,7 +751,7 @@ The implementation follows a phased approach: project foundation and data layer,
     - CronJob for Training Service (monthly schedule)
     - _Requirements: 7.5, 10.5, 10.6_
 
-  - [ ] 26.3 Write environment-specific Kustomize overlays
+  - [~] 26.3 Write environment-specific Kustomize overlays
     - Base manifests in `k8s/base/`
     - Overlays for dev, staging, production in `k8s/overlays/`
     - Environment-specific resource limits and replica counts
@@ -764,37 +764,37 @@ The implementation follows a phased approach: project foundation and data layer,
 
 
 - [ ] 27. Implement end-to-end integration tests
-  - [ ] 27.1 Create end-to-end test suite
+  - [~] 27.1 Create end-to-end test suite
     - Set up pytest integration test suite with Docker Compose test environment
     - Create fixtures for behavioral data generation, mock blockchain transactions
     - _Requirements: 5.1, 5.2_
 
-  - [ ] 27.2 Test complete purchase flow (low-risk)
+  - [~] 27.2 Test complete purchase flow (low-risk)
     - Simulate low-risk user behavioral data → token generation → mock transaction → token consumption
     - Verify token is marked consumed and cannot be reused
     - _Requirements: 5.1, 5.2, 5.6_
 
-  - [ ] 27.3 Test challenge flow (medium-risk)
+  - [~] 27.3 Test challenge flow (medium-risk)
     - Simulate medium-risk user → challenge presented → successful completion → token → transaction
     - Verify risk score reduced by 30 after challenge success
     - _Requirements: 4.1, 4.4, 5.1_
 
-  - [ ] 27.4 Test blocked flow (high-risk)
+  - [~] 27.4 Test blocked flow (high-risk)
     - Simulate high-risk bot behavioral data → block decision → transaction prevented
     - Verify block event is logged with risk score and behavioral indicators
     - _Requirements: 1.2, 1.5_
 
-  - [ ] 27.5 Test fallback flow
+  - [~] 27.5 Test fallback flow
     - Simulate ML Inference Service failure → fallback activation → rate limiting enforced → service recovery
     - Verify normal operations resume within 60 seconds of recovery
     - _Requirements: 10.1, 10.2, 10.3_
 
-  - [ ] 27.6 Test resale detection flow
+  - [~] 27.6 Test resale detection flow
     - Simulate rapid resale requests within 60 seconds → account flagging → additional verification required
     - _Requirements: 6.1, 6.2, 6.4_
 
 - [ ] 28. Implement load testing scripts
-  - [ ] 28.1 Create k6 load testing scripts
+  - [~] 28.1 Create k6 load testing scripts
     - Write test scenarios: normal (50 req/s, 1 hour), peak (200 req/s, 15 min), spike (0→500 req/s, 10 sec), sustained (150 req/s, 4 hours)
     - Configure thresholds: P99 <300ms, error rate <0.1%
     - _Requirements: 7.6_
@@ -804,7 +804,7 @@ The implementation follows a phased approach: project foundation and data layer,
     - Test performance degradation thresholds
     - _Requirements: 7.5, 7.6_
 
-- [ ] 29. Final checkpoint — Ensure all tests pass
+- [~] 29. Final checkpoint — Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes
