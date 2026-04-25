@@ -65,6 +65,22 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/**
+ * Thrown when the server returns an HTTP status that we should NOT retry
+ * (auth errors, validation errors, 4xx other than 408/429). The catch
+ * block in `request()` re-throws these immediately instead of burning
+ * through retries on a deterministic failure.
+ */
+export class NonRetryableHttpError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number,
+  ) {
+    super(message);
+    this.name = 'NonRetryableHttpError';
+  }
+}
+
 export class BotDetectionClient {
   private readonly apiUrl: string;
   private readonly apiKey: string;
@@ -180,12 +196,16 @@ export class BotDetectionClient {
             continue;
           }
           const text = await resp.text();
-          throw new Error(
-            `bot-detection ${method} ${path} failed (${resp.status}): ${text}`
+          throw new NonRetryableHttpError(
+            `bot-detection ${method} ${path} failed (${resp.status}): ${text}`,
+            resp.status,
           );
         }
         return (await resp.json()) as T;
       } catch (err) {
+        // Deterministic HTTP errors (400/401/403/404/…) must not be retried;
+        // re-throw so the caller sees the failure immediately.
+        if (err instanceof NonRetryableHttpError) throw err;
         lastErr = err;
         if (attempt >= this.maxRetries) break;
         await sleep(this.backoffMs(attempt));
