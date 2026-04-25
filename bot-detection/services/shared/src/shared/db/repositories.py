@@ -73,14 +73,27 @@ class RiskScoreRepository(DatabaseRepository):
         return list(result.scalars().all())
 
 class VerificationTokenRepository(DatabaseRepository):
-    async def create(self, user_hash: str, event_id: Optional[str] = None, max_quantity: Optional[int] = None) -> VerificationTokenModel:
+    async def create(
+        self,
+        user_hash: str,
+        event_id: Optional[str] = None,
+        max_quantity: Optional[int] = None,
+        token_id: Optional[str] = None,
+        issued_at: Optional[int] = None,
+        expires_at: Optional[int] = None,
+    ) -> VerificationTokenModel:
+        # Callers that issue a signed token string must pass the same token_id
+        # / issued_at / expires_at they embedded in the payload so that
+        # /v1/validate-token and /v1/consume-token can find the row by id.
         record = VerificationTokenModel(
-            token_id=str(uuid.uuid4()),
+            token_id=token_id or str(uuid.uuid4()),
             user_hash=user_hash,
             event_id=event_id,
             max_quantity=max_quantity,
-            issued_at=current_timestamp(),
-            expires_at=calculate_token_expires_at()
+            issued_at=issued_at if issued_at is not None else current_timestamp(),
+            expires_at=(
+                expires_at if expires_at is not None else calculate_token_expires_at()
+            ),
         )
         self.session.add(record)
         await self.session.flush()

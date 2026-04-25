@@ -85,9 +85,18 @@ def _generate_verification_token(
     wallet_address: str,
     event_id: Optional[str],
     max_quantity: Optional[int],
-) -> str:
+    token_id: Optional[str] = None,
+    issued_at: Optional[int] = None,
+    expires_at: Optional[int] = None,
+) -> tuple[str, str, int, int]:
     """
     Generate an HMAC-SHA256 signed verification token encoded as base64.
+
+    Returns ``(token_string, token_id, issued_at, expires_at)`` so that the
+    caller can persist the same identifier and timestamps to the database.
+    Without that, the token's embedded ``tokenId`` would not match any row
+    and ``/v1/validate-token`` / ``/v1/consume-token`` would always fail
+    with "Token not found".
 
     Token payload includes:
     - tokenId (UUID v4)
@@ -96,15 +105,13 @@ def _generate_verification_token(
     - maxQuantity
     - issuedAt (Unix timestamp seconds)
     - expiresAt (issuedAt + 5 minutes)
-
-    Returns:
-        Base64-encoded JSON token string.
     """
-    issued_at = current_timestamp()
-    expires_at = calculate_token_expires_at()
+    token_id = token_id or str(uuid.uuid4())
+    issued_at = issued_at if issued_at is not None else current_timestamp()
+    expires_at = expires_at if expires_at is not None else calculate_token_expires_at()
 
     payload = {
-        "tokenId": str(uuid.uuid4()),
+        "tokenId": token_id,
         "walletAddress": wallet_address,
         "eventId": event_id,
         "maxQuantity": max_quantity,
@@ -123,7 +130,12 @@ def _generate_verification_token(
     token_bytes = json.dumps(token_data, separators=(",", ":"), sort_keys=True).encode(
         "utf-8"
     )
-    return base64.b64encode(token_bytes).decode("utf-8")
+    return (
+        base64.b64encode(token_bytes).decode("utf-8"),
+        token_id,
+        issued_at,
+        expires_at,
+    )
 
 
 class DetectionHandler:
@@ -259,10 +271,23 @@ class DetectionHandler:
         - block  → log block event, return block response
         """
         if decision == DetectionResponseDecision.allow:
-            token = _generate_verification_token(
+            event_id = getattr(context, "eventId", None)
+            max_quantity = context.requestedQuantity
+            token, token_id, issued_at, expires_at = _generate_verification_token(
                 wallet_address=wallet_address,
-                event_id=getattr(context, "eventId", None),
-                max_quantity=context.requestedQuantity,
+                event_id=event_id,
+                max_quantity=max_quantity,
+            )
+            # Persist the token so /v1/validate-token and /v1/consume-token
+            # can look it up by id. The outer request handler commits the
+            # session after handle() returns.
+            await self.token_repo.create(
+                user_hash=user_hash,
+                event_id=event_id,
+                max_quantity=max_quantity,
+                token_id=token_id,
+                issued_at=issued_at,
+                expires_at=expires_at,
             )
             logger.info(
                 "detection_allow",

@@ -87,7 +87,10 @@ class FrontendTracker {
     ) {
       return;
     }
-    this.push({ type: 'keyup', timestamp: performance.now(), key: ev.code });
+    // The listener is registered on `keydown`, so emit a matching `keydown`
+    // row. Mislabelling these as `keyup` confused the backend feature
+    // extractor (which expects pressTime / interKeyInterval on keyup events).
+    this.push({ type: 'keydown', timestamp: performance.now(), key: ev.code });
   };
 }
 
