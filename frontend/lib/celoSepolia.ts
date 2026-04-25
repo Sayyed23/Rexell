@@ -1,12 +1,10 @@
 import { defineChain } from 'viem';
-
-<<<<<<< HEAD
 export const CELO_SEPOLIA_RPC_URLS = [
   'https://celo-sepolia.drpc.org',
   'https://celo-sepolia-rpc.allthatnode.com',
   'https://forno.celo-sepolia.celo-testnet.org',
 ];
-=======
+
 // Celo Sepolia public RPC endpoints. We list several so viem's fallback
 // transport can rotate to a different node when one rate-limits or fails.
 // The first entry is the official Forno endpoint; the others are well-known
@@ -24,7 +22,7 @@ export const CELO_SEPOLIA_RPC_URLS: readonly string[] = ENV_RPCS.length
       'https://celo-sepolia.drpc.org',
       'https://celo-sepolia-rpc.publicnode.com',
     ];
->>>>>>> 0c3284827a7689000dbfda47bec53beebd36bf68
+ 0c3284827a7689000dbfda47bec53beebd36bf68
 
 export const celoSepolia = defineChain({
   id: 11142220,
@@ -36,19 +34,18 @@ export const celoSepolia = defineChain({
   },
   rpcUrls: {
     default: {
-<<<<<<< HEAD
+ HEAD
       http: CELO_SEPOLIA_RPC_URLS,
     },
     public: {
       http: CELO_SEPOLIA_RPC_URLS,
-=======
       http: [...CELO_SEPOLIA_RPC_URLS],
     },
     public: {
       http: [...CELO_SEPOLIA_RPC_URLS],
->>>>>>> 0c3284827a7689000dbfda47bec53beebd36bf68
+ 0c3284827a7689000dbfda47bec53beebd36bf68
     },
-  },
+  },  
   blockExplorers: {
     default: {
       name: 'Celo Sepolia Explorer',
