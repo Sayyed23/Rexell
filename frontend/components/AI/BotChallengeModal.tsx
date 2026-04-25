@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/shared/ui/button";
 import type { GuardResult } from "@/lib/bot-detection/types";
 
@@ -25,6 +25,15 @@ export function BotChallengeModal({
   onCancel,
 }: BotChallengeModalProps) {
   const [acknowledged, setAcknowledged] = useState(false);
+
+  // Reset the checkbox whenever a new challenge instance arrives. React
+  // preserves component state across renders even when we briefly return
+  // null (challenge transitions to null after a cancel), so without this
+  // the user's previous tick survives and the "Continue purchase" button
+  // is re-enabled without an explicit re-confirmation on the next round.
+  useEffect(() => {
+    setAcknowledged(false);
+  }, [challenge]);
 
   if (!challenge) return null;
 

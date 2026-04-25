@@ -534,13 +534,20 @@ def create_app() -> FastAPI:
             # re-fetches the row and reflects the new ``flagged`` value.
             session.expire_all()
             record = await reputation_repo.get_or_create(user_hash)
+            # Snapshot the ORM attributes BEFORE commit + session close.
+            # SQLAlchemy's default expire_on_commit=True invalidates loaded
+            # attributes after commit and the ``async with`` block then
+            # closes the session, so any later access (outside the block)
+            # would trigger a lazy-load on a detached instance and raise
+            # DetachedInstanceError.
+            flagged = bool(record.flagged)
+            trusted = bool(record.trusted_status)
             await session.commit()
 
         return ResaleCheckResponse(
-            flagged=bool(record.flagged),
-            requiresAdditionalVerification=bool(record.flagged)
-            and not bool(record.trusted_status),
-            trusted=bool(record.trusted_status),
+            flagged=flagged,
+            requiresAdditionalVerification=flagged and not trusted,
+            trusted=trusted,
             requestsInWindow=count,
         )
 
