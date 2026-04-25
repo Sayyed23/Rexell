@@ -55,16 +55,28 @@ services:
       - "9001:9001"
     volumes:
       - minio_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9000/minio/health/live || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
-  # Minio initialization hook to create buckets described in requirements
+  # Minio initialization hook to create buckets described in requirements.
+  # Wait for MinIO to actually accept requests before issuing mc commands —
+  # the mc image's entrypoint has no retry loop, so without this the
+  # bucket creation races startup and silently exits with a connection
+  # error, leaving downstream services without their buckets.
   minio-init:
     image: minio/mc
     depends_on:
       minio:
-        condition: service_started
+        condition: service_healthy
     entrypoint: >
       /bin/sh -c "
-      /usr/bin/mc config host add myminio http://minio:9000 rexell_admin rexell_password;
+      until /usr/bin/mc alias set myminio http://minio:9000 rexell_admin rexell_password >/dev/null 2>&1; do
+        echo 'Waiting for MinIO...'; sleep 2;
+      done;
       /usr/bin/mc mb myminio/challenge-content --ignore-existing;
       /usr/bin/mc mb myminio/training-data --ignore-existing;
       /usr/bin/mc mb myminio/bot-detection-models --ignore-existing;

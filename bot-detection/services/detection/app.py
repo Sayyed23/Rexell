@@ -519,6 +519,10 @@ def create_app() -> FastAPI:
                 reputation_repo=reputation_repo,
             )
             count = await analyzer.record_request(user_hash)
+            # record_request may have issued a core UPDATE on user_reputation
+            # via _flag_account; expire the identity map so the next read
+            # re-fetches the row and reflects the new ``flagged`` value.
+            session.expire_all()
             record = await reputation_repo.get_or_create(user_hash)
             await session.commit()
 
