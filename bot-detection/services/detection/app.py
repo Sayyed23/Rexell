@@ -285,6 +285,16 @@ def create_app() -> FastAPI:
         cid = getattr(request.state, "correlation_id", str(uuid.uuid4()))
         metrics = request.app.state.metrics
 
+        # Inject the client IP server-side. The SDK / frontend cannot supply
+        # this reliably; honour an X-Forwarded-For header set by an upstream
+        # proxy and fall back to the direct peer.
+        if not body.behavioralData.ipAddress:
+            xff = request.headers.get("x-forwarded-for")
+            client_ip = (
+                xff.split(",")[0].strip() if xff else (request.client.host if request.client else None)
+            )
+            body.behavioralData.ipAddress = client_ip
+
         # Build per-request handler with fresh DB session
         with metrics.observe_latency("/v1/detect"):
             async with request.app.state.session_factory() as session:

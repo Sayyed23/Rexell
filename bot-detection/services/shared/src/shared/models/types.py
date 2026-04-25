@@ -66,7 +66,13 @@ class BehavioralData(BaseModel):
     sessionId: str
     walletAddress: str
     userAgent: str
-    ipAddress: str
+    # The browser cannot reliably determine its own public IP, so this is
+    # injected server-side from request.client.host before the payload is
+    # processed. Required-on-the-wire would have failed Pydantic validation
+    # for every legitimate /v1/detect call from the SDK and the frontend
+    # shim and silently disabled bot detection (the frontend graceful-
+    # degrade path swallows 422s).
+    ipAddress: Optional[str] = None
     events: List[Annotated[Union[MouseEvent, KeystrokeEvent, NavigationEvent], Field(discriminator='type')]] = Field(..., description="Chronological sequence of physical interactions")
 
     @field_validator('events')
