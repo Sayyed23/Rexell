@@ -196,6 +196,17 @@ export class BotDetectionClient {
             continue;
           }
           const text = await resp.text();
+          if (RETRYABLE_STATUS.has(resp.status)) {
+            // Retries exhausted on a transient (5xx / 408 / 429) failure.
+            // Surface this as a regular Error rather than NonRetryableHttpError
+            // so callers that branch on `err instanceof NonRetryableHttpError`
+            // (treating it as a deterministic auth/validation failure) don't
+            // misinterpret a flaky upstream as permanent.
+            lastErr = new Error(
+              `bot-detection ${method} ${path} failed after ${this.maxRetries} attempts (${resp.status}): ${text}`,
+            );
+            break;
+          }
           throw new NonRetryableHttpError(
             `bot-detection ${method} ${path} failed (${resp.status}): ${text}`,
             resp.status,

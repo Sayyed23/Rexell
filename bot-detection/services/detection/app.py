@@ -560,6 +560,7 @@ def create_app() -> FastAPI:
         response_model=DeleteUserDataResponse,
         status_code=status.HTTP_200_OK,
         summary="Delete all data for the given wallet address",
+        dependencies=[Depends(rate_limit_dependency)],
     )
     async def delete_user_data(
         request: Request,

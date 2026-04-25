@@ -18,17 +18,38 @@ export const MultiStepChallenge: React.FC<ChallengeBaseProps> = (props) => {
   const [stepIdx, setStepIdx] = React.useState(0);
 
   const current = steps[stepIdx];
-  const advance = (token: string) => {
-    if (stepIdx < steps.length - 1) {
-      setStepIdx(stepIdx + 1);
-    } else {
-      props.onSuccess(token);
-    }
+
+  // Stash the latest prop callbacks in a ref so ``advance`` / ``failure``
+  // can read them without participating in the dependency arrays of the
+  // memoised child tree below. Otherwise, if the parent re-renders with a
+  // new ``onSuccess`` while the user is mid-step, the inner challenge
+  // component would still be invoking the previous render's callback.
+  const callbacksRef = React.useRef({
+    onSuccess: props.onSuccess,
+    onFailure: props.onFailure,
+  });
+  callbacksRef.current = {
+    onSuccess: props.onSuccess,
+    onFailure: props.onFailure,
   };
 
-  const failure = (reason: string, attemptsRemaining: number) => {
-    props.onFailure(reason, attemptsRemaining);
-  };
+  const advance = React.useCallback(
+    (token: string) => {
+      if (stepIdx < steps.length - 1) {
+        setStepIdx(stepIdx + 1);
+      } else {
+        callbacksRef.current.onSuccess(token);
+      }
+    },
+    [stepIdx, steps.length],
+  );
+
+  const failure = React.useCallback(
+    (reason: string, attemptsRemaining: number) => {
+      callbacksRef.current.onFailure(reason, attemptsRemaining);
+    },
+    [],
+  );
 
   const inner = React.useMemo(() => {
     if (current.type === 'image_selection') {
@@ -50,7 +71,7 @@ export const MultiStepChallenge: React.FC<ChallengeBaseProps> = (props) => {
       />
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stepIdx]);
+  }, [stepIdx, advance, failure]);
 
   return (
     <div className="rex-challenge rex-challenge--multi">
