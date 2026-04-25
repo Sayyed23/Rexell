@@ -2,11 +2,33 @@
 <h1 align="center">💠 REXELL 💠</h1>
 
 <p align="center">
+<<<<<<< HEAD
+=======
+  <b>Web3 Platform for Events</b><br>
+  Revolutionizing event ticketing with blockchain technology.
+</p>
+
+<details>
+<summary> Table of Contents</summary>
+
+- [About the Project](#about-the-project)
+- [High-Level Architecture](#high-level-architecture)
+- [Frontend](#-frontend)
+- [Blockchain / Smart Contracts](#-blockchain--smart-contracts)
+- [AI / ML Anti-Scalping Engine](#-aiml-anti-scalping-engine)
+- [Behavioral Bot Detection Integration (AI Microservices)](#-behavioral-bot-detection-integration-ai-microservices)
+- [Storage & Data Layer](#-storage--data-layer)
+- [DevOps & Deployment](#-devops--deployment)
+- [Application Flow](#-application-flow)
+- [End-to-End AI Decision Flow](#-end-to-end-ai-decision-flow)
+- [Project Plan](#-project-plan)
+>>>>>>> e1f42d653026198d5b1da4736461be0e2937547e
 - [Gantt Chart](#-gantt-chart)
 - [Risk & Mitigation](#-risk--mitigation)
 - [Tech Stack Summary](#-tech-stack-summary)
 - [Resale Functionality](#resale-functionality)
 - [Installation and Setup](#installation-and-setup)
+- [Running Bot Detection Stack](#-running-bot-detection-stack)
 
 </details>
 
@@ -64,7 +86,7 @@ graph TB
         LS["LocalStorage"]
     end
 
-    subgraph AIML["🤖 AI / ML Layer"]
+    subgraph AIML["🤖 AI / ML Layer (in-browser agents)"]
         BD["Bot Detector"]
         SD["Scalping Detector"]
         RA["Risk Evaluation Agent"]
@@ -72,9 +94,23 @@ graph TB
         CNN["CNN Model — TensorFlow"]
     end
 
+    subgraph BotDet["🛡️ Bot Detection Microservices"]
+        SDK["Behavioral SDK<br/>· Mouse/keystroke telemetry<br/>· ≥20 Hz sampling"]
+        DET["Detection Service<br/>FastAPI :8000"]
+        CHA["Challenge Service<br/>FastAPI :8001"]
+        INF["ML Inference<br/>FastAPI :8080"]
+        TRN["Training CronJob"]
+        PG[("Postgres<br/>Risk scores")]
+        RD[("Redis<br/>Rate limit / resale")]
+        MQ[("RabbitMQ<br/>Alerts")]
+        S3[("MinIO / S3<br/>Models, archives")]
+    end
+
     subgraph Deploy["🚀 Deployment"]
         Vercel["Vercel"]
         Celoscan["Celoscan Explorer"]
+        K8s["Kubernetes (k8s/overlays)"]
+        Prom["Prometheus + Grafana"]
     end
 
     Browser --> UI
@@ -85,9 +121,20 @@ graph TB
     UI --> AI_FE
     AI_FE --> BD & SD
     BD & SD --> RA --> PA
+    UI --> SDK
+    SDK -->|telemetry, token req| DET
+    DET --> INF
+    DET --> PG & RD
+    DET --> CHA
+    CHA --> PG
+    TRN -->|joblib model| S3
+    INF -->|load model| S3
+    DET -->|alerts| MQ
+    DET --> Prom
     API --> IPFS
     UI --> LS
     Frontend --> Vercel
+    BotDet --> K8s
     RC --> Celoscan
     CNN -.->|Training Data| BD
 ```
@@ -330,6 +377,214 @@ flowchart LR
 
 ---
 
+## 🛡️ Behavioral Bot Detection Integration (AI Microservices)
+
+In addition to the in-browser agentic engine described above, Rexell ships a production-grade **server-side bot-detection platform** under [`bot-detection/`](bot-detection/) that performs deep behavioral analysis, ML-driven risk scoring, adaptive challenges, and HMAC-signed verification tokens that the smart contracts can require before allowing a purchase.
+
+Full operator manual: [`bot-detection/docs/INTEGRATION_GUIDE.md`](bot-detection/docs/INTEGRATION_GUIDE.md). The summary below explains the architecture, where each piece lives in the repo, and how the AI plugs into the Next.js front-end and the on-chain ticket flow.
+
+### 1. Component Architecture
+
+```mermaid
+flowchart LR
+    subgraph Browser["🖥️ Next.js (frontend/)"]
+        Hook["useBotDetection()<br/>frontend/lib/bot-detection"]
+        Track["BehavioralTracker<br/>bot-detection/sdk/src/tracker.ts"]
+        Cli["BotDetectionClient<br/>bot-detection/sdk/src/client.ts"]
+        Chall["ChallengeContainer<br/>(React)"]
+    end
+
+    subgraph Backend["🐳 bot-detection/services"]
+        DET["Detection :8000<br/>/v1/detect, /v1/resale-check,<br/>/v1/token/*, /v1/user-data"]
+        CHA["Challenge :8001<br/>/v1/challenge, /v1/verify"]
+        INF["Inference :8080<br/>/predictions"]
+        TRN["Training (CronJob)<br/>data_prep + train_model"]
+    end
+
+    subgraph Data["💽 Stateful deps"]
+        PG[("PostgreSQL")]
+        RD[("Redis")]
+        MQ[("RabbitMQ")]
+        MINIO[("MinIO / S3")]
+    end
+
+    Hook --> Track --> Cli
+    Cli -- POST /v1/detect --> DET
+    DET -- features --> INF
+    INF -- risk score --> DET
+    DET -- challenge needed --> CHA
+    Cli -- render --> Chall
+    Chall -- POST /v1/verify --> CHA
+    DET --> PG
+    DET --> RD
+    DET -- alerts --> MQ
+    TRN -- model.joblib --> MINIO
+    INF -- load --> MINIO
+```
+
+### 2. Repository Layout
+
+```
+bot-detection/
+├── services/
+│   ├── detection/        # FastAPI: /v1/detect, /v1/token/*, /v1/resale-check, /metrics, /v1/user-data
+│   │   ├── app.py        # 700+ LOC service entrypoint
+│   │   ├── handler.py    # decision pipeline (analyze → score → policy)
+│   │   ├── token_validator.py
+│   │   ├── rate_limiter.py
+│   │   └── auth.py       # API-key middleware (DETECTION_API_KEYS)
+│   ├── challenge/        # FastAPI: adaptive challenges (image / behavioral / multi-step)
+│   │   ├── app.py
+│   │   ├── challenge_engine.py
+│   │   └── models.py
+│   ├── inference/        # FastAPI: XGBoost model server
+│   │   ├── handler.py
+│   │   ├── ab_router.py  # A/B variant routing + 48 h auto-rollback
+│   │   └── deploy_model.py
+│   ├── training/         # Monthly retraining job
+│   │   ├── data_prep.py  # builds train/val/test parquet from Postgres
+│   │   ├── train_model.py# XGBoost + quality gates (acc ≥ 0.95, FPR < 0.02)
+│   │   └── cronjob.py    # entrypoint for K8s CronJob
+│   └── shared/           # Library shared by all services
+│       └── src/shared/
+│           ├── analyzer.py          # behavioral feature extraction
+│           ├── risk_scorer.py       # combined risk score
+│           ├── resale_analyzer.py   # rolling 60 s window + trusted status
+│           ├── fallback.py          # async health-watcher / per-wallet limits
+│           ├── privacy.py           # IP /24/48 trunc, UA normalize, PII scrub
+│           ├── audit.py             # audit log writer
+│           ├── retention.py         # data lifecycle (90 d / 30 d / 7 y)
+│           ├── archival.py          # MinIO Parquet/JSONL.gz archival
+│           ├── metrics.py           # Prometheus metrics + decision counters
+│           ├── testing_mode.py      # synthetic traffic + scenario replay
+│           ├── clients/             # Postgres / Redis / RabbitMQ / MinIO clients
+│           ├── db/                  # SQLAlchemy models + Alembic migrations
+│           └── models/              # Pydantic event/feature/decision schemas
+├── sdk/                   # TypeScript Behavioral SDK (consumed by Next.js)
+│   └── src/
+│       ├── tracker.ts     # circular buffer, ≥20 Hz mouse RAF sampling, password filter
+│       ├── client.ts      # retrying HTTP client (back-off, CORS-safe)
+│       ├── types.ts       # EventType, BehavioralData, DecisionResponse
+│       ├── index.ts       # public re-exports
+│       └── react/         # ChallengeContainer, ImageSelection,
+│                          #   BehavioralConfirmation, MultiStep
+├── docker/                # Multi-stage Dockerfiles (detection / challenge / inference / training)
+│   └── docker-compose.yml # Postgres, Redis, RabbitMQ, MinIO + 3 services
+├── k8s/                   # Kubernetes manifests
+│   ├── base/              # Namespace, ConfigMap, Secrets, StatefulSets, Deployments,
+│   │                      #   HPAs, CronJobs (training / retention / archival)
+│   └── overlays/{dev,staging,production}/  # Kustomize overlays
+├── monitoring/
+│   ├── prometheus/        # prometheus.yml + alerts.yml
+│   └── grafana/dashboards/ # operational.json + detection.json
+├── loadtest/k6/           # normal / peak / spike / sustained load scenarios
+└── docs/INTEGRATION_GUIDE.md   # full step-by-step operator manual
+
+frontend/lib/bot-detection/  # Next.js integration shim that wraps the SDK
+├── index.ts                #   BotDetectionIntegration: startTracking, guardPurchase,
+│                            #     consumeToken, checkResale (graceful degradation)
+├── types.ts
+└── useBotDetection.ts      # React hook for per-session activation
+```
+
+### 3. Pipeline Stages
+
+| Stage | What happens | Code |
+|---|---|---|
+| **3.1 Telemetry capture** | `BehavioralTracker.start()` instruments mouse / keystroke / focus / navigation events into a 4096-entry circular buffer at ≥ 20 Hz, masking inputs under `input[type=password]` and credit-card fields. | `bot-detection/sdk/src/tracker.ts` |
+| **3.2 Risk request** | On `guardPurchase()`, the SDK posts `{ session_id, wallet_hash, behavioral_data }` to `POST /v1/detect` with retry + exponential back-off. | `bot-detection/sdk/src/client.ts`, `frontend/lib/bot-detection/index.ts` |
+| **3.3 Feature extraction** | The Detection service hashes the wallet (`WALLET_SALT`), truncates IP to /24 (IPv4) or /48 (IPv6), normalises the UA to a browser family, then derives 30+ kinematic features (mouse velocity / acceleration / curvature, click cadence, keystroke dwell, navigation entropy). | `services/shared/src/shared/{privacy,analyzer}.py` |
+| **3.4 Risk scoring** | Features are sent to the **Inference service** which loads the latest XGBoost model from MinIO and returns `risk_score ∈ [0,100]`. The A/B router (`ab_router.py`) splits traffic between control & candidate variants and auto-rolls back on > 5 % accuracy regression over 48 h. | `services/inference/{handler,ab_router}.py` |
+| **3.5 Policy decision** | Detection applies thresholds → `BLOCK ≥ 80`, `CHALLENGE 50–79`, `ALLOW < 50`. The decision is persisted to Postgres and recorded in Prometheus counters. | `services/detection/handler.py`, `services/shared/src/shared/risk_scorer.py` |
+| **3.6 Token issuance** | On `ALLOW`, the service mints an HMAC-SHA256 token (5 min TTL) keyed by `TOKEN_SIGNING_KEY` and returns `{ decision, token, expires_at }`. The token is the proof of humanity required by smart-contract calls. | `services/detection/token_validator.py` |
+| **3.7 Adaptive challenge** | On `CHALLENGE`, the SDK mounts `<ChallengeContainer/>`. Sub-challenges (image-selection 3-grid, behavioral mouse-gesture, multi-step) are issued by `services/challenge/challenge_engine.py`. A successful `/v1/verify` returns a fresh detection token. | `bot-detection/sdk/src/react/*`, `services/challenge/*` |
+| **3.8 Token consumption** | After the on-chain transaction succeeds, the front-end calls `POST /v1/token/consume` so a token can never be replayed. | `services/detection/token_validator.py` |
+| **3.9 Resale gating** | Resale flows additionally call `POST /v1/resale-check` which uses a Redis sorted-set rolling 60-second window — > 3 hits within the window flags the wallet, and the **TrustedStatusManager** promotes wallets with ≥ 20 sessions / mean score ≤ 20 / std-dev ≤ 15 / max < 70 over 30 days to relaxed checks. | `services/shared/src/shared/resale_analyzer.py` |
+| **3.10 Fallback mode** | An async `FallbackController` polls Postgres / Redis / Inference health. When any dependency is unhealthy it short-circuits `/v1/detect` to safe mode and enforces a hard **2-ticket-per-wallet-per-event** cap so the platform never goes fully open. | `services/shared/src/shared/fallback.py` |
+| **3.11 Privacy & GDPR** | Daily retention cleanup deletes behavioral data > 90 days; logs > 30 days; audit logs kept 7 years. `DELETE /v1/user-data` performs full subject erasure across all tables and writes an audit record. Expired rows are archived to MinIO as Parquet (or JSONL.gz fallback) before deletion. | `services/shared/src/shared/{privacy,retention,archival,audit}.py` |
+| **3.12 Observability** | Each service exposes `GET /metrics` (request count, latency, decision histogram, model accuracy, fallback flag). Prometheus scrapes at 15 s; Grafana dashboards `operational.json` + `detection.json` visualise everything. Alerts fire on bot-rate > 20 % / 10 min, p95 ML latency > 500 ms, accuracy < 0.9, fallback active. | `services/shared/src/shared/metrics.py`, `monitoring/prometheus/alerts.yml` |
+
+### 4. Public API Surface
+
+| Method | Path | Service | Auth | Purpose |
+|---|---|---|---|---|
+| `POST` | `/v1/detect` | detection :8000 | API key | Score behavioural data, return `{decision, risk_score, token?}` |
+| `POST` | `/v1/token/validate` | detection | API key | Verify token signature + TTL before any sensitive work |
+| `POST` | `/v1/token/consume` | detection | API key | Burn a token after a successful tx (replay protection) |
+| `POST` | `/v1/resale-check` | detection | API key | Returns `{flagged, requiresAdditionalVerification, trusted}` for resale flows |
+| `DELETE` | `/v1/user-data` | detection | API key | GDPR / CCPA subject erasure |
+| `GET` | `/metrics` | detection / challenge / inference | none | Prometheus scrape endpoint |
+| `POST` | `/v1/challenge` | challenge :8001 | API key | Issue an adaptive challenge for a session |
+| `POST` | `/v1/verify` | challenge | API key | Validate user-submitted challenge response |
+| `POST` | `/predictions` | inference :8080 | internal | Return `risk_score` for a feature vector |
+| `GET` | `/v1/health` | all services | none | Liveness probe |
+
+### 5. Risk Score → Decision Mapping
+
+| Score | Decision | UI behaviour | Token |
+|---|---|---|---|
+| `< 50` | **ALLOW** | Purchase proceeds | Issued (5 min TTL) |
+| `50 – 79` | **CHALLENGE** | `<ChallengeContainer/>` mounts; on success a new token is issued | Issued only after `/v1/verify` |
+| `≥ 80` | **BLOCK** | Friendly block screen, no contract call attempted | None |
+
+Additional flags are enforced on top of the score:
+* **Rate limit** — sliding window per IP/wallet on `/v1/detect`
+* **Resale flag** — `> 3` resale-check requests in 60 s
+* **Fallback mode** — `≤ 2` tickets per wallet per event when dependencies are degraded
+* **Trusted status** — long-tenured legitimate wallets bypass the resale rate limit
+
+### 6. ML Lifecycle
+
+```mermaid
+flowchart LR
+    PG[("PostgreSQL<br/>behavioral_data + risk_scores")]
+    DP["data_prep.py<br/>70/15/15 parquet split"]
+    TM["train_model.py<br/>XGBoost (n=250, depth=6)"]
+    QG{"Quality gates<br/>acc ≥ 0.95<br/>FPR < 0.02"}
+    S3[("MinIO / S3")]
+    DEP["deploy_model.py"]
+    INF["Inference Service"]
+    AB["ABRouter<br/>auto-rollback"]
+    Alert[("RabbitMQ alert<br/>bot-detection-alerts")]
+
+    PG --> DP --> TM --> QG
+    QG -- pass --> S3 --> DEP --> INF --> AB
+    QG -- fail --> Alert
+```
+
+* The **monthly K8s CronJob** (`k8s/base/training-cronjob.yaml`, `0 2 1 * *`) calls `services.training.cronjob`, which runs `data_prep` → `train_model` and uploads artefacts to MinIO.
+* `train_model.py` rejects models that don't pass the quality gates and publishes `model_quality_gate_failed` to RabbitMQ; the previous good model stays live.
+* `services/inference/ab_router.py` weights traffic between `control` and `candidate` model versions, records per-decision accuracy, and resets the candidate weight to 0 if it regresses by more than 5 % over 48 h.
+
+### 7. Frontend Integration in 4 Lines
+
+```tsx
+// frontend/app/(application)/layout.tsx
+const bot = useBotDetection({
+  apiUrl: process.env.NEXT_PUBLIC_BOT_DETECTION_URL!,
+  apiKey: process.env.NEXT_PUBLIC_BOT_DETECTION_KEY!,
+});
+
+// before the contract write
+const guard = await bot.guardPurchase({ wallet, eventId });
+if (guard.decision === 'block')      return showBlocked();
+if (guard.decision === 'challenge')  return mountChallenge(guard.challenge);
+await writeContractAsync({ /* …, args: [...args, guard.token] */ });
+await bot.consumeToken(guard.token);   // burn after success
+```
+
+Resale flows additionally call `bot.checkResale({ wallet, ticketId })`. GDPR deletion is a single `DELETE /v1/user-data` call wired up from a user settings page.
+
+Graceful degradation is built in: if the bot-detection backend is unreachable the helper returns `{ decision: 'allow', degraded: true }` so the marketplace never fails closed for genuine users.
+
+### 8. Deployment Topologies
+
+* **Local dev** — `docker compose -f bot-detection/docker/docker-compose.yml up` boots Postgres, Redis, RabbitMQ, MinIO, plus the three FastAPI services.
+* **Kubernetes** — `kubectl apply -k bot-detection/k8s/overlays/{dev,staging,production}` deploys StatefulSets for the data plane and HPA-scaled Deployments for the services. Production overlay caps HPA at 20 replicas and pre-provisions 4 base pods.
+* **Load testing** — `bot-detection/loadtest/k6/{normal,peak,spike,sustained}.js` runs the four canonical traffic shapes against `/v1/detect` and asserts `p99 < 300 ms` and error rate `< 0.1 %`.
+
+---
+
 ## 💾 Storage & Data Layer
 
 Rexell uses a **decentralized storage** approach — no traditional database.
@@ -397,6 +652,52 @@ flowchart LR
     Test --> DeploySC --> Verify
     DeploySC --> UpdateABI --> DeployFE
 ```
+
+---
+
+## 🔁 End-to-End AI Decision Flow
+
+This diagram traces a single ticket purchase through every AI / risk surface in the system — from the moment the user lands on the buy page through the on-chain mint.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant U as User
+    participant FE as Next.js Frontend
+    participant SDK as Behavioral SDK
+    participant DET as Detection :8000
+    participant INF as Inference :8080
+    participant CHA as Challenge :8001
+    participant AI as lib/ai (in-browser agents)
+    participant SC as Rexell.sol (Celo)
+
+    U->>FE: Visit /buy?event=42
+    FE->>SDK: useBotDetection().startTracking()
+    SDK-->>FE: collecting mouse/keystroke @ ≥20 Hz
+    U->>FE: Click "Buy Ticket"
+    FE->>AI: scalpingDetector + botDetector + riskAgent
+    AI-->>FE: client-side trust score (fast first pass)
+    FE->>SDK: guardPurchase(wallet, eventId)
+    SDK->>DET: POST /v1/detect (behavioral_data)
+    DET->>INF: POST /predictions (features)
+    INF-->>DET: risk_score = 67
+    DET->>CHA: issue challenge
+    CHA-->>DET: challenge payload
+    DET-->>SDK: {decision: "challenge", challenge}
+    SDK->>FE: mount <ChallengeContainer/>
+    U->>FE: Solve image-selection challenge
+    FE->>CHA: POST /v1/verify
+    CHA-->>FE: {success: true}
+    FE->>DET: POST /v1/detect (with verify_proof)
+    DET-->>SDK: {decision: "allow", token: "hmac…"}
+    FE->>SC: writeContract buyTicket(eventId, …, token)
+    SC-->>FE: tx hash
+    FE->>DET: POST /v1/token/consume(token)
+    DET-->>FE: ok
+    FE-->>U: NFT minted ✅
+```
+
+The **lib/ai/** in-browser agents act as a low-latency first-pass filter (no network call), while the **bot-detection microservices** provide the authoritative ML-driven decision and the HMAC-signed token that the smart contract treats as the proof-of-humanity for the actual on-chain mint.
 
 ---
 
@@ -714,9 +1015,12 @@ flowchart BT
 | **Token Standard** | ERC-721 (NFT Tickets), ERC-20 (cUSD Payments) |
 | **Identity** | Soulbound NFT (Non-Transferable ERC-721) |
 | **Dev Framework** | Hardhat 2.22, Ethers.js 6 |
-| **AI/ML** | Custom TypeScript agents, Python (TensorFlow, CNN) |
-| **Storage** | Pinata IPFS (images/metadata), Celo (on-chain data) |
-| **Deployment** | Vercel (frontend), Celoscan (contract verification) |
+| **AI/ML (client)** | Custom TypeScript agents, Python (TensorFlow, CNN) |
+| **AI/ML (server)** | FastAPI · XGBoost · scikit-learn · MLflow (optional) |
+| **Bot-Detection Stack** | PostgreSQL · Redis · RabbitMQ · MinIO · Prometheus · Grafana · k6 |
+| **Behavioral SDK** | TypeScript SDK + React challenge components (`bot-detection/sdk`) |
+| **Storage** | Pinata IPFS (images/metadata), Celo (on-chain data), Postgres + MinIO (bot-detection) |
+| **Deployment** | Vercel (frontend), Celoscan (contract verification), Docker + Kubernetes (Kustomize) for bot-detection |
 | **Package Manager** | pnpm |
 | **Linting & Formatting** | ESLint, Prettier |
 | **Analytics** | Vercel Analytics |
@@ -757,7 +1061,98 @@ Ensure you have **Node.js** installed.
     npm run dev
     ```
 
-------
+---
+
+## 🛠️ Running Bot Detection Stack
+
+The AI bot-detection backend is fully containerised and lives in [`bot-detection/`](bot-detection/). The end-to-end operator manual — including step-by-step copy-paste commands for backend, frontend integration, ML training, Kubernetes deployment, and troubleshooting — is in **[`bot-detection/docs/INTEGRATION_GUIDE.md`](bot-detection/docs/INTEGRATION_GUIDE.md)**.
+
+### Quick start (local Docker)
+
+```bash
+# 1. Boot infra (Postgres, Redis, RabbitMQ, MinIO)
+docker compose -f bot-detection/docker/docker-compose.yml up -d
+
+# 2. Install Python deps & run migrations
+cd bot-detection
+pip install -e services/shared -e services/detection -e services/challenge \
+            -e services/inference -e services/training
+alembic -c services/shared/src/shared/db/alembic.ini upgrade head
+
+# 3. Configure secrets in .env
+cat > .env <<'EOF'
+DATABASE_URL=postgresql+asyncpg://rexell_user:rexell_password@localhost:5432/bot_detection
+REDIS_URL=redis://localhost:6379/0
+DETECTION_API_KEYS=dev-key-1,dev-key-2
+TOKEN_SIGNING_KEY=change-me-32-bytes-min
+WALLET_SALT=another-random-salt
+ML_INFERENCE_URL=http://localhost:8080
+MINIO_ENDPOINT=localhost:9000
+FALLBACK_CONTROLLER_ENABLED=true
+EOF
+
+# 4. Start the three FastAPI services in separate terminals
+uvicorn services.detection.app:app --port 8000 --reload
+uvicorn services.challenge.app:app --port 8001 --reload
+uvicorn services.inference.handler:app --port 8080 --reload
+```
+
+### Wire it into the Next.js app
+
+```bash
+cd frontend
+cat >> .env.local <<'EOF'
+NEXT_PUBLIC_BOT_DETECTION_URL=http://localhost:8000
+NEXT_PUBLIC_BOT_DETECTION_KEY=dev-key-1
+EOF
+pnpm install
+pnpm dev    # → http://localhost:3000
+```
+
+Use the `useBotDetection()` hook in your layout, then wrap every smart-contract write with `guardPurchase()` / `consumeToken()` as shown in the ["Frontend Integration in 4 Lines"](#7-frontend-integration-in-4-lines) section above.
+
+### Smoke tests
+
+```bash
+# Health
+curl localhost:8000/v1/health localhost:8001/v1/health localhost:8080/v1/health
+
+# Risk decision
+curl -X POST localhost:8000/v1/detect \
+  -H "X-API-Key: dev-key-1" -H "Content-Type: application/json" \
+  -d '{"session_id":"s1","wallet_hash":"0xabc","behavioral_data":{"events":[]}}'
+
+# Prometheus scrape
+curl localhost:8000/metrics
+```
+
+### Production / Kubernetes
+
+```bash
+# Build and push images
+for svc in detection challenge inference training; do
+  docker build -f bot-detection/docker/Dockerfile.$svc -t ghcr.io/sayyed23/rexell-$svc:latest bot-detection
+done
+
+# Apply Kustomize overlay (dev / staging / production)
+kubectl apply -k bot-detection/k8s/overlays/production
+```
+
+### Load testing & monitoring
+
+```bash
+# k6 scenarios (normal / peak / spike / sustained)
+DETECTION_URL=http://localhost:8000 API_KEY=dev-key-1 \
+  k6 run bot-detection/loadtest/k6/normal.js
+
+# Prometheus + Grafana dashboards
+# - bot-detection/monitoring/prometheus/{prometheus.yml,alerts.yml}
+# - bot-detection/monitoring/grafana/dashboards/{operational,detection}.json
+```
+
+For every detail — `.env` reference, ML retraining workflow, GDPR deletion endpoint, A/B model rollouts, troubleshooting table — see [`INTEGRATION_GUIDE.md`](bot-detection/docs/INTEGRATION_GUIDE.md).
+
+---
 
 ## 🔬 Smart Contract Technical Specification
 
