@@ -689,6 +689,12 @@ async def _handle_with_fallback(
                     "challenge_type": ChallengeType.image_selection.value,
                     "session_id": body.behavioralData.sessionId,
                     "user_hash": "",
+                    # Persist the originating wallet + event so the challenge
+                    # service can bind the issued verification token to them
+                    # when the user solves the challenge. Without these the
+                    # challenge service raises HTTP 422 CHALLENGE_CONTEXT_MISSING.
+                    "wallet_address": body.behavioralData.walletAddress,
+                    "event_id": getattr(body.context, "eventId", None) if body.context else None,
                     "attempts": 0,
                     "status": "pending",
                 }),

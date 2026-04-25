@@ -309,11 +309,18 @@ class DetectionHandler:
 
             # Store minimal challenge state in Redis (5-minute TTL)
             redis_key = f"challenge:{challenge_id}"
+            # The challenge service reads ``wallet_address`` and ``event_id``
+            # back from this Redis blob when the user successfully completes
+            # the challenge so it can mint a verification token bound to the
+            # original wallet/event. Omitting them caused every successful
+            # challenge to fail with HTTP 422 CHALLENGE_CONTEXT_MISSING.
             challenge_state = {
                 "challenge_id": challenge_id,
                 "challenge_type": challenge_type.value,
                 "session_id": session_id,
                 "user_hash": user_hash,
+                "wallet_address": wallet_address,
+                "event_id": getattr(context, "eventId", None),
                 "attempts": 0,
                 "status": "pending",
             }
