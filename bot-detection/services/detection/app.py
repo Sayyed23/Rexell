@@ -402,6 +402,11 @@ def create_app() -> FastAPI:
                 tx_hash=body.txHash,
                 token_repo=token_repo,
             )
+            # Persist the consumed_at / tx_hash update. Without an explicit
+            # commit, the async session context manager rolls the transaction
+            # back on exit and the token can be replayed indefinitely.
+            if success:
+                await session.commit()
 
         if success:
             return ConsumeTokenResponse(consumed=True)

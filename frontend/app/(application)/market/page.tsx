@@ -39,7 +39,6 @@ export default function MarketPage() {
     pendingChallenge,
     acknowledgeChallenge,
   } = useGuardedPurchase({ walletAddress: address });
-  const [pendingPurchaseToken, setPendingPurchaseToken] = useState<string | undefined>(undefined);
 
   // Get all approved resale tickets using the new contract function
   const {
@@ -90,7 +89,6 @@ export default function MarketPage() {
         setPurchasingTokenId(null);
         return;
       }
-      setPendingPurchaseToken(guard.verificationToken);
 
       // First, approve cUSD token spending
       toast.info("Approving cUSD spending...");
@@ -120,9 +118,12 @@ export default function MarketPage() {
       });
 
       if (hash) {
-        if (pendingPurchaseToken) {
-          consumeBotToken(pendingPurchaseToken, hash).catch(() => undefined);
-          setPendingPurchaseToken(undefined);
+        // Use the local guard token directly. setState would be stale here
+        // because React schedules updates for the next render.
+        if (guard.verificationToken) {
+          consumeBotToken(guard.verificationToken, hash).catch(
+            () => undefined,
+          );
         }
         toast.success(`Ticket #${tokenId.toString()} purchased successfully!`);
 
