@@ -20,6 +20,8 @@ import {
 
 const DEFAULT_API_URL =
   process.env.NEXT_PUBLIC_BOT_DETECTION_URL ?? '/api/bot-detection';
+const DEFAULT_CHALLENGE_URL =
+  process.env.NEXT_PUBLIC_BOT_DETECTION_CHALLENGE_URL ?? DEFAULT_API_URL;
 const DEFAULT_API_KEY = process.env.NEXT_PUBLIC_BOT_DETECTION_KEY ?? '';
 
 type EventRow = {
@@ -96,11 +98,13 @@ class FrontendTracker {
 
 export class BotDetectionIntegration {
   private readonly apiUrl: string;
+  private readonly challengeUrl: string;
   private readonly apiKey: string;
   private readonly tracker = new FrontendTracker();
 
-  constructor(opts?: { apiUrl?: string; apiKey?: string }) {
+  constructor(opts?: { apiUrl?: string; challengeUrl?: string; apiKey?: string }) {
     this.apiUrl = (opts?.apiUrl ?? DEFAULT_API_URL).replace(/\/$/, '');
+    this.challengeUrl = (opts?.challengeUrl ?? DEFAULT_CHALLENGE_URL).replace(/\/$/, '');
     this.apiKey = opts?.apiKey ?? DEFAULT_API_KEY;
   }
 
@@ -147,6 +151,58 @@ export class BotDetectionIntegration {
         console.warn('bot-detection guard failed, allowing request', err);
       }
       return { decision: 'allow', riskScore: 0, degraded: true };
+    }
+  }
+
+  /**
+   * Submit a user's response to a challenge issued by /v1/detect.
+   * On success the challenge service mints a verification token and
+   * returns it via the ``X-Verification-Token`` response header. The
+   * caller can then short-circuit the next ``guardPurchase`` call with
+   * this token so the flow doesn't re-trigger detection (which would
+   * otherwise still see the same elevated risk score and challenge
+   * again — the original infinite-loop bug).
+   */
+  async verifyChallenge(
+    challengeId: string,
+    sessionId: string,
+    walletAddress: string,
+    responseData: Record<string, unknown> = { confirmed: true }
+  ): Promise<{ success: boolean; verificationToken?: string; remainingAttempts: number; blockedUntil?: number }> {
+    try {
+      const resp = await fetch(`${this.challengeUrl}/v1/verify-challenge`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-Key': this.apiKey
+        },
+        body: JSON.stringify({
+          challenge_id: challengeId,
+          session_id: sessionId,
+          wallet_address: walletAddress,
+          response_data: responseData
+        })
+      });
+      if (!resp.ok) {
+        return { success: false, remainingAttempts: 0 };
+      }
+      const verificationToken = resp.headers.get('x-verification-token') ?? undefined;
+      const payload = (await resp.json()) as {
+        success: boolean;
+        remaining_attempts: number;
+        blocked_until?: number;
+      };
+      return {
+        success: payload.success,
+        verificationToken: payload.success ? verificationToken : undefined,
+        remainingAttempts: payload.remaining_attempts,
+        blockedUntil: payload.blocked_until
+      };
+    } catch (err) {
+      if (typeof console !== 'undefined') {
+        console.warn('verifyChallenge failed', err);
+      }
+      return { success: false, remainingAttempts: 0 };
     }
   }
 

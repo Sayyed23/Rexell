@@ -41,7 +41,8 @@ export default function BuyResaleTicketPage() {
     runGuard,
     consumeToken: consumeBotToken,
     pendingChallenge,
-    acknowledgeChallenge,
+    verifyChallenge,
+    cancelChallenge,
   } = useGuardedPurchase({ walletAddress: address });
 
   // Get resale request details
@@ -326,11 +327,19 @@ export default function BuyResaleTicketPage() {
       </div>
       <BotChallengeModal
         challenge={pendingChallenge}
-        onConfirm={() => {
-          acknowledgeChallenge();
-          toast("Verification accepted. Click Buy again to complete the purchase.");
+        onConfirm={async () => {
+          // POST /v1/verify-challenge → on success the hook primes a
+          // verification token so the next runGuard short-circuits
+          // detection (otherwise we'd re-trigger the same challenge
+          // and loop forever).
+          const ok = await verifyChallenge({ confirmed: true });
+          if (ok) {
+            toast(
+              "Verification accepted. Click Buy again to complete the purchase.",
+            );
+          }
         }}
-        onCancel={acknowledgeChallenge}
+        onCancel={cancelChallenge}
       />
     </div>
   );

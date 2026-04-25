@@ -65,7 +65,8 @@ export default function EventDetailsPage({
     runGuard,
     consumeToken: consumeBotToken,
     pendingChallenge,
-    acknowledgeChallenge,
+    verifyChallenge,
+    cancelChallenge,
   } = useGuardedPurchase({ walletAddress: address });
 
   const {
@@ -703,15 +704,21 @@ export default function EventDetailsPage({
       )}
       <BotChallengeModal
         challenge={pendingChallenge}
-        onConfirm={() => {
-          // User confirmed humanity in the modal. We re-run the guard so a
-          // fresh detection token is issued (the previous one was tied to
-          // the challenge response). Calling acknowledgeChallenge() first
-          // closes the modal so React state stays consistent.
-          acknowledgeChallenge();
-          toast("Verification accepted. Click Buy again to complete the purchase.");
+        onConfirm={async () => {
+          // POST /v1/verify-challenge with the user's confirmation.
+          // On success the hook stores the verification token returned
+          // by the challenge service in a one-shot ref; the next
+          // runGuard call returns it directly instead of re-running
+          // detection (which would otherwise see the same elevated
+          // risk score and re-issue a challenge → infinite loop).
+          const ok = await verifyChallenge({ confirmed: true });
+          if (ok) {
+            toast(
+              "Verification accepted. Click Buy again to complete the purchase.",
+            );
+          }
         }}
-        onCancel={acknowledgeChallenge}
+        onCancel={cancelChallenge}
       />
     </main>
   );

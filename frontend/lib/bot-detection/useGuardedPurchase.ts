@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { useBotDetection } from './useBotDetection';
 import type { GuardContext, GuardResult } from './types';
@@ -24,7 +24,11 @@ export interface GuardedPurchaseRunResult extends GuardResult {
  * - Returns `{ proceed: true }` for `allow` and degraded responses.
  * - For `challenge`, exposes the challenge metadata + a `pendingChallenge`
  *   piece of state so the page can mount a confirmation modal. After the
- *   user passes the modal, call `acknowledgeChallenge()` to continue.
+ *   user passes the modal, call ``verifyChallenge()`` to actually post the
+ *   response to /v1/verify-challenge — on success the returned verification
+ *   token is primed and the next ``runGuard`` short-circuits with it,
+ *   breaking the infinite challenge → re-detect → challenge loop that
+ *   existed when the modal only cleared local state.
  *
  * Even when the bot-detection backend is unreachable, the helper falls back
  * to `allow + degraded`, so the marketplace stays open for legitimate users.
@@ -38,13 +42,65 @@ export function useGuardedPurchase(opts: UseGuardedPurchaseOptions) {
   });
 
   const [pendingChallenge, setPendingChallenge] = useState<GuardResult | null>(null);
+  // Token received from /v1/verify-challenge after the user successfully
+  // completed a challenge. Stored in a ref so ``runGuard`` consumes it
+  // exactly once on the next call without race-prone re-renders.
+  const primedTokenRef = useRef<string | null>(null);
 
-  const acknowledgeChallenge = useCallback(() => {
+  const verifyChallenge = useCallback(
+    async (responseData?: Record<string, unknown>): Promise<boolean> => {
+      const challenge = pendingChallenge;
+      if (!challenge?.challengeId || !opts.walletAddress) {
+        // No active challenge to verify; treat as a no-op cancel.
+        setPendingChallenge(null);
+        return false;
+      }
+      const result = await bd.verifyChallenge(
+        challenge.challengeId,
+        sessionId,
+        opts.walletAddress,
+        responseData,
+      );
+      if (result.success && result.verificationToken) {
+        primedTokenRef.current = result.verificationToken;
+        setPendingChallenge(null);
+        return true;
+      }
+      // Verification failed (wrong response, expired, max attempts) — keep
+      // the modal closed so the user isn't stuck in the same step, surface
+      // an error, and let the caller decide whether to retry.
+      setPendingChallenge(null);
+      toast.error('Verification failed', {
+        description: result.blockedUntil
+          ? 'Too many failed attempts. Please try again later.'
+          : 'Please try the purchase again.',
+      });
+      return false;
+    },
+    [bd, opts.walletAddress, pendingChallenge, sessionId],
+  );
+
+  const cancelChallenge = useCallback(() => {
     setPendingChallenge(null);
   }, []);
 
   const runGuard = useCallback(
     async (ctx: GuardContext): Promise<GuardedPurchaseRunResult> => {
+      // Short-circuit: if we just verified a challenge, use the resulting
+      // verification token directly instead of running detection again.
+      // Without this the freshly verified user would post /v1/detect, hit
+      // the same elevated risk score, and be re-challenged → loop.
+      if (primedTokenRef.current) {
+        const verificationToken = primedTokenRef.current;
+        primedTokenRef.current = null;
+        return {
+          decision: 'allow',
+          riskScore: 0,
+          verificationToken,
+          proceed: true,
+        };
+      }
+
       const result = await bd.guardPurchase(ctx);
 
       if (result.degraded) {
@@ -93,7 +149,12 @@ export function useGuardedPurchase(opts: UseGuardedPurchaseOptions) {
     runGuard,
     consumeToken,
     pendingChallenge,
-    acknowledgeChallenge,
+    verifyChallenge,
+    cancelChallenge,
+    // Backwards-compat alias for older call sites that just want to clear
+    // the modal without sending a response (treats acknowledge as cancel —
+    // the actual API call now flows through ``verifyChallenge``).
+    acknowledgeChallenge: cancelChallenge,
     bd,
   };
 }

@@ -6,7 +6,14 @@ import type { GuardResult } from "@/lib/bot-detection/types";
 
 interface BotChallengeModalProps {
   challenge: GuardResult | null;
-  onConfirm: () => void;
+  /**
+   * Called when the user confirms humanity. May be async — return a
+   * Promise so the modal can show a "Verifying…" state and stay open
+   * until the challenge service has actually issued a verification
+   * token. Resolves regardless of success/failure; the caller is
+   * responsible for surfacing errors.
+   */
+  onConfirm: () => void | Promise<unknown>;
   onCancel: () => void;
 }
 
@@ -25,6 +32,7 @@ export function BotChallengeModal({
   onCancel,
 }: BotChallengeModalProps) {
   const [acknowledged, setAcknowledged] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   // Reset the checkbox whenever a new challenge instance arrives. React
   // preserves component state across renders even when we briefly return
@@ -33,9 +41,24 @@ export function BotChallengeModal({
   // is re-enabled without an explicit re-confirmation on the next round.
   useEffect(() => {
     setAcknowledged(false);
+    setSubmitting(false);
   }, [challenge]);
 
   if (!challenge) return null;
+
+  const handleConfirm = async () => {
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      await onConfirm();
+    } finally {
+      // ``challenge`` will normally transition to null on success and the
+      // useEffect above resets state; the finally block covers the error
+      // path where the modal stays mounted.
+      setSubmitting(false);
+      setAcknowledged(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
@@ -55,6 +78,7 @@ export function BotChallengeModal({
             className="mt-1 h-4 w-4"
             checked={acknowledged}
             onChange={(e) => setAcknowledged(e.target.checked)}
+            disabled={submitting}
           />
           <span>
             I confirm I am a human and I am buying this ticket for myself,
@@ -63,17 +87,14 @@ export function BotChallengeModal({
         </label>
 
         <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={onCancel}>
+          <Button variant="outline" onClick={onCancel} disabled={submitting}>
             Cancel
           </Button>
           <Button
-            disabled={!acknowledged}
-            onClick={() => {
-              setAcknowledged(false);
-              onConfirm();
-            }}
+            disabled={!acknowledged || submitting}
+            onClick={handleConfirm}
           >
-            Continue purchase
+            {submitting ? "Verifying…" : "Continue purchase"}
           </Button>
         </div>
       </div>

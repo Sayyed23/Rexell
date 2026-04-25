@@ -37,7 +37,8 @@ export default function MarketPage() {
     runGuard,
     consumeToken: consumeBotToken,
     pendingChallenge,
-    acknowledgeChallenge,
+    verifyChallenge,
+    cancelChallenge,
   } = useGuardedPurchase({ walletAddress: address });
 
   // Get all approved resale tickets using the new contract function
@@ -281,11 +282,19 @@ export default function MarketPage() {
       </div>
       <BotChallengeModal
         challenge={pendingChallenge}
-        onConfirm={() => {
-          acknowledgeChallenge();
-          toast("Verification accepted. Click Buy again to complete the purchase.");
+        onConfirm={async () => {
+          // POST /v1/verify-challenge → on success the hook primes a
+          // verification token so the next runGuard short-circuits
+          // detection (otherwise we'd re-trigger the same challenge
+          // and loop forever).
+          const ok = await verifyChallenge({ confirmed: true });
+          if (ok) {
+            toast(
+              "Verification accepted. Click Buy again to complete the purchase.",
+            );
+          }
         }}
-        onCancel={acknowledgeChallenge}
+        onCancel={cancelChallenge}
       />
     </main>
   );

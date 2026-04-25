@@ -1112,10 +1112,22 @@ Use the `useBotDetection()` hook in your layout, then wrap every smart-contract 
 # Health
 curl localhost:8000/v1/health localhost:8001/v1/health localhost:8080/v1/health
 
-# Risk decision
+# Risk decision (camelCase fields are required by the Pydantic models;
+# `events` must be non-empty and strictly chronological)
 curl -X POST localhost:8000/v1/detect \
   -H "X-API-Key: dev-key-1" -H "Content-Type: application/json" \
-  -d '{"session_id":"s1","wallet_hash":"0xabc","behavioral_data":{"events":[]}}'
+  -d '{
+    "behavioralData": {
+      "sessionId": "s1",
+      "walletAddress": "0x0000000000000000000000000000000000000001",
+      "userAgent": "curl/8.0",
+      "events": [
+        {"type": "click", "timestamp": 1.0, "x": 100, "y": 200},
+        {"type": "click", "timestamp": 2.0, "x": 110, "y": 210}
+      ]
+    },
+    "context": {"accountAgeDays": 30, "transactionCount": 5}
+  }'
 
 # Prometheus scrape
 curl localhost:8000/metrics
