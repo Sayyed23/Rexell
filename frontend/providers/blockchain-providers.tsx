@@ -32,11 +32,11 @@ const celoSepoliaTransport = fallback(
   CELO_SEPOLIA_RPC_URLS.map((url) =>
     http(url, {
       retryCount: 3,
-      retryDelay: 250,
-      timeout: 15_000,
+      retryDelay: 1500,
+      timeout: 20_000,
     }),
   ),
-  { rank: true, retryCount: 1 },
+  { rank: true, retryCount: 2 },
 );
 
 const config = createConfig({

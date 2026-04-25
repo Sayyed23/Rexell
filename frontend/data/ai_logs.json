@@ -129,5 +129,125 @@
       "quantity": 1,
       "price": "0"
     }
+  },
+  {
+    "eventType": "purchase_attempt",
+    "wallet": "0xf4F31E8b1c848fe48aDadcAf0682aDa44C742a07",
+    "eventId": 3,
+    "timestamp": 1777138138481,
+    "metadata": {
+      "quantity": 1,
+      "price": "0"
+    }
+  },
+  {
+    "eventType": "purchase_attempt",
+    "wallet": "0xf4F31E8b1c848fe48aDadcAf0682aDa44C742a07",
+    "eventId": 3,
+    "timestamp": 1777138156323,
+    "metadata": {
+      "quantity": 1,
+      "price": "0"
+    }
+  },
+  {
+    "eventType": "purchase_attempt",
+    "wallet": "0xf4F31E8b1c848fe48aDadcAf0682aDa44C742a07",
+    "eventId": 3,
+    "timestamp": 1777138506359,
+    "metadata": {
+      "quantity": 1,
+      "price": "0"
+    }
+  },
+  {
+    "eventType": "purchase_attempt",
+    "wallet": "0xf4F31E8b1c848fe48aDadcAf0682aDa44C742a07",
+    "eventId": 3,
+    "timestamp": 1777138523433,
+    "metadata": {
+      "quantity": 1,
+      "price": "0"
+    }
+  },
+  {
+    "eventType": "purchase_attempt",
+    "wallet": "0xf4F31E8b1c848fe48aDadcAf0682aDa44C742a07",
+    "eventId": 3,
+    "timestamp": 1777138616411,
+    "metadata": {
+      "quantity": 1,
+      "price": "0"
+    }
+  },
+  {
+    "eventType": "purchase_attempt",
+    "wallet": "0xf4F31E8b1c848fe48aDadcAf0682aDa44C742a07",
+    "eventId": 3,
+    "timestamp": 1777138833464,
+    "metadata": {
+      "quantity": 1,
+      "price": "0"
+    }
+  },
+  {
+    "eventType": "purchase_attempt",
+    "wallet": "0xf4F31E8b1c848fe48aDadcAf0682aDa44C742a07",
+    "eventId": 3,
+    "timestamp": 1777139079860,
+    "metadata": {
+      "quantity": 1,
+      "price": "0"
+    }
+  },
+  {
+    "eventType": "purchase_attempt",
+    "wallet": "0xf4F31E8b1c848fe48aDadcAf0682aDa44C742a07",
+    "eventId": 3,
+    "timestamp": 1777139096374,
+    "metadata": {
+      "quantity": 1,
+      "price": "0"
+    }
+  },
+  {
+    "eventType": "purchase_attempt",
+    "wallet": "0xf4F31E8b1c848fe48aDadcAf0682aDa44C742a07",
+    "eventId": 3,
+    "timestamp": 1777139339410,
+    "metadata": {
+      "quantity": 1,
+      "price": "0"
+    }
+  },
+  {
+    "eventType": "purchase_attempt",
+    "wallet": "0xD534Ec2E8FAce07e1E839643D5A09f102cE0f86B",
+    "eventId": 3,
+    "timestamp": 1777139493600,
+    "metadata": {
+      "quantity": 1,
+      "price": "0"
+    }
+  },
+  {
+    "eventType": "purchase_attempt",
+    "wallet": "0xD534Ec2E8FAce07e1E839643D5A09f102cE0f86B",
+    "eventId": 3,
+    "timestamp": 1777139539946,
+    "metadata": {
+      "quantity": 1,
+      "price": "0"
+    }
+  },
+  {
+    "eventType": "purchase_success",
+    "wallet": "0xD534Ec2E8FAce07e1E839643D5A09f102cE0f86B",
+    "eventId": 3,
+    "timestamp": 1777139555570,
+    "metadata": {
+      "txHash": "0x01984e67be77930d9d6903848f9130e2ba8b682b3c513a10abb7e54a18c057a5",
+      "quantity": 1
+    }
   }
 ]

@@ -11,10 +11,10 @@ const ENV_RPCS = (process.env.NEXT_PUBLIC_CELO_SEPOLIA_RPC || '')
 export const CELO_SEPOLIA_RPC_URLS: readonly string[] = ENV_RPCS.length
   ? ENV_RPCS
   : [
-      'https://celo-sepolia.drpc.org',
       'https://forno.celo-sepolia.celo-testnet.org',
-      'https://celo-sepolia-rpc.publicnode.com',
-      'https://celo-sepolia-rpc.allthatnode.com',
+      'https://celo-sepolia.drpc.org',
+      'https://11142220.rpc.thirdweb.com',
+      'https://celo-sepolia.gateway.tenderly.co',
     ];
 
 export const celoSepolia = defineChain({

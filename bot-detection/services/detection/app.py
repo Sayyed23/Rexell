@@ -20,6 +20,7 @@ from typing import Optional
 import httpx
 import redis.asyncio as aioredis
 from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
@@ -164,6 +165,22 @@ def create_app() -> FastAPI:
         version="1.0.0",
         description="Real-time bot detection for the Rexell ticketing platform",
         lifespan=lifespan,
+    )
+
+    # ------------------------------------------------------------------
+    # Middleware: CORS — allow the frontend to call the API
+    # ------------------------------------------------------------------
+    cors_origins = os.getenv(
+        "CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000"
+    ).split(",")
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[o.strip() for o in cors_origins],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+        expose_headers=["X-Correlation-ID"],
     )
 
     # ------------------------------------------------------------------
