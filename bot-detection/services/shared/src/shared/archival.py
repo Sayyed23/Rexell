@@ -20,9 +20,9 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Iterable, Optional, Protocol
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, update
 
-from .db.models import BehavioralDataModel
+from .db.models import BehavioralDataModel, RiskScoreModel
 from .utils.time_utils import current_timestamp
 
 logger = logging.getLogger(__name__)
@@ -132,10 +132,21 @@ async def archive_expired_behavioral_data(
         content_type=content_type,
     )
 
+    record_ids = [r.id for r in records]
+
+    # ``risk_scores.behavioral_data_id`` has a FK to ``behavioral_data.id``
+    # with no ON DELETE action, so deleting the parent row directly raises
+    # ForeignKeyViolation whenever a risk score still references it. Null
+    # the link first so the referencing risk_scores rows survive (they are
+    # used by TrustedStatusManager's 30-day window calculation) and the
+    # parent delete succeeds.
     await session.execute(
-        delete(BehavioralDataModel).where(
-            BehavioralDataModel.id.in_([r.id for r in records])
-        )
+        update(RiskScoreModel)
+        .where(RiskScoreModel.behavioral_data_id.in_(record_ids))
+        .values(behavioral_data_id=None)
+    )
+    await session.execute(
+        delete(BehavioralDataModel).where(BehavioralDataModel.id.in_(record_ids))
     )
     await session.commit()
     logger.info(

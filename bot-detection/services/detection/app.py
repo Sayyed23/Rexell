@@ -577,9 +577,13 @@ def create_app() -> FastAPI:
             # contract. Importing locally keeps the top-of-file imports lean.
             from shared.db.models import VerificationTokenModel as _VTM
 
+            # Delete order matters: risk_scores.behavioral_data_id has a FK
+            # to behavioral_data.id with no ON DELETE action, so deleting
+            # behavioral_data first raises ForeignKeyViolation. Wipe child
+            # tables (risk_scores) before parents (behavioral_data).
             for model in (
-                BehavioralDataModel,
                 RiskScoreModel,
+                BehavioralDataModel,
                 ChallengeStateModel,
                 UserReputationModel,
                 _VTM,
