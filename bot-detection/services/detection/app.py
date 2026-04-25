@@ -572,11 +572,17 @@ def create_app() -> FastAPI:
         tables_deleted: dict[str, int] = {}
 
         async with request.app.state.session_factory() as session:
+            # VerificationTokenModel also stores user_hash and must be wiped
+            # to satisfy the GDPR/CCPA "delete every row tied to this wallet"
+            # contract. Importing locally keeps the top-of-file imports lean.
+            from shared.db.models import VerificationTokenModel as _VTM
+
             for model in (
                 BehavioralDataModel,
                 RiskScoreModel,
                 ChallengeStateModel,
                 UserReputationModel,
+                _VTM,
             ):
                 stmt = _sql_delete(model).where(model.user_hash == user_hash)
                 result = await session.execute(stmt)

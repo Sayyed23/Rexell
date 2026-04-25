@@ -104,6 +104,12 @@ class RiskContext(BaseModel):
     transactionCount: int = 0
     isBulkPurchase: bool = False
     requestedQuantity: int = 1
+    # Optional event the request is for. The detection handler embeds this
+    # in the verification token's payload so a token issued for event A
+    # cannot be replayed against event B. Without it tokens were always
+    # minted with eventId=None and were effectively event-agnostic.
+    eventId: Optional[str] = None
+    isResale: bool = False
 
 class DetectionRequest(BaseModel):
     behavioralData: BehavioralData

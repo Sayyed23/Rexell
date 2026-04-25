@@ -87,6 +87,24 @@ class FallbackController:
     async def is_active(self) -> bool:
         return bool(await self.redis.exists(FALLBACK_REDIS_KEY))
 
+    # Lua script: atomically INCRBY, set TTL on first write, and roll back
+    # if the resulting total exceeds the cap. Doing the check + rollback in
+    # a separate round-trip leaves a TOCTOU window where two concurrent
+    # callers can both see an inflated total, both roll back, and both be
+    # denied even though one should have been allowed. EVAL runs the whole
+    # script atomically on the Redis server.
+    _CHECK_PURCHASE_LIMIT_LUA = """
+    local current = redis.call('INCRBY', KEYS[1], ARGV[1])
+    if tonumber(current) == tonumber(ARGV[1]) then
+        redis.call('EXPIRE', KEYS[1], ARGV[3])
+    end
+    if tonumber(current) > tonumber(ARGV[2]) then
+        redis.call('DECRBY', KEYS[1], ARGV[1])
+        return 0
+    end
+    return 1
+    """
+
     async def check_purchase_limit(
         self,
         user_hash: str,
@@ -99,17 +117,15 @@ class FallbackController:
         Returns True if the request stays within the fallback limit.
         """
         key = f"fallback:tickets:{event_id}:{user_hash}"
-        pipe = self.redis.pipeline()
-        pipe.incrby(key, quantity)
-        pipe.expire(key, 3600)
-        new_total, _ = await pipe.execute()
-        new_total = int(new_total)
-        if new_total > max_tickets:
-            # roll back the increment so future legitimate requests see the
-            # correct remaining budget
-            await self.redis.decrby(key, quantity)
-            return False
-        return True
+        result = await self.redis.eval(
+            self._CHECK_PURCHASE_LIMIT_LUA,
+            1,
+            key,
+            quantity,
+            max_tickets,
+            3600,
+        )
+        return bool(int(result))
 
 
 async def make_health_check(http_client: httpx.AsyncClient, path: str = "/v1/health") -> bool:

@@ -29,6 +29,11 @@ export interface GuardRequestContext {
   isBulkPurchase: boolean;
   requestedQuantity: number;
   isResale: boolean;
+  // Forward the event the user is buying / reselling against so the
+  // backend can bind the issued verification token to it. Otherwise tokens
+  // are always minted with eventId=None and a token obtained for event A
+  // can be consumed against event B.
+  eventId?: string;
 }
 
 export interface GuardResult {

@@ -195,7 +195,10 @@ export class BotDetectionIntegration {
       transactionCount: ctx.transactionCount ?? 0,
       isBulkPurchase: ctx.action === 'buyTickets' && (ctx.quantity ?? 1) > 1,
       requestedQuantity: ctx.quantity ?? 1,
-      isResale: ctx.action === 'resale'
+      isResale: ctx.action === 'resale',
+      // Forward the event id so the detection handler can bind the
+      // verification token to it (otherwise tokens are event-agnostic).
+      eventId: ctx.eventId
     };
   }
 }
