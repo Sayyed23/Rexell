@@ -217,7 +217,7 @@ async def validate_token(
     return TokenValidationResult(
         valid=True,
         token_id=token_id,
-        wallet_address=token_wallet,
+        wallet_address=result.wallet_address,
     )
 
 

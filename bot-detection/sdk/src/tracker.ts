@@ -90,16 +90,26 @@ export class BehavioralTracker {
   private pendingMouse: { x: number; y: number; t: number; type: EventType } | null = null;
   private navStack: { page: string; entered: number }[] = [];
   private sampleIntervalMs: number;
+  // Saved references to the original History API methods so stop() can
+  // un-patch them. Without this, calling start() a second time would wrap
+  // the already-wrapped methods and emit duplicate navigation events on
+  // every subsequent pushState/replaceState (N+1 events after N restarts).
+  private originalPushState: typeof history.pushState | null = null;
+  private originalReplaceState: typeof history.replaceState | null = null;
 
   constructor(config: BehavioralTrackerConfig) {
+    // Spread the caller's config FIRST, then layer the defaults so explicit
+    // ``undefined`` values from the caller don't clobber the computed
+    // fallbacks. Each field uses ?? so a real value provided by the caller
+    // wins, while ``undefined`` (or omitted) falls through to the default.
     this.config = {
+      ...config,
       bufferSize: config.bufferSize ?? DEFAULT_BUFFER,
       flushBatchSize: config.flushBatchSize ?? DEFAULT_FLUSH_BATCH,
       flushIntervalMs: config.flushIntervalMs ?? DEFAULT_FLUSH_INTERVAL_MS,
       mouseSampleHz: config.mouseSampleHz ?? DEFAULT_MOUSE_HZ,
       sensitiveSelectors:
         config.sensitiveSelectors ?? DEFAULT_SENSITIVE_SELECTORS,
-      ...config
     };
     this.events = new CircularBuffer<TrackedEvent>(this.config.bufferSize);
     this.sampleIntervalMs = 1000 / this.config.mouseSampleHz;
@@ -157,6 +167,7 @@ export class BehavioralTracker {
     if (this.flushTimer) clearInterval(this.flushTimer);
     this.rafHandle = null;
     this.flushTimer = null;
+    this.unpatchHistory();
   }
 
   async flush(
@@ -261,12 +272,24 @@ export class BehavioralTracker {
   private onPopState = () => this.recordNavigation(window.location.pathname);
 
   private patchHistory(): void {
-    const wrap = (method: 'pushState' | 'replaceState') => {
-      const original = history[method].bind(history);
+    if (typeof history === 'undefined') return;
+    // Save the *unwrapped* originals so stop() can restore them. Guard
+    // against double-patching: if we already hold an original, this method
+    // has been called without a matching unpatchHistory() and we must not
+    // re-wrap the already-wrapped method (that's what produces N+1
+    // navigation events on subsequent stop/start cycles).
+    if (this.originalPushState || this.originalReplaceState) return;
+    this.originalPushState = history.pushState.bind(history);
+    this.originalReplaceState = history.replaceState.bind(history);
+
+    const wrap = (
+      method: 'pushState' | 'replaceState',
+      original: typeof history.pushState,
+    ) => {
       history[method] = (
         data: any,
         unused: string,
-        url?: string | URL | null
+        url?: string | URL | null,
       ) => {
         const result = original(data, unused, url ?? undefined);
         const nextPath =
@@ -279,8 +302,20 @@ export class BehavioralTracker {
         return result;
       };
     };
-    wrap('pushState');
-    wrap('replaceState');
+    wrap('pushState', this.originalPushState);
+    wrap('replaceState', this.originalReplaceState);
+  }
+
+  private unpatchHistory(): void {
+    if (typeof history === 'undefined') return;
+    if (this.originalPushState) {
+      history.pushState = this.originalPushState;
+      this.originalPushState = null;
+    }
+    if (this.originalReplaceState) {
+      history.replaceState = this.originalReplaceState;
+      this.originalReplaceState = null;
+    }
   }
 
   private recordNavigation(next: string): void {

@@ -67,9 +67,6 @@ export default function EventDetailsPage({
     pendingChallenge,
     acknowledgeChallenge,
   } = useGuardedPurchase({ walletAddress: address });
-  const [pendingPurchaseToken, setPendingPurchaseToken] = useState<
-    string | undefined
-  >(undefined);
 
   const {
     data: eventData,
@@ -225,7 +222,8 @@ export default function EventDetailsPage({
       // decision === 'challenge' (modal mounted via pendingChallenge).
       return;
     }
-    setPendingPurchaseToken(guard.verificationToken);
+    // The verification token is read directly from `guard` below — using
+    // React state here would be stale within this same async handler.
     // -----------------------------------------------------------
 
     try {
@@ -322,9 +320,10 @@ export default function EventDetailsPage({
             });
 
             if (hash) {
-              if (pendingPurchaseToken) {
-                consumeBotToken(pendingPurchaseToken, hash).catch(() => undefined);
-                setPendingPurchaseToken(undefined);
+              if (guard.verificationToken) {
+                consumeBotToken(guard.verificationToken, hash).catch(
+                  () => undefined,
+                );
               }
               toast("Ticket NFTs minted! Redirecting...");
               setIsUploading(false);
@@ -404,9 +403,10 @@ export default function EventDetailsPage({
                 aiModeService.recordPurchase(address, Number(params.index));
                 aiLogger.log('purchase_success', address, Number(params.index), { txHash: hash, quantity: ticketQuantity });
               }
-              if (pendingPurchaseToken) {
-                consumeBotToken(pendingPurchaseToken, hash).catch(() => undefined);
-                setPendingPurchaseToken(undefined);
+              if (guard.verificationToken) {
+                consumeBotToken(guard.verificationToken, hash).catch(
+                  () => undefined,
+                );
               }
 
               toast("Ticket NFT minted! Redirecting...");

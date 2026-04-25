@@ -43,9 +43,6 @@ export default function BuyResaleTicketPage() {
     pendingChallenge,
     acknowledgeChallenge,
   } = useGuardedPurchase({ walletAddress: address });
-  const [pendingPurchaseToken, setPendingPurchaseToken] = useState<
-    string | undefined
-  >(undefined);
 
   // Get resale request details
   const { data: resaleRequest, isPending: isResaleRequestPending } = useReadContract({
@@ -129,7 +126,6 @@ export default function BuyResaleTicketPage() {
       if (!guard.proceed) {
         return;
       }
-      setPendingPurchaseToken(guard.verificationToken);
 
       setIsPurchasing(true);
 
@@ -147,9 +143,12 @@ export default function BuyResaleTicketPage() {
           aiModeService.recordPurchase(address, ticket.eventId);
           aiLogger.log('resale_success', address, ticket.eventId, { ticketId: ticket.tokenId, txHash: hash });
         }
-        if (pendingPurchaseToken) {
-          consumeBotToken(pendingPurchaseToken, hash).catch(() => undefined);
-          setPendingPurchaseToken(undefined);
+        // Use the local guard token directly. setState would be stale here
+        // because React schedules updates for the next render.
+        if (guard.verificationToken) {
+          consumeBotToken(guard.verificationToken, hash).catch(
+            () => undefined,
+          );
         }
         toast.success("Ticket purchased successfully!");
         setTimeout(() => {
