@@ -6,11 +6,7 @@ import {
 } from "@rainbow-me/rainbowkit";
 import { metaMaskWallet } from "@rainbow-me/rainbowkit/wallets";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-<<<<<<< HEAD
-import { WagmiProvider, createConfig, http, fallback } from "wagmi";
-=======
 import { WagmiProvider, createConfig, fallback, http } from "wagmi";
->>>>>>> 0c3284827a7689000dbfda47bec53beebd36bf68
 import { celo, hardhat } from "wagmi/chains";
 import { celoSepolia, CELO_SEPOLIA_RPC_URLS } from "@/lib/celoSepolia";
 
@@ -35,8 +31,6 @@ const connectors = connectorsForWallets(
 const celoSepoliaTransport = fallback(
   CELO_SEPOLIA_RPC_URLS.map((url) =>
     http(url, {
-      // viem will retry up to 3 times with exponential back-off before
-      // giving up on this URL and moving to the next one in the fallback.
       retryCount: 3,
       retryDelay: 250,
       timeout: 15_000,
@@ -50,16 +44,10 @@ const config = createConfig({
   chains: [celo, celoSepolia, hardhat],
   transports: {
     [celo.id]: http(),
-<<<<<<< HEAD
-    [celoSepolia.id]: fallback(
-      CELO_SEPOLIA_RPC_URLS.map((url) => http(url))
-    ),
-=======
     [celoSepolia.id]: celoSepoliaTransport,
->>>>>>> 0c3284827a7689000dbfda47bec53beebd36bf68
     [hardhat.id]: http("http://127.0.0.1:8545"),
   },
-  multiInjectedProviderDiscovery: false, // This can help with MetaMask connection issues
+  multiInjectedProviderDiscovery: false,
 });
 
 export function BlockchainProviders({

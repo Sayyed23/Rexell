@@ -11,6 +11,8 @@ import { toast } from "sonner";
 import { formatEther } from "viem";
 import { aiModeService, EnforcementAction } from "@/lib/ai/ai-mode";
 import { aiLogger } from "@/lib/ai/logger";
+import { useGuardedPurchase } from "@/lib/bot-detection/useGuardedPurchase";
+import { BotChallengeModal } from "@/components/AI/BotChallengeModal";
 
 interface ResaleTicket {
   tokenId: number;
@@ -32,6 +34,18 @@ export default function BuyResaleTicketPage() {
   const [ticket, setTicket] = useState<ResaleTicket | null>(null);
   const [loading, setLoading] = useState(true);
   const [isPurchasing, setIsPurchasing] = useState(false);
+
+  // Bot-detection guard — collects behavioural telemetry while the user
+  // browses and runs POST /v1/detect before each resale purchase.
+  const {
+    runGuard,
+    consumeToken: consumeBotToken,
+    pendingChallenge,
+    acknowledgeChallenge,
+  } = useGuardedPurchase({ walletAddress: address });
+  const [pendingPurchaseToken, setPendingPurchaseToken] = useState<
+    string | undefined
+  >(undefined);
 
   // Get resale request details
   const { data: resaleRequest, isPending: isResaleRequestPending } = useReadContract({
@@ -106,6 +120,17 @@ export default function BuyResaleTicketPage() {
         }
       }
 
+      // Server-side bot-detection guard. Resales are particularly
+      // scalper-prone, so we always run /v1/detect with action=resale.
+      const guard = await runGuard({
+        action: "resale",
+        eventId: id,
+      });
+      if (!guard.proceed) {
+        return;
+      }
+      setPendingPurchaseToken(guard.verificationToken);
+
       setIsPurchasing(true);
 
       const priceInWei = BigInt(Math.floor(ticket.price * 1e18));
@@ -121,6 +146,10 @@ export default function BuyResaleTicketPage() {
         if (address && ticket) {
           aiModeService.recordPurchase(address, ticket.eventId);
           aiLogger.log('resale_success', address, ticket.eventId, { ticketId: ticket.tokenId, txHash: hash });
+        }
+        if (pendingPurchaseToken) {
+          consumeBotToken(pendingPurchaseToken, hash).catch(() => undefined);
+          setPendingPurchaseToken(undefined);
         }
         toast.success("Ticket purchased successfully!");
         setTimeout(() => {
@@ -296,6 +325,14 @@ export default function BuyResaleTicketPage() {
           </CardContent>
         </Card>
       </div>
+      <BotChallengeModal
+        challenge={pendingChallenge}
+        onConfirm={() => {
+          acknowledgeChallenge();
+          toast("Verification accepted. Click Buy again to complete the purchase.");
+        }}
+        onCancel={acknowledgeChallenge}
+      />
     </div>
   );
 }
