@@ -4,8 +4,8 @@ This guide walks you through running the full Rexell bot-detection
 platform locally, pointing the Next.js frontend at it, and exercising
 every detection feature from the web-app UI.
 
-> Everything below assumes a clone of this repo at `/home/ubuntu/repos/Rexell`.
-> Adjust paths if your checkout is elsewhere.
+> All commands below are shown for **Bash/Ubuntu** and **PowerShell/Windows**.
+> Adjust paths if your repository checkout is elsewhere. In the examples, `<REPO_ROOT>` refers to your `bot-detection` folder.
 
 - [0. Architecture at a glance](#0-architecture-at-a-glance)
 - [1. Prerequisites](#1-prerequisites)
@@ -85,7 +85,8 @@ Ports the backend uses locally: 5432 (Postgres), 6379 (Redis), 5672/15672
 ### 2.1 Infrastructure (Postgres / Redis / RabbitMQ / MinIO)
 
 ```bash
-cd /home/ubuntu/repos/Rexell/bot-detection
+# Go to the repository root
+cd bot-detection
 docker compose -f docker/docker-compose.yml up -d
 ```
 
@@ -98,19 +99,29 @@ docker compose -f docker/docker-compose.yml ps
 ### 2.2 Install Python dependencies
 
 ```bash
-cd /home/ubuntu/repos/Rexell/bot-detection/services/shared
-pip install -e .
-pip install -r ../detection/requirements.txt
-pip install -r ../inference/requirements.txt
-pip install -r ../training/requirements.txt
+# From the repository root:
+python -m pip install -e ./services/shared
+python -m pip install -r ./services/detection/requirements.txt
+python -m pip install -r ./services/inference/requirements.txt
+python -m pip install -r ./services/training/requirements.txt
+# Challenge Service re-uses the same Python environment (shared + detection deps)
+```
+
+> **Tip:** If `pip` is not in your path, use `python -m pip install`. If you are using **Python 3.13/3.14**, ensure you use matching library versions (as updated in the requirements files).
 ```
 
 ### 2.3 Run database migrations
 
 ```bash
-cd /home/ubuntu/repos/Rexell/bot-detection/services/shared
+# Bash (Linux/macOS)
+cd services/shared
 export DATABASE_URL="postgresql+asyncpg://rexell_user:rexell_password@localhost:5432/bot_detection"
-alembic upgrade head
+python -m alembic upgrade head
+
+# PowerShell (Windows)
+cd services/shared
+$env:DATABASE_URL="postgresql+asyncpg://rexell_user:rexell_password@localhost:5432/bot_detection"
+python -m alembic upgrade head
 ```
 
 ### 2.4 Environment variables
@@ -151,35 +162,35 @@ MINIO_MODEL_BUCKET=bot-detection-models
 MINIO_ARCHIVE_BUCKET=bot-detection-archive
 ```
 
-For local experimentation you can instead set `DETECTION_DEV_MODE=true`
-and `CHALLENGE_DEV_MODE=true`, which enables an insecure default key so
-you don't have to manage API keys. **Never use dev mode in staging or
-prod.**
+For local experimentation you can instead set `DETECTION_DEV_MODE=true`,
+which enables the insecure default key `dev-api-key-insecure` so you
+don't have to manage API keys. The Challenge Service picks up the same
+keys from `DETECTION_API_KEYS`/`DETECTION_API_KEY`, or falls back to the
+development key when `ENVIRONMENT` is set to `development`, `dev`,
+`local`, or `test`. **Never use dev mode in staging or prod.**
 
 ### 2.5 Start the three FastAPI services (three terminals)
 
 ```bash
-# Terminal 1: Detection
-cd /home/ubuntu/repos/Rexell/bot-detection
+# Bash (Linux/macOS)
 export PYTHONPATH=$(pwd)/services/shared/src:$(pwd)/services
 set -a && source .env && set +a
-uvicorn services.detection.app:app --host 0.0.0.0 --port 8000 --reload
+
+# Start services (separate terminals)
+python -m uvicorn services.detection.app:app --host 0.0.0.0 --port 8000 --reload
+python -m uvicorn services.challenge.app:app --host 0.0.0.0 --port 8001 --reload
+python -m uvicorn services.inference.handler:app --host 0.0.0.0 --port 8080 --reload
 ```
 
-```bash
-# Terminal 2: Challenge
-cd /home/ubuntu/repos/Rexell/bot-detection
-export PYTHONPATH=$(pwd)/services/shared/src:$(pwd)/services
-set -a && source .env && set +a
-uvicorn services.challenge.app:app --host 0.0.0.0 --port 8001 --reload
-```
+```powershell
+# PowerShell (Windows)
+$env:PYTHONPATH="$(pwd)\services\shared\src;$(pwd)\services"
+# (Load .env variables manually or use a helper script)
 
-```bash
-# Terminal 3: ML Inference (placeholder model until you train one)
-cd /home/ubuntu/repos/Rexell/bot-detection
-export PYTHONPATH=$(pwd)/services/shared/src:$(pwd)/services
-set -a && source .env && set +a
-uvicorn services.inference.handler:app --host 0.0.0.0 --port 8080 --reload
+# Start services (separate terminals)
+python -m uvicorn services.detection.app:app --host 0.0.0.0 --port 8000 --reload
+python -m uvicorn services.challenge.app:app --host 0.0.0.0 --port 8001 --reload
+python -m uvicorn services.inference.handler:app --host 0.0.0.0 --port 8080 --reload
 ```
 
 ### 2.6 Smoke-test the backend
@@ -217,7 +228,7 @@ A successful response looks like:
 ## 3. Start the frontend (Next.js)
 
 ```bash
-cd /home/ubuntu/repos/Rexell/frontend
+cd <REPO_ROOT>/frontend
 pnpm install
 ```
 
@@ -439,7 +450,7 @@ The training pipeline lives at `services/training/`.
 ### 6.1 Prepare data
 
 ```bash
-cd /home/ubuntu/repos/Rexell/bot-detection
+cd <REPO_ROOT>/bot-detection
 export PYTHONPATH=$(pwd)/services/shared/src
 set -a && source .env && set +a
 python -m services.training.data_prep
@@ -532,7 +543,7 @@ Notification routing is pre-configured in
 ### 7.3 Daily summary report
 
 ```bash
-python /home/ubuntu/repos/Rexell/bot-detection/monitoring/daily_report.py
+python <REPO_ROOT>/bot-detection/monitoring/daily_report.py
 ```
 
 Queries the Prometheus HTTP API for the last 24 h and uploads a JSON
@@ -546,7 +557,7 @@ stdout when MinIO is not configured).
 ### 8.1 Images
 
 ```bash
-cd /home/ubuntu/repos/Rexell/bot-detection
+cd <REPO_ROOT>/bot-detection
 docker build -f docker/Dockerfile.detection  -t ghcr.io/rexell/bot-detection:latest .
 docker build -f docker/Dockerfile.challenge  -t ghcr.io/rexell/bot-detection-challenge:latest .
 docker build -f docker/Dockerfile.inference  -t ghcr.io/rexell/bot-detection-inference:latest .
@@ -591,7 +602,7 @@ SealedSecrets / Vault / SOPS in real clusters. The services expect:
 ### 9.1 k6
 
 ```bash
-cd /home/ubuntu/repos/Rexell/bot-detection/loadtest/k6
+cd <REPO_ROOT>/bot-detection/loadtest/k6
 k6 run normal.js    -e API_URL=http://localhost:8000 -e API_KEY=dev-key-1
 k6 run peak.js      -e API_URL=http://localhost:8000 -e API_KEY=dev-key-1
 k6 run spike.js     -e API_URL=http://localhost:8000 -e API_KEY=dev-key-1
