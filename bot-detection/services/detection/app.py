@@ -180,7 +180,7 @@ def create_app() -> FastAPI:
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
-        expose_headers=["X-Correlation-ID"],
+        expose_headers=["X-Correlation-ID", "X-Verification-Token"],
     )
 
     # ------------------------------------------------------------------

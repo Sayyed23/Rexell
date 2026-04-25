@@ -1098,6 +1098,11 @@ uvicorn services.inference.handler:app --port 8080 --reload
 cd frontend
 cat >> .env.local <<'EOF'
 NEXT_PUBLIC_BOT_DETECTION_URL=http://localhost:8000
+# Required when detection (:8000) and challenge (:8001) run as separate
+# services. Without this the frontend would POST /v1/verify-challenge
+# to the detection service which lacks that route, breaking the
+# challenge flow (users would loop on every 50-79 risk score).
+NEXT_PUBLIC_BOT_DETECTION_CHALLENGE_URL=http://localhost:8001
 NEXT_PUBLIC_BOT_DETECTION_KEY=dev-key-1
 EOF
 pnpm install

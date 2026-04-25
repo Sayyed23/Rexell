@@ -20,6 +20,15 @@ import {
 
 const DEFAULT_API_URL =
   process.env.NEXT_PUBLIC_BOT_DETECTION_URL ?? '/api/bot-detection';
+// Challenge service runs on a different port (:8001) than detection (:8000)
+// in the docker-compose / k8s deployments, so this MUST be configured
+// explicitly when the two services are reachable on distinct origins.
+// Falling back to ``DEFAULT_API_URL`` is convenient when both endpoints
+// sit behind the same API gateway / ingress (e.g. /api/bot-detection
+// proxies both /v1/detect and /v1/verify-challenge), but in the
+// ``localhost`` developer setup callers will get 404 from the detection
+// service and verifyChallenge() will silently fail. Always set
+// ``NEXT_PUBLIC_BOT_DETECTION_CHALLENGE_URL`` for local development.
 const DEFAULT_CHALLENGE_URL =
   process.env.NEXT_PUBLIC_BOT_DETECTION_CHALLENGE_URL ?? DEFAULT_API_URL;
 const DEFAULT_API_KEY = process.env.NEXT_PUBLIC_BOT_DETECTION_KEY ?? '';

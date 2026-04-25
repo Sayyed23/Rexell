@@ -25,6 +25,7 @@ from typing import Optional
 
 import redis.asyncio as aioredis
 from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from .auth import require_api_key
@@ -187,6 +188,27 @@ def create_app() -> FastAPI:
         version="1.0.0",
         description="Adaptive verification challenge validation for the Rexell ticketing platform",
         lifespan=lifespan,
+    )
+
+    # ------------------------------------------------------------------
+    # Middleware: CORS — must expose ``X-Verification-Token`` so the
+    # frontend's ``fetch`` can read the response header it relies on to
+    # short-circuit re-detection. Without this, browsers strip non-
+    # safelisted response headers from cross-origin reads and the
+    # verification flow loops indefinitely (the JS sees the header as
+    # null even on a successful 200).
+    # ------------------------------------------------------------------
+    cors_origins = os.getenv(
+        "CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000"
+    ).split(",")
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[o.strip() for o in cors_origins],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+        expose_headers=["X-Verification-Token"],
     )
 
     # ------------------------------------------------------------------

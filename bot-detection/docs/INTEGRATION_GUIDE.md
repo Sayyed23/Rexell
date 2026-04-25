@@ -241,6 +241,13 @@ Add the following to `frontend/.env.local`:
 
 ```env
 NEXT_PUBLIC_BOT_DETECTION_URL=http://localhost:8000
+# REQUIRED when detection and challenge run as separate processes
+# (the default in this guide). The frontend POSTs verification
+# responses to /v1/verify-challenge on the challenge service. If
+# this is left unset and the challenge service runs on a different
+# origin than detection, browsers issue the request to the wrong
+# URL (HTTP 404) and the challenge flow loops indefinitely.
+NEXT_PUBLIC_BOT_DETECTION_CHALLENGE_URL=http://localhost:8001
 NEXT_PUBLIC_BOT_DETECTION_KEY=dev-key-1
 ```
 
