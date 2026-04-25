@@ -1,0 +1,22 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: archival-daily
+  namespace: bot-detection
+spec:
+  schedule: "0 4 * * *"
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: archival
+              image: ghcr.io/rexell/bot-detection-training:latest
+              command: ["python", "-m", "services.shared.src.shared.archival_runner"]
+              envFrom:
+                - configMapRef:
+                    name: bot-detection-config
+                - secretRef:
+                    name: bot-detection-secrets
