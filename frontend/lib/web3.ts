@@ -1,13 +1,9 @@
-import { createPublicClient, createWalletClient, http, fallback, formatUnits, parseUnits } from 'viem';
-import { celoSepolia, CELO_SEPOLIA_RPC_URLS } from './celoSepolia';
+import { createPublicClient, createWalletClient, http, formatUnits, parseUnits } from 'viem';
+import { celoSepolia } from './celoSepolia';
 import { rexellAbi } from "@/blockchain/abi/rexell-abi";
 
 // Contract address - should match your deployed contract
 export const CONTRACT_ADDRESS = (process.env.NEXT_PUBLIC_REXELL_ADDRESS as `0x${string}`) || "0x2954db0316985787B2076CF9bF7f42CCeBFF8185";
-
-const celoSepoliaTransport = fallback(
-  CELO_SEPOLIA_RPC_URLS.map((url) => http(url))
-);
 
 /**
  * Get the public client
@@ -16,7 +12,7 @@ const celoSepoliaTransport = fallback(
 export const getPublicClient = () => {
   return createPublicClient({
     chain: celoSepolia,
-    transport: celoSepoliaTransport,
+    transport: http(),
   });
 };
 
@@ -27,7 +23,7 @@ export const getPublicClient = () => {
 export const getWalletClient = () => {
   return createWalletClient({
     chain: celoSepolia,
-    transport: celoSepoliaTransport,
+    transport: http(),
   });
 };
 
