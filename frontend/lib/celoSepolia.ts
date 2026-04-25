@@ -1,5 +1,11 @@
 import { defineChain } from 'viem';
 
+export const CELO_SEPOLIA_RPC_URLS = [
+  'https://celo-sepolia.drpc.org',
+  'https://celo-sepolia-rpc.allthatnode.com',
+  'https://forno.celo-sepolia.celo-testnet.org',
+];
+
 export const celoSepolia = defineChain({
   id: 11142220,
   name: 'Celo Sepolia',
@@ -10,10 +16,10 @@ export const celoSepolia = defineChain({
   },
   rpcUrls: {
     default: {
-      http: ['https://forno.celo-sepolia.celo-testnet.org'],
+      http: CELO_SEPOLIA_RPC_URLS,
     },
     public: {
-      http: ['https://forno.celo-sepolia.celo-testnet.org'],
+      http: CELO_SEPOLIA_RPC_URLS,
     },
   },
   blockExplorers: {

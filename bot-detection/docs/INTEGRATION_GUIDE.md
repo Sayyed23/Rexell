@@ -185,7 +185,12 @@ python -m uvicorn services.inference.handler:app --host 0.0.0.0 --port 8080 --re
 ```powershell
 # PowerShell (Windows)
 $env:PYTHONPATH="$(pwd)\services\shared\src;$(pwd)\services"
-# (Load .env variables manually or use a helper script)
+# Load .env variables into the current session
+Get-Content .env | ForEach-Object {
+    if ($_ -match '^\s*(\w+)=(.*)$') {
+        [System.Environment]::SetEnvironmentVariable($matches[1], $matches[2])
+    }
+}
 
 # Start services (separate terminals)
 python -m uvicorn services.detection.app:app --host 0.0.0.0 --port 8000 --reload
@@ -247,9 +252,10 @@ pnpm dev
 
 The app is available at <http://localhost:3000>. Tracking and
 `guardPurchase` calls are made from the browser straight to the
-Detection Service — CORS is already enabled in the FastAPI middleware,
-but if you run the browser against a non-localhost origin you will
-need to allow-list it explicitly.
+Detection Service. CORS is **not** configured by default; if you need
+the browser to call the backend from a non-localhost origin, add
+`CORSMiddleware` to `services/detection/app.py` (or front the services
+with a reverse-proxy that injects the headers).
 
 ---
 
@@ -328,7 +334,24 @@ For `buyTickets` pass `action: 'buyTickets'` and `quantity: n`. The
 request body will set `isBulkPurchase=true`, which the risk scorer
 uses as a feature.
 
-### 4.3 Render the challenge UI
+### 4.3 Build and link the SDK
+
+The React challenge components live in the SDK package (`bot-detection/sdk/`).
+Build it first so the frontend can import it:
+
+```bash
+cd <REPO_ROOT>/bot-detection/sdk
+pnpm install
+pnpm build
+# Link into the frontend
+cd <REPO_ROOT>/frontend
+pnpm link ../bot-detection/sdk
+```
+
+> If you prefer not to link, copy the built `dist/` folder into the
+> frontend vendor tree or install the package from a local tarball.
+
+### 4.4 Render the challenge UI
 
 When `guardPurchase` returns `decision === 'challenge'`, mount the
 React challenge from the SDK:
@@ -365,7 +388,7 @@ The container picks the right sub-component (`ImageSelectionChallenge`,
 `BehavioralConfirmationChallenge`, or `MultiStepChallenge`) from
 `content.type`.
 
-### 4.4 Gate resale flows
+### 4.5 Gate resale flows
 
 ```tsx
 const bd = getBotDetection();
@@ -385,7 +408,7 @@ backend flips `flagged=true` on `user_reputation` and all subsequent
 resale attempts get `requiresAdditionalVerification: true` until an
 admin clears the flag.
 
-### 4.5 GDPR / CCPA deletion
+### 4.6 GDPR / CCPA deletion
 
 ```tsx
 await fetch(`${process.env.NEXT_PUBLIC_BOT_DETECTION_URL}/v1/user-data`, {
@@ -629,10 +652,11 @@ for label, payload in SyntheticTrafficGenerator(seed=42).generate(
 
 ### 9.3 Scenario replay
 
-Every detection request tagged with `X-Test-Mode: true` is stored in
-the `ScenarioReplay` instance held by `app.state.scenarios`. Run the
-same scenario multiple times to debug flaky edge cases without
-regenerating traffic.
+The `ScenarioReplay` helper in `shared.testing_mode` can be used in
+test scripts to record detection request/response pairs and replay
+them to debug flaky edge cases without regenerating traffic. It is
+not currently wired into the running Detection Service — instantiate
+it in a test harness or notebook and feed it captured payloads.
 
 ---
 
@@ -646,7 +670,7 @@ regenerating traffic.
 | Detection returns `decision: challenge` for everything | ML Inference Service is down. Detection falls back to the conservative default score (60). Bring inference back up. |
 | `Model failed quality gate` | Training metrics below `accuracy ≥ 0.95` / `fpr < 0.02`. Retrain on fresher data or loosen the gates via env var for a one-off experiment. |
 | Tokens rejected with `expired` | 5-minute TTL — regenerate by re-calling `/v1/detect`. |
-| Frontend `CORS error` | Add your origin to the FastAPI `CORS_ALLOW_ORIGINS` env var. |
+| Frontend `CORS error` | CORS is not enabled by default. Add `CORSMiddleware` to `services/detection/app.py` (and challenge/inference if needed), or place the services behind a reverse-proxy that injects the headers. |
 | `RuntimeError: No API keys configured` | Set `DETECTION_API_KEYS=…` in `.env` (or `DETECTION_DEV_MODE=true` for local only). |
 | `403` from `/v1/user-data` | The endpoint requires a valid API key too — it is not an unauthenticated public endpoint. |
 

@@ -40,8 +40,8 @@ if not _TOKEN_SIGNING_KEY:
         raise RuntimeError("TOKEN_SIGNING_KEY must be set in production")
     _TOKEN_SIGNING_KEY = "dev-signing-key-insecure"
     logger.warning(
-        "Using insecure default TOKEN_SIGNING_KEY - not suitable for production",
-        event="insecure_signing_key",
+        "insecure_signing_key",
+        message="Using insecure default TOKEN_SIGNING_KEY - not suitable for production",
     )
 
 @dataclass
@@ -203,8 +203,8 @@ async def validate_token(
             )
     except Exception as exc:
         logger.error(
-            "Database error during token validation",
-            event="token_validation_db_error",
+            "token_validation_db_error",
+            message="Database error during token validation",
             token_id=token_id,
             error=str(exc),
         )
@@ -270,16 +270,16 @@ async def consume_token(
             return False, "Token consumption failed"
     except Exception as exc:
         logger.error(
-            "Database error during token consumption",
-            event="token_consumption_db_error",
+            "token_consumption_db_error",
+            message="Database error during token consumption",
             token_id=token_id,
             error=str(exc),
         )
         return False, "Token consumption service error"
 
     logger.info(
-        "Token consumed successfully",
-        event="token_consumed",
+        "token_consumed",
+        message="Token consumed successfully",
         token_id=token_id,
         tx_hash=tx_hash,
     )

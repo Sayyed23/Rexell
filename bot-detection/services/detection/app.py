@@ -90,7 +90,7 @@ async def lifespan(app: FastAPI):
     - Dispose DB engine
     """
     configure_logging(os.getenv("LOG_LEVEL", "INFO"))
-    logger.info("Detection Service starting up", event="startup")
+    logger.info("startup", message="Detection Service starting up")
 
     # PostgreSQL
     db_url = os.getenv("DATABASE_URL", settings.DATABASE_URL)
@@ -135,8 +135,8 @@ async def lifespan(app: FastAPI):
         await fallback.start()
 
     logger.info(
-        "Detection Service ready",
-        event="startup_complete",
+        "startup_complete",
+        message="Detection Service ready",
         db_url=db_url.split("@")[-1] if "@" in db_url else db_url,
         redis_url=redis_url.split("@")[-1] if "@" in redis_url else redis_url,
         ml_url=ml_url,
@@ -144,12 +144,12 @@ async def lifespan(app: FastAPI):
     yield
 
     # Teardown
-    logger.info("Detection Service shutting down", event="shutdown")
+    logger.info("shutdown", message="Detection Service shutting down")
     await fallback.stop()
     await redis_client.aclose()
     await http_client.aclose()
     await engine.dispose()
-    logger.info("Detection Service shutdown complete", event="shutdown_complete")
+    logger.info("shutdown_complete", message="Detection Service shutdown complete")
 
 
 # ---------------------------------------------------------------------------
@@ -210,8 +210,8 @@ def create_app() -> FastAPI:
     async def value_error_handler(request: Request, exc: ValueError):
         """Handle validation errors as 400 Bad Request."""
         logger.warning(
-            "Validation error",
-            event="validation_error",
+            "validation_error",
+            message="Validation error",
             error=str(exc),
             path=request.url.path,
         )
@@ -224,8 +224,8 @@ def create_app() -> FastAPI:
     async def generic_exception_handler(request: Request, exc: Exception):
         """Catch-all handler for unexpected errors — returns 500."""
         logger.error(
-            "Unhandled exception",
-            event="internal_error",
+            "internal_error",
+            message="Unhandled exception",
             error=str(exc),
             exc_info=True,
             path=request.url.path,
@@ -631,8 +631,8 @@ async def _handle_with_fallback(
     from shared.config import settings
 
     logger.warning(
-        "Primary detection pipeline failed; using rule-based fallback",
-        event="detection_fallback",
+        "detection_fallback",
+        message="Primary detection pipeline failed; using rule-based fallback",
         error=str(original_exc),
         correlation_id=cid,
     )
@@ -669,8 +669,8 @@ async def _handle_with_fallback(
             )
         except Exception as redis_exc:
             logger.error(
-                "Failed to store fallback challenge state in Redis",
-                event="fallback_redis_write_error",
+                "fallback_redis_write_error",
+                message="Failed to store fallback challenge state in Redis",
                 challenge_id=challenge_id,
                 session_id=body.behavioralData.sessionId,
                 error=str(redis_exc),

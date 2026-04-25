@@ -49,5 +49,85 @@
       "txHash": "0xce03eba276f213eb0b88b9243e1618e1e2a6a700a44fb22b6d363b231f1c410c",
       "quantity": 1
     }
+  },
+  {
+    "eventType": "purchase_attempt",
+    "wallet": "0xf4F31E8b1c848fe48aDadcAf0682aDa44C742a07",
+    "eventId": 3,
+    "timestamp": 1777121913490,
+    "metadata": {
+      "quantity": 1,
+      "price": "0"
+    }
+  },
+  {
+    "eventType": "purchase_attempt",
+    "wallet": "0xf4F31E8b1c848fe48aDadcAf0682aDa44C742a07",
+    "eventId": 3,
+    "timestamp": 1777121931299,
+    "metadata": {
+      "quantity": 1,
+      "price": "0"
+    }
+  },
+  {
+    "eventType": "purchase_attempt",
+    "wallet": "0xf4F31E8b1c848fe48aDadcAf0682aDa44C742a07",
+    "eventId": 3,
+    "timestamp": 1777122135834,
+    "metadata": {
+      "quantity": 1,
+      "price": "0"
+    }
+  },
+  {
+    "eventType": "purchase_attempt",
+    "wallet": "0xf4F31E8b1c848fe48aDadcAf0682aDa44C742a07",
+    "eventId": 3,
+    "timestamp": 1777122154882,
+    "metadata": {
+      "quantity": 1,
+      "price": "0"
+    }
+  },
+  {
+    "eventType": "purchase_attempt",
+    "wallet": "0xf4F31E8b1c848fe48aDadcAf0682aDa44C742a07",
+    "eventId": 3,
+    "timestamp": 1777122168217,
+    "metadata": {
+      "quantity": 1,
+      "price": "0"
+    }
+  },
+  {
+    "eventType": "purchase_attempt",
+    "wallet": "0xf4F31E8b1c848fe48aDadcAf0682aDa44C742a07",
+    "eventId": 3,
+    "timestamp": 1777122475352,
+    "metadata": {
+      "quantity": 1,
+      "price": "0"
+    }
+  },
+  {
+    "eventType": "purchase_attempt",
+    "wallet": "0xf4F31E8b1c848fe48aDadcAf0682aDa44C742a07",
+    "eventId": 3,
+    "timestamp": 1777122524237,
+    "metadata": {
+      "quantity": 1,
+      "price": "0"
+    }
+  },
+  {
+    "eventType": "purchase_attempt",
+    "wallet": "0xf4F31E8b1c848fe48aDadcAf0682aDa44C742a07",
+    "eventId": 3,
+    "timestamp": 1777122640774,
+    "metadata": {
+      "quantity": 1,
+      "price": "0"
+    }
   }
 ]

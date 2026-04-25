@@ -66,9 +66,8 @@ if not _TOKEN_SIGNING_KEY:
     if _IS_PRODUCTION:
         raise RuntimeError("TOKEN_SIGNING_KEY must be set in production environment")
     logger.warning(
-        "TOKEN_SIGNING_KEY not set, using insecure default. "
-        "Do not use in production!",
-        event="insecure_signing_key",
+        "insecure_signing_key",
+        message="TOKEN_SIGNING_KEY not set, using insecure default. Do not use in production!",
     )
     _TOKEN_SIGNING_KEY = "dev-signing-key-insecure"
 # Challenge score boundaries (mirrors challenge_engine.py)
@@ -174,8 +173,8 @@ class DetectionHandler:
         user_hash = hash_wallet_address(wallet_address)
 
         logger.info(
-            "Detection pipeline started",
-            event="detection_start",
+            "detection_start",
+            message="Detection pipeline started",
             session_id=session_id,
             user_hash=user_hash,
             correlation_id=cid,
@@ -266,8 +265,8 @@ class DetectionHandler:
                 max_quantity=context.requestedQuantity,
             )
             logger.info(
-                "Detection decision: allow",
-                event="detection_allow",
+                "detection_allow",
+                message="Detection decision: allow",
                 session_id=session_id,
                 user_hash=user_hash,
                 risk_score=round(score, 2),
@@ -297,8 +296,8 @@ class DetectionHandler:
                 await self.redis.setex(redis_key, 300, json.dumps(challenge_state))
             except Exception as redis_exc:
                 logger.error(
-                    "Failed to store challenge state in Redis; blocking request",
-                    event="challenge_redis_write_error",
+                    "challenge_redis_write_error",
+                    message="Failed to store challenge state in Redis; blocking request",
                     challenge_id=challenge_id,
                     redis_key=redis_key,
                     session_id=session_id,
@@ -315,8 +314,8 @@ class DetectionHandler:
                 )
 
             logger.warning(
-                "Detection decision: challenge",
-                event="detection_challenge",
+                "detection_challenge",
+                message="Detection decision: challenge",
                 session_id=session_id,
                 user_hash=user_hash,
                 risk_score=round(score, 2),
@@ -333,8 +332,8 @@ class DetectionHandler:
 
         else:  # block
             logger.error(
-                "Detection decision: block",
-                event="detection_block",
+                "detection_block",
+                message="Detection decision: block",
                 session_id=session_id,
                 user_hash=user_hash,
                 risk_score=round(score, 2),

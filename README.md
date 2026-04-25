@@ -2,8 +2,6 @@
 <h1 align="center">💠 REXELL 💠</h1>
 
 <p align="center">
-<<<<<<< HEAD
-=======
   <b>Web3 Platform for Events</b><br>
   Revolutionizing event ticketing with blockchain technology.
 </p>
@@ -16,13 +14,10 @@
 - [Frontend](#-frontend)
 - [Blockchain / Smart Contracts](#-blockchain--smart-contracts)
 - [AI / ML Anti-Scalping Engine](#-aiml-anti-scalping-engine)
-- [Behavioral Bot Detection Integration (AI Microservices)](#-behavioral-bot-detection-integration-ai-microservices)
 - [Storage & Data Layer](#-storage--data-layer)
 - [DevOps & Deployment](#-devops--deployment)
 - [Application Flow](#-application-flow)
-- [End-to-End AI Decision Flow](#-end-to-end-ai-decision-flow)
 - [Project Plan](#-project-plan)
->>>>>>> e1f42d653026198d5b1da4736461be0e2937547e
 - [Gantt Chart](#-gantt-chart)
 - [Risk & Mitigation](#-risk--mitigation)
 - [Tech Stack Summary](#-tech-stack-summary)
@@ -1227,6 +1222,7 @@ Manages the state of interactive bot challenges.
 
 ```text
 app/
+
 ├── (auth)/             # Wallet connection and profile routes
 ├── (discovery)/        # Event marketplace and search
 ├── (ticketing)/        # Purchase flow and challenge UI

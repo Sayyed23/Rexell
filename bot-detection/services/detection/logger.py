@@ -70,8 +70,7 @@ def configure_logging(log_level: str = "INFO") -> None:
         structlog.configure(
             processors=[
                 structlog.contextvars.merge_contextvars,
-                structlog.stdlib.add_log_level,
-                structlog.stdlib.add_logger_name,
+                structlog.processors.add_log_level,
                 structlog.processors.TimeStamper(fmt="iso"),
                 _add_correlation_id,
                 structlog.processors.StackInfoRenderer(),
