@@ -314,6 +314,14 @@ class DetectionHandler:
             # the challenge so it can mint a verification token bound to the
             # original wallet/event. Omitting them caused every successful
             # challenge to fail with HTTP 422 CHALLENGE_CONTEXT_MISSING.
+            # ``expires_at`` MUST mirror the Redis SETEX TTL below: the
+            # challenge service's ``ChallengeValidator.validate_challenge``
+            # reads ``state["expires_at"]`` to gate the challenge response
+            # and to compute the remaining TTL when persisting the
+            # "completed" state. Without it every successful verify call
+            # would crash with KeyError and surface as HTTP 500 to the
+            # frontend, which then falls through to ``success: false`` and
+            # the user can never complete the challenge.
             challenge_state = {
                 "challenge_id": challenge_id,
                 "challenge_type": challenge_type.value,
@@ -323,6 +331,7 @@ class DetectionHandler:
                 "event_id": getattr(context, "eventId", None),
                 "attempts": 0,
                 "status": "pending",
+                "expires_at": current_timestamp() + 300,
             }
             try:
                 await self.redis.setex(redis_key, 300, json.dumps(challenge_state))

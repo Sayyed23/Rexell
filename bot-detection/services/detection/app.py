@@ -702,6 +702,7 @@ async def _handle_with_fallback(
         decision = DetectionResponseDecision.allow
 
     from shared.models.types import ChallengeType
+    from shared.utils.time_utils import current_timestamp as _current_timestamp
     import uuid as _uuid
 
     if decision == DetectionResponseDecision.challenge:
@@ -725,6 +726,10 @@ async def _handle_with_fallback(
                     "event_id": getattr(body.context, "eventId", None) if body.context else None,
                     "attempts": 0,
                     "status": "pending",
+                    # Mirrors the SETEX TTL above. Without this the challenge
+                    # service crashes with KeyError on validate_challenge and
+                    # the user can never complete the verification flow.
+                    "expires_at": _current_timestamp() + 300,
                 }),
             )
         except Exception as redis_exc:
