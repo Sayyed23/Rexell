@@ -99,8 +99,8 @@ echo "     - https://Sepolia.celoscan.io/"
 echo ""
 
 echo "📖 For detailed documentation, see:"
-echo "  - /app/RESALE_IMPLEMENTATION.md"
-echo "  - /app/RESALE_ROYALTY_HISTORY.md"
+echo "  - docs/RESALE_IMPLEMENTATION.md"
+echo "  - docs/RESALE_ROYALTY_HISTORY.md"
 echo ""
 
 echo "🎉 Happy reselling!"
