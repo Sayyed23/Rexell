@@ -20,6 +20,7 @@
     "@radix-ui/react-select": "^2.0.0",
     "@radix-ui/react-slot": "^1.0.2",
     "@rainbow-me/rainbowkit": "^2.0.6",
+    "@rexell/bot-detection-sdk": "link:../bot-detection/sdk",
     "@tailwindcss/forms": "^0.5.7",
     "@tailwindcss/typography": "^0.5.13",
     "@tanstack/react-query": "^5.32.1",

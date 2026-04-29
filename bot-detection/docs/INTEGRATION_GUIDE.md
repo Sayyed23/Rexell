@@ -202,15 +202,27 @@ python -m uvicorn services.inference.handler:app --host 0.0.0.0 --port 8080 --re
 
 ```bash
 # Health
-curl -s http://localhost:8000/v1/health | jq
-curl -s http://localhost:8001/v1/health | jq
-curl -s http://localhost:8080/v1/health | jq
+irm http://localhost:8000/v1/health
+irm http://localhost:8001/v1/health
+irm http://localhost:8080/v1/health
 
 # Detection round-trip
-curl -s -X POST http://localhost:8000/v1/detect \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: dev-key-1" \
-  -d '{
+$body = @{
+    behavioralData = @{
+        sessionId = "sess-1"
+        walletAddress = "0x0000000000000000000000000000000000000001"
+        userAgent = "Mozilla/5.0 Chrome/124"
+        ipAddress = "127.0.0.1"
+        events = @()
+    }
+    context = @{
+        accountAgeDays = 30
+        transactionCount = 5
+        requestedQuantity = 1
+    }
+} | ConvertTo-Json -Depth 10
+
+Invoke-WebRequest -Uri http://localhost:8000/v1/detect -Method Post -Headers @{"X-API-Key"="dev-key-1"} -ContentType "application/json" -Body $body
     "behavioralData": {
       "sessionId": "sess-1",
       "walletAddress": "0x0000000000000000000000000000000000000001",
