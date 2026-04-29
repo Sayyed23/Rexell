@@ -89,18 +89,18 @@ def build_master_features(df: pd.DataFrame) -> pd.DataFrame:
                 / max((g["timestamp"].max() - g["timestamp"].min()).total_seconds() / 3600.0, 1.0)
             ),
             "min_inter_tx_seconds": grouped["timestamp"].apply(
-                lambda s: float(s.sort_values().diff().dt.total_seconds().min())
+                lambda s: float(s.sort_values().diff().dropna().dt.total_seconds().min())
                 if len(s) > 1
                 else 0.0
             ),
             "mean_inter_tx_seconds": grouped["timestamp"].apply(
-                lambda s: float(s.sort_values().diff().dt.total_seconds().mean())
+                lambda s: float(s.sort_values().diff().dropna().dt.total_seconds().mean())
                 if len(s) > 1
                 else 0.0
             ),
             "burstiness": grouped["timestamp"].apply(
                 lambda s: float(
-                    (s.sort_values().diff().dt.total_seconds() < 60).mean()
+                    (s.sort_values().diff().dropna().dt.total_seconds() < 60).mean()
                 )
                 if len(s) > 1
                 else 0.0

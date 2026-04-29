@@ -108,7 +108,11 @@ def load_split(name: str = "main") -> Split:
     bundle = pd.read_parquet(ML_DATA_DIR / f"{name}.parquet")
     parts = {}
     for s in ("train", "val", "test"):
-        sub = bundle[bundle["_split"] == s].drop(columns=["_split"])
+        sub = (
+            bundle[bundle["_split"] == s]
+            .drop(columns=["_split"])
+            .reset_index(drop=True)
+        )
         parts[s] = (sub.drop(columns=["_label"]), sub["_label"].astype(int))
     return Split(
         X_train=parts["train"][0],
