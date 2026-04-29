@@ -1,6 +1,13 @@
 node_modules
 .env
 
+# Python virtualenvs (created by ml-training/ work)
+.venv/
+.venv-*/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
 # Hardhat files
 /cache
 /artifacts
