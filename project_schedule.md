@@ -48,32 +48,37 @@ flowchart LR
 
 ## 7.3 Timeline Charts
 
-The execution schedule helps the team track milestones and ensure timely completion across the semester. 
+The execution schedule helps the team track milestones and ensure timely completion across the project lifecycle (June 2025 to June 2026), reflecting all core workspace components including Blockchain, Frontend, AI, and Bot Detection APIs.
 
 ```mermaid
 gantt
-    title Semester Execution Timeline
+    title Project Execution Timeline (June 2025 - June 2026)
     dateFormat  YYYY-MM-DD
-    axisFormat  %b %d
+    axisFormat  %Y-%b
     
-    section 1. Planning
-    Requirement Analysis       :crit, a1, 2026-05-01, 14d
-    System Design              :a2, after a1, 14d
+    section 1. Planning & Design
+    Requirement Analysis       :crit, a1, 2025-06-01, 30d
+    System Design & Arch       :a2, after a1, 30d
 
-    section 2. Development
-    Smart Contracts            :a3, after a2, 28d
-    Frontend UI                :a4, after a2, 28d
-    Data Pipelines             :a5, after a3, 14d
+    section 2. Core Blockchain
+    Smart Contracts (Solidity) :a3, 2025-08-01, 60d
+    Transaction Data Pipelines :a4, after a3, 45d
 
-    section 3. AI & ML
-    AI Model Training          :a6, 2026-05-15, 42d
-    Fraud Detection Integration:a7, after a5, 14d
+    section 3. Frontend UI
+    UI Design & Prototyping    :a5, 2025-09-01, 45d
+    Web3 Frontend Integration  :a6, after a5, 60d
 
-    section 4. Delivery
-    Final Testing              :crit, a8, after a7, 14d
-    Deployment                 :crit, a9, after a8, 7d
+    section 4. AI & Bot Detection
+    Dataset Prep & Engineering :a7, 2025-11-01, 45d
+    AI Model Training          :a8, after a7, 60d
+    Bot Detection API Dev      :a9, after a8, 45d
+    
+    section 5. Testing & Deploy
+    Integration Testing        :crit, a10, 2026-04-01, 30d
+    Security Audit & UAT       :a11, after a10, 20d
+    Final Deployment           :crit, a12, 2026-05-21, 15d
 
     section Ongoing
-    Documentation              :a10, 2026-05-01, 120d
-    Presentations              :a11, after a8, 21d
+    Documentation              :a13, 2025-06-01, 384d
+    Project Presentation       :a14, 2026-06-05, 15d
 ```
