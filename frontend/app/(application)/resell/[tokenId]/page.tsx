@@ -5,6 +5,7 @@ import { useAccount, useReadContract, useWriteContract } from "wagmi";
 import { rexellAbi, contractAddress } from "@/blockchain/abi/rexell-abi";
 import { soulboundIdentityAbi, soulboundIdentityAddress } from "@/blockchain/abi/soulbound-abi";
 import { KYCFlow } from "@/components/AI/KYCFlow";
+import { ResalePriceSuggestion } from "@/components/AI/ResalePriceSuggestion";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -280,6 +281,15 @@ export default function ResellTicketPage({ params, searchParams }: { params: { t
                             {isFreeEvent ? "Set any reasonable price." : `Must be less than ${formatEther(maxPrice)} cUSD.`}
                         </p>
                     </div>
+
+                    {eventData && (
+                        <ResalePriceSuggestion
+                            eventId={`EVT_${String(Number(eventData.id)).padStart(3, "0")}`}
+                            originalPrice={Number(formatEther(eventData.price))}
+                            maxPrice={isFreeEvent ? undefined : Number(formatEther(maxPrice))}
+                            onApply={(p) => setPrice(p)}
+                        />
+                    )}
 
                     <div className="bg-gray-50 p-4 rounded-lg space-y-2 text-sm border">
                         <div className="flex justify-between">

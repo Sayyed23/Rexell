@@ -80,6 +80,24 @@ services:
       echo 'MinIO buckets initialized.'
       "
 
+  # Rexell AI Insights — resale-price forecasting + knowledge assistant
+  ai-insights:
+    build:
+      context: ../services/ai_insights
+      dockerfile: Dockerfile
+    environment:
+      AI_INSIGHTS_DEV_MODE: "true"
+      LOG_LEVEL: INFO
+      # Set HUGGINGFACEHUB_API_TOKEN to enable LLM-synthesized answers.
+      HUGGINGFACEHUB_API_TOKEN: "${HUGGINGFACEHUB_API_TOKEN:-}"
+    ports:
+      - "8200:8200"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8200/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
 volumes:
   postgres_data:
   redis_data:

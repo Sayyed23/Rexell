@@ -1,0 +1,829 @@
+{
+  "events": {
+    "EVT_999": {
+      "count": 1,
+      "median_markup": 1.0,
+      "median_resale_markup": 1.0,
+      "avg_daily_demand": 1.0,
+      "last_window": [
+        1.0
+      ]
+    },
+    "EVT_2": {
+      "count": 3,
+      "median_markup": 1.0,
+      "median_resale_markup": 1.0,
+      "avg_daily_demand": 3.0,
+      "last_window": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "EVT_048": {
+      "count": 233,
+      "median_markup": 1.0,
+      "median_resale_markup": 2.2059604519774014,
+      "avg_daily_demand": 23.156,
+      "last_window": [
+        2.21954802259887,
+        1.0,
+        1.0,
+        1.3961016949152543,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "EVT_039": {
+      "count": 234,
+      "median_markup": 1.0,
+      "median_resale_markup": 2.440331491712707,
+      "avg_daily_demand": 22.0,
+      "last_window": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "EVT_013": {
+      "count": 231,
+      "median_markup": 1.0,
+      "median_resale_markup": 2.95609375,
+      "avg_daily_demand": 20.938,
+      "last_window": [
+        3.25015625,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "EVT_001": {
+      "count": 221,
+      "median_markup": 1.0,
+      "median_resale_markup": 2.479252336448598,
+      "avg_daily_demand": 21.281,
+      "last_window": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "EVT_025": {
+      "count": 235,
+      "median_markup": 1.0,
+      "median_resale_markup": 2.424495708154506,
+      "avg_daily_demand": 22.875,
+      "last_window": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "EVT_041": {
+      "count": 239,
+      "median_markup": 1.0,
+      "median_resale_markup": 1.7694516129032256,
+      "avg_daily_demand": 24.5,
+      "last_window": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "EVT_042": {
+      "count": 237,
+      "median_markup": 1.0,
+      "median_resale_markup": 2.4440140845070424,
+      "avg_daily_demand": 23.031,
+      "last_window": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "EVT_030": {
+      "count": 248,
+      "median_markup": 1.0,
+      "median_resale_markup": 2.463175182481752,
+      "avg_daily_demand": 24.312,
+      "last_window": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.9663260340632602,
+        1.0,
+        1.0
+      ]
+    },
+    "EVT_020": {
+      "count": 257,
+      "median_markup": 1.0,
+      "median_resale_markup": 2.09487012987013,
+      "avg_daily_demand": 27.094,
+      "last_window": [
+        1.0,
+        2.6746753246753245,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "EVT_047": {
+      "count": 267,
+      "median_markup": 1.0,
+      "median_resale_markup": 2.1176963350785343,
+      "avg_daily_demand": 28.355,
+      "last_window": [
+        2.9059424083769634,
+        2.6609162303664924,
+        1.0,
+        1.0,
+        1.0,
+        1.1426178010471204,
+        1.0,
+        1.0
+      ]
+    },
+    "EVT_011": {
+      "count": 263,
+      "median_markup": 1.0,
+      "median_resale_markup": 2.370643382352941,
+      "avg_daily_demand": 28.188,
+      "last_window": [
+        1.8960661764705884,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        2.4097794117647062,
+        1.0
+      ]
+    },
+    "EVT_032": {
+      "count": 223,
+      "median_markup": 1.0,
+      "median_resale_markup": 2.8773622047244096,
+      "avg_daily_demand": 22.469,
+      "last_window": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        2.925826771653543,
+        1.0,
+        1.0
+      ]
+    },
+    "EVT_034": {
+      "count": 243,
+      "median_markup": 1.0,
+      "median_resale_markup": 2.443694779116466,
+      "avg_daily_demand": 24.344,
+      "last_window": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "EVT_016": {
+      "count": 220,
+      "median_markup": 1.0,
+      "median_resale_markup": 2.2756741573033707,
+      "avg_daily_demand": 18.781,
+      "last_window": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "EVT_015": {
+      "count": 249,
+      "median_markup": 1.0,
+      "median_resale_markup": 2.351104417670683,
+      "avg_daily_demand": 25.125,
+      "last_window": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "EVT_008": {
+      "count": 234,
+      "median_markup": 1.0,
+      "median_resale_markup": 2.611888185654008,
+      "avg_daily_demand": 24.094,
+      "last_window": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "EVT_005": {
+      "count": 248,
+      "median_markup": 1.0,
+      "median_resale_markup": 1.904074074074074,
+      "avg_daily_demand": 23.344,
+      "last_window": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "EVT_031": {
+      "count": 254,
+      "median_markup": 1.0,
+      "median_resale_markup": 2.8709826589595377,
+      "avg_daily_demand": 24.875,
+      "last_window": [
+        1.0,
+        1.0,
+        2.0045664739884392,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "EVT_046": {
+      "count": 227,
+      "median_markup": 1.0,
+      "median_resale_markup": 2.32320987654321,
+      "avg_daily_demand": 21.375,
+      "last_window": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "EVT_036": {
+      "count": 253,
+      "median_markup": 1.0,
+      "median_resale_markup": 2.292217391304348,
+      "avg_daily_demand": 23.969,
+      "last_window": [
+        1.0,
+        2.549086956521739,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "EVT_027": {
+      "count": 224,
+      "median_markup": 1.0,
+      "median_resale_markup": 2.0159183673469387,
+      "avg_daily_demand": 23.562,
+      "last_window": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "EVT_018": {
+      "count": 267,
+      "median_markup": 1.0,
+      "median_resale_markup": 2.6026301369863014,
+      "avg_daily_demand": 27.258,
+      "last_window": [
+        1.0,
+        1.0,
+        1.0,
+        2.627397260273973,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "EVT_009": {
+      "count": 241,
+      "median_markup": 1.0,
+      "median_resale_markup": 2.123333333333333,
+      "avg_daily_demand": 22.875,
+      "last_window": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "EVT_029": {
+      "count": 238,
+      "median_markup": 1.0,
+      "median_resale_markup": 2.360021929824561,
+      "avg_daily_demand": 25.344,
+      "last_window": [
+        1.0,
+        1.213640350877193,
+        3.1090789473684213,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "EVT_006": {
+      "count": 234,
+      "median_markup": 1.0,
+      "median_resale_markup": 2.3623076923076924,
+      "avg_daily_demand": 19.438,
+      "last_window": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "EVT_028": {
+      "count": 256,
+      "median_markup": 1.0,
+      "median_resale_markup": 2.327720930232558,
+      "avg_daily_demand": 25.656,
+      "last_window": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "EVT_049": {
+      "count": 237,
+      "median_markup": 1.0,
+      "median_resale_markup": 2.3905166051660514,
+      "avg_daily_demand": 23.844,
+      "last_window": [
+        2.88070110701107,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "EVT_023": {
+      "count": 251,
+      "median_markup": 1.0,
+      "median_resale_markup": 2.2251670951156814,
+      "avg_daily_demand": 27.156,
+      "last_window": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "EVT_043": {
+      "count": 196,
+      "median_markup": 1.0,
+      "median_resale_markup": 2.02059649122807,
+      "avg_daily_demand": 19.5,
+      "last_window": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "EVT_010": {
+      "count": 246,
+      "median_markup": 1.0,
+      "median_resale_markup": 2.17375,
+      "avg_daily_demand": 23.875,
+      "last_window": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "EVT_021": {
+      "count": 254,
+      "median_markup": 1.0,
+      "median_resale_markup": 2.0536021505376345,
+      "avg_daily_demand": 23.938,
+      "last_window": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "EVT_017": {
+      "count": 211,
+      "median_markup": 1.0,
+      "median_resale_markup": 2.0770212765957448,
+      "avg_daily_demand": 19.281,
+      "last_window": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "EVT_037": {
+      "count": 248,
+      "median_markup": 1.0,
+      "median_resale_markup": 2.0842307692307696,
+      "avg_daily_demand": 23.656,
+      "last_window": [
+        2.0537846153846155,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "EVT_040": {
+      "count": 232,
+      "median_markup": 1.0,
+      "median_resale_markup": 2.4348522167487685,
+      "avg_daily_demand": 23.938,
+      "last_window": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "EVT_035": {
+      "count": 246,
+      "median_markup": 1.0,
+      "median_resale_markup": 2.4075949367088607,
+      "avg_daily_demand": 27.344,
+      "last_window": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "EVT_024": {
+      "count": 247,
+      "median_markup": 1.0,
+      "median_resale_markup": 2.3913577023498696,
+      "avg_daily_demand": 25.531,
+      "last_window": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        2.556579634464752
+      ]
+    },
+    "EVT_014": {
+      "count": 233,
+      "median_markup": 1.0,
+      "median_resale_markup": 2.1465384615384613,
+      "avg_daily_demand": 22.375,
+      "last_window": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "EVT_012": {
+      "count": 199,
+      "median_markup": 1.0,
+      "median_resale_markup": 2.33469298245614,
+      "avg_daily_demand": 19.906,
+      "last_window": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "EVT_038": {
+      "count": 241,
+      "median_markup": 1.0,
+      "median_resale_markup": 2.6390365853658535,
+      "avg_daily_demand": 22.875,
+      "last_window": [
+        1.0,
+        1.0,
+        1.3996341463414634,
+        1.0,
+        2.388390243902439,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "EVT_026": {
+      "count": 259,
+      "median_markup": 1.0,
+      "median_resale_markup": 2.1321212121212123,
+      "avg_daily_demand": 26.469,
+      "last_window": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        3.379151515151515,
+        1.0,
+        1.0
+      ]
+    },
+    "EVT_002": {
+      "count": 250,
+      "median_markup": 1.0,
+      "median_resale_markup": 2.198,
+      "avg_daily_demand": 24.281,
+      "last_window": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "EVT_007": {
+      "count": 252,
+      "median_markup": 1.0,
+      "median_resale_markup": 2.5265977961432506,
+      "avg_daily_demand": 24.375,
+      "last_window": [
+        1.0,
+        1.0,
+        2.6324793388429755,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "EVT_000": {
+      "count": 268,
+      "median_markup": 1.0,
+      "median_resale_markup": 2.7071759259259256,
+      "avg_daily_demand": 26.188,
+      "last_window": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "EVT_022": {
+      "count": 228,
+      "median_markup": 1.0,
+      "median_resale_markup": 2.4563432835820898,
+      "avg_daily_demand": 22.656,
+      "last_window": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "EVT_033": {
+      "count": 244,
+      "median_markup": 1.0,
+      "median_resale_markup": 2.505780141843972,
+      "avg_daily_demand": 24.594,
+      "last_window": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "EVT_044": {
+      "count": 221,
+      "median_markup": 1.0,
+      "median_resale_markup": 2.889700315457413,
+      "avg_daily_demand": 23.094,
+      "last_window": [
+        1.0,
+        1.0,
+        3.2317350157728706,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "EVT_004": {
+      "count": 241,
+      "median_markup": 1.0,
+      "median_resale_markup": 2.2656127450980392,
+      "avg_daily_demand": 25.031,
+      "last_window": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "EVT_019": {
+      "count": 229,
+      "median_markup": 1.0,
+      "median_resale_markup": 2.3294352159468437,
+      "avg_daily_demand": 23.312,
+      "last_window": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "EVT_003": {
+      "count": 224,
+      "median_markup": 1.0,
+      "median_resale_markup": 1.8937837837837839,
+      "avg_daily_demand": 20.906,
+      "last_window": [
+        1.2897297297297297,
+        1.366756756756757,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        3.2353153153153156
+      ]
+    },
+    "EVT_045": {
+      "count": 267,
+      "median_markup": 1.0,
+      "median_resale_markup": 2.300275590551181,
+      "avg_daily_demand": 26.688,
+      "last_window": [
+        2.0244488188976377,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    }
+  },
+  "global": {
+    "median_markup": 1.0,
+    "median_resale_markup": 2.33469298245614,
+    "avg_daily_demand": 612.871
+  }
+}

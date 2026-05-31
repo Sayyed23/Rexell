@@ -3,6 +3,7 @@
 import { CalendarCheckIcon, CalendarIcon, PlusIcon, TicketIcon } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
+import { Assistant } from "@/components/AI/Assistant";
 
 const NavItem = ({
   href,
@@ -63,6 +64,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <NavItem href="/my-tickets" icon={TicketIcon} label="My Tickets" />
         <NavItem href="/resale-approval" icon={TicketIcon} label="Resale Approval" />
       </nav>
+      <Assistant />
     </div>
   );
 }
