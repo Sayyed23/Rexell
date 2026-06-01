@@ -1,17 +1,17 @@
-# --- Core (required to run the service) ---
-fastapi==0.110.0
-uvicorn[standard]==0.27.1
-pydantic==2.6.4
-httpx==0.27.0
-structlog==24.1.0
+# --- Core (Required to run the service in robust fallback/heuristic mode) ---
+fastapi>=0.110.0
+uvicorn[standard]>=0.27.1
+pydantic>=2.6.4
+httpx>=0.27.0
+structlog>=24.1.0
+numpy>=1.26.4
+pytest>=8.1.1
 
-# --- Forecasting (LSTM). Heavy; service falls back to heuristics if absent ---
-numpy==1.26.4
-tensorflow-cpu==2.16.1
+# --- Optional ML Packages (LSTM Price Forecasting & Dense Embeddings RAG) ---
+# Note: These heavy packages do not have pre-built wheels for all Python versions 
+# (e.g. Python 3.14+) or OS platforms. If omitted, the service falls back gracefully 
+# to data-driven heuristics and keyword-based retrieval as per the fallback spec.
+#
+# tensorflow-cpu==2.16.1
+# sentence-transformers==2.7.0
 
-# --- RAG embeddings. Heavy; service falls back to keyword retrieval if absent ---
-sentence-transformers==2.7.0
-
-# --- Testing ---
-pytest==8.1.1
-httpx==0.27.0

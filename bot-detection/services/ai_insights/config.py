@@ -10,6 +10,10 @@ from pathlib import Path
 _SERVICE_DIR = Path(__file__).resolve().parent
 _REPO_ROOT = _SERVICE_DIR.parents[2]  # bot-detection/services/ai-insights -> repo root
 
+from dotenv import load_dotenv
+load_dotenv(_REPO_ROOT / ".env")
+load_dotenv(_SERVICE_DIR / ".env")
+
 
 class Settings:
     """Runtime settings sourced from the environment."""
