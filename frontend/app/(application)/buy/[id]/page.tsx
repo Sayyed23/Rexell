@@ -13,6 +13,7 @@ import { aiModeService, EnforcementAction } from "@/lib/ai/ai-mode";
 import { aiLogger } from "@/lib/ai/logger";
 import { useGuardedPurchase } from "@/lib/bot-detection/useGuardedPurchase";
 import { BotChallengeModal } from "@/components/AI/BotChallengeModal";
+import { WarningModal } from "@/components/AI/WarningModal";
 
 interface ResaleTicket {
   tokenId: number;
@@ -34,6 +35,31 @@ export default function BuyResaleTicketPage() {
   const [ticket, setTicket] = useState<ResaleTicket | null>(null);
   const [loading, setLoading] = useState(true);
   const [isPurchasing, setIsPurchasing] = useState(false);
+
+  // AI Advisory warning modal state (FR-5.3.4)
+  const [warningOpen, setWarningOpen] = useState(false);
+  const [warningData, setWarningData] = useState<{
+    riskLevel: string;
+    dominantRisk: string;
+    confidenceScore: number;
+    reason: string;
+  } | null>(null);
+
+  const handleWarningConfirm = () => {
+    setWarningOpen(false);
+    handlePurchase(true);
+  };
+
+  const handleWarningCancel = () => {
+    setWarningOpen(false);
+    if (address && ticket) {
+      aiLogger.log("purchase_failed", address, ticket.eventId, {
+        reason: "AI_WARNING_USER_ABORTED_RESALE",
+        ticketId: ticket.tokenId,
+      });
+    }
+    toast.error("Purchase cancelled by user advisory.");
+  };
 
   // Bot-detection guard — collects behavioural telemetry while the user
   // browses and runs POST /v1/detect before each resale purchase.
@@ -84,7 +110,7 @@ export default function BuyResaleTicketPage() {
     }
   }, [resaleRequest, isResaleRequestPending, id]);
 
-  const handlePurchase = async () => {
+  const handlePurchase = async (bypassWarning = false) => {
     if (!isConnected) {
       toast.error("Please connect your wallet");
       return;
@@ -111,10 +137,15 @@ export default function BuyResaleTicketPage() {
           return;
         }
 
-        if (risk.action === EnforcementAction.WARNING) {
-          toast.warning("AI Mode Warning", {
-            description: risk.reason,
+        if (risk.action === EnforcementAction.WARNING && !bypassWarning) {
+          setWarningData({
+            riskLevel: risk.riskLevel,
+            dominantRisk: risk.detectionType,
+            confidenceScore: risk.confidenceScore,
+            reason: risk.reason,
           });
+          setWarningOpen(true);
+          return;
         }
       }
 
@@ -308,7 +339,7 @@ export default function BuyResaleTicketPage() {
                 Cancel
               </Button>
               <Button
-                onClick={handlePurchase}
+                onClick={() => handlePurchase(false)}
                 disabled={isPurchasing}
                 className="flex-1 bg-green-600 hover:bg-green-700"
               >
@@ -340,6 +371,15 @@ export default function BuyResaleTicketPage() {
           }
         }}
         onCancel={cancelChallenge}
+      />
+      <WarningModal
+        isOpen={warningOpen}
+        riskLevel={warningData?.riskLevel || "MEDIUM"}
+        dominantRisk={warningData?.dominantRisk || "UNKNOWN"}
+        confidenceScore={warningData?.confidenceScore || 0}
+        reason={warningData?.reason || ""}
+        onConfirm={handleWarningConfirm}
+        onCancel={handleWarningCancel}
       />
     </div>
   );

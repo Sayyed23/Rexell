@@ -2,7 +2,7 @@
 
 Retrieves relevant Rexell knowledge (see ``index.py``) and produces an answer.
 When ``HUGGINGFACEHUB_API_TOKEN`` is configured the retrieved context is sent
-to a hosted LLM (Mistral-7B-Instruct by default, matching CryptoAI) via the
+to a hosted LLM (Mistral-7B-Instruct by default) via the
 HuggingFace Inference API. Otherwise it returns a concise extractive answer
 built from the top retrieved chunks, so the assistant is always useful.
 """

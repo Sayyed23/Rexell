@@ -16,6 +16,26 @@ export interface AIEvent {
 }
 
 class AILogger {
+    private saveToLocalStorage(event: AIEvent) {
+        try {
+            if (typeof window !== "undefined") {
+                const key = "ai_decision_logs";
+                const stored = localStorage.getItem(key);
+                const logs = stored ? JSON.parse(stored) : [];
+                logs.push(event);
+                
+                // Keep last 100 logs to avoid localStorage bloat
+                if (logs.length > 100) {
+                    logs.shift();
+                }
+                
+                localStorage.setItem(key, JSON.stringify(logs));
+            }
+        } catch (e) {
+            console.error("Failed to write to localStorage audit logs", e);
+        }
+    }
+
     private async sendLog(event: AIEvent) {
         try {
             await fetch('/api/ai/logs', {
@@ -29,15 +49,21 @@ class AILogger {
     }
 
     public log(eventType: AIEventType, wallet: string, eventId?: number | string, metadata?: any) {
-        // Fire and forget - don't await to avoid blocking UI
-        this.sendLog({
+        const event: AIEvent = {
             eventType,
             wallet,
             eventId,
             timestamp: Date.now(),
             metadata,
-        });
+        };
+
+        // 1. Audit locally (FR-9.3.2)
+        this.saveToLocalStorage(event);
+
+        // 2. Transmit to server
+        this.sendLog(event);
     }
 }
 
 export const aiLogger = new AILogger();
+

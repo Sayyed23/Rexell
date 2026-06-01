@@ -28,6 +28,7 @@ import { aiModeService, EnforcementAction } from "@/lib/ai/ai-mode";
 import { aiLogger } from "@/lib/ai/logger";
 import { useGuardedPurchase } from "@/lib/bot-detection/useGuardedPurchase";
 import { BotChallengeModal } from "@/components/AI/BotChallengeModal";
+import { WarningModal } from "@/components/AI/WarningModal";
 
 interface EventComment {
   commenter: string;
@@ -57,6 +58,30 @@ export default function EventDetailsPage({
   const [showStar, setShowStar] = useState(false);
   // Add state for ticket quantity
   const [ticketQuantity, setTicketQuantity] = useState(1);
+
+  // AI Advisory warning modal state (FR-5.3.4)
+  const [warningOpen, setWarningOpen] = useState(false);
+  const [warningData, setWarningData] = useState<{
+    riskLevel: string;
+    dominantRisk: string;
+    confidenceScore: number;
+    reason: string;
+  } | null>(null);
+
+  const handleWarningConfirm = () => {
+    setWarningOpen(false);
+    buyTicket(undefined, true);
+  };
+
+  const handleWarningCancel = () => {
+    setWarningOpen(false);
+    if (address) {
+      aiLogger.log("purchase_failed", address, Number(params.index), {
+        reason: "AI_WARNING_USER_ABORTED",
+      });
+    }
+    toast.error("Purchase cancelled by user advisory.");
+  };
 
   // Bot-detection guard (boots the behavioural tracker as soon as a wallet
   // is connected; runs POST /v1/detect before each purchase; gracefully
@@ -150,8 +175,8 @@ export default function EventDetailsPage({
     }
   }, [rating]);
 
-  async function buyTicket(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
+  async function buyTicket(e?: React.FormEvent<HTMLFormElement>, bypassWarning = false) {
+    if (e) e.preventDefault();
     if (!isConnected) {
       toast.error("Please connect your wallet");
       return;
@@ -187,7 +212,7 @@ export default function EventDetailsPage({
     // Balance check removed - let the smart contract handle validation
 
     // --- AI Mode Integration ---
-    if (address) {
+    if (address && !bypassWarning) {
       aiLogger.log('purchase_attempt', address, Number(params.index), { quantity: ticketQuantity, price: totalCost.toString() });
 
       const risk = aiModeService.assessRisk(address, Number(params.index));
@@ -201,10 +226,15 @@ export default function EventDetailsPage({
       }
 
       if (risk.action === EnforcementAction.WARNING) {
-        toast.warning("AI Mode Warning", {
-          description: risk.reason,
+        setWarningData({
+          riskLevel: risk.riskLevel,
+          dominantRisk: risk.detectionType,
+          confidenceScore: risk.confidenceScore,
+          reason: risk.reason,
         });
-        // We allow it to proceed, but user is warned
+        setWarningOpen(true);
+        // Halt transaction flow until explicitly verified by the user in the WarningModal
+        return;
       }
     }
     // ---------------------------
@@ -719,6 +749,15 @@ export default function EventDetailsPage({
           }
         }}
         onCancel={cancelChallenge}
+      />
+      <WarningModal
+        isOpen={warningOpen}
+        riskLevel={warningData?.riskLevel || "MEDIUM"}
+        dominantRisk={warningData?.dominantRisk || "UNKNOWN"}
+        confidenceScore={warningData?.confidenceScore || 0}
+        reason={warningData?.reason || ""}
+        onConfirm={handleWarningConfirm}
+        onCancel={handleWarningCancel}
       />
     </main>
   );

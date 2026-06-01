@@ -1,1 +1,1 @@
-"""Resale-price / demand forecasting (LSTM adapted from CryptoAI)."""
+"""Resale-price / demand forecasting (LSTM)."""

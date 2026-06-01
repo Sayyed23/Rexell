@@ -1,16 +1,11 @@
 # Rexell AI Insights Service
 
-FastAPI microservice that adapts the AI components from the
-[CryptoAI](https://github.com/VanshKapoor07/CryptoAI) reference project to the
-Rexell ticketing domain:
+FastAPI microservice providing AI insights for the Rexell ticketing domain:
 
-| Feature | Adapted from | What it does |
-|---------|--------------|--------------|
-| **Resale-price / demand forecasting** | CryptoAI LSTM (`more_than_hour/app_1.py`, Binance/ccxt) | LSTM trained on Rexell transaction history predicts the expected resale **markup ratio** → a suggested resale price band (in cUSD) and a demand trend. |
-| **Knowledge assistant (RAG)** | CryptoAI RAG (`rag/app.py`, Wikipedia + LangChain) | Retrieval-augmented Q&A over Rexell docs + event context. Answers questions about events, tickets, resale rules and bot detection. |
-
-> News-sentiment (CryptoAI `app2.py`, 774M GPT-2) is intentionally **out of
-> scope** for this service (optional Phase 2).
+| Feature | What it does |
+|---------|--------------|
+| **Resale-price / demand forecasting** | LSTM trained on Rexell transaction history predicts the expected resale **markup ratio** → a suggested resale price band (in cUSD) and a demand trend. |
+| **Knowledge assistant (RAG)** | Retrieval-augmented Q&A over Rexell docs + event context. Answers questions about events, tickets, resale rules and bot detection. |
 
 ## Design: always-on with graceful degradation
 

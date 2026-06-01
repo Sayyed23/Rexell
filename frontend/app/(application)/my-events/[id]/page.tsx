@@ -14,6 +14,7 @@ import { useRouter } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Header } from "@/components/header";
 import { useEffect } from "react";
+import { AIDemandForecast } from "@/components/AI/AIDemandForecast";
 
 export default function EventDetailsPage({
   params,
@@ -88,6 +89,8 @@ export default function EventDetailsPage({
             <div className="prose max-w-none">{event?.[9]}</div>
           </div>
           <div className="space-y-6">
+            <AIDemandForecast eventId={`EVT_${String(params.id).padStart(3, "0")}`} />
+
             <div className="rounded-lg bg-gray-100 p-6 ">
               <h2 className="mb-4 text-xl font-bold">Ticket Sales</h2>
               {/* <div className="flex items-start justify-between"> */}

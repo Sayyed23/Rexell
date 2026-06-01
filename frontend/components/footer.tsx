@@ -50,7 +50,7 @@ export function Footer({ showText }: { showText?: boolean }) {
           <ul className="mt-8 flex justify-center gap-6 sm:mt-0 lg:justify-end">
             <li>
               <a
-                href="#"
+                href="https://x.com/Sayyed23"
                 rel="noreferrer"
                 target="_blank"
                 className="text-gray-700 transition hover:opacity-75"
@@ -63,7 +63,7 @@ export function Footer({ showText }: { showText?: boolean }) {
 
             <li>
               <Link
-                href="https://github.com/jeffIshmael/web3Tickets"
+                href="https://github.com/Sayyed23/Rexell"
                 rel="noreferrer"
                 target="_blank"
                 className="text-gray-700 transition hover:opacity-75"

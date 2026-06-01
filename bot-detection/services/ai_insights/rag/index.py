@@ -6,9 +6,8 @@ query. Uses sentence-transformer embeddings + cosine similarity when available
 and transparently falls back to keyword-overlap scoring otherwise, so the
 assistant works with zero heavy dependencies.
 
-This intentionally replaces CryptoAI's ``UnstructuredURLLoader`` + FAISS
-pipeline (Wikipedia URLs) with a lightweight, offline-friendly retriever
-pointed at Rexell content.
+This provides a lightweight, offline-friendly retriever pointed at Rexell
+content.
 """
 
 import re
@@ -114,6 +113,7 @@ class DocumentIndex:
         if not self.chunks:
             return
         try:
+            # pyrefly: ignore [missing-import]
             from sentence_transformers import SentenceTransformer  # lazy, heavy
             import numpy as np
 

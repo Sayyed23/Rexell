@@ -6,18 +6,15 @@
     "forceConsistentCasingInFileNames": true,
     "strict": true,
     "skipLibCheck": true,
-    "resolveJsonModule": true,
-    "types": [
-      "node"
-    ]
+    "resolveJsonModule": true
   },
   "include": [
-    "./test",
     "./scripts",
     "./deploy.ts",
     "./typechain-types"
   ],
   "exclude": [
-    "./frontend"
+    "./frontend",
+    "./test"
   ]
 }

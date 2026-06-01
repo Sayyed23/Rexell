@@ -1,8 +1,7 @@
 """Train the resale-price forecasting LSTM on Rexell transaction history.
 
-Adapted from CryptoAI's ``more_than_hour/app_1.py`` (Binance/ccxt crypto LSTM)
-to forecast the next *markup ratio* (price_paid / original_event_price) from a
-sliding window of recent transactions.
+Uses an LSTM model to forecast the next *markup ratio* (price_paid /
+original_event_price) from a sliding window of recent transactions.
 
 Outputs (written to ``models/``):
 - ``resale_lstm.keras``     — the trained Keras model
