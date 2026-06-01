@@ -50,7 +50,7 @@ export function Footer({ showText }: { showText?: boolean }) {
           <ul className="mt-8 flex justify-center gap-6 sm:mt-0 lg:justify-end">
             <li>
               <a
-                href="https://x.com/Sayyed23"
+                href="#"
                 rel="noreferrer"
                 target="_blank"
                 className="text-gray-700 transition hover:opacity-75"
