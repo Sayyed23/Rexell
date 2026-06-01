@@ -1,0 +1,17 @@
+# --- Core (required to run the service) ---
+fastapi==0.110.0
+uvicorn[standard]==0.27.1
+pydantic==2.6.4
+httpx==0.27.0
+structlog==24.1.0
+
+# --- Forecasting (LSTM). Heavy; service falls back to heuristics if absent ---
+numpy==1.26.4
+tensorflow-cpu==2.16.1
+
+# --- RAG embeddings. Heavy; service falls back to keyword retrieval if absent ---
+sentence-transformers==2.7.0
+
+# --- Testing ---
+pytest==8.1.1
+httpx==0.27.0

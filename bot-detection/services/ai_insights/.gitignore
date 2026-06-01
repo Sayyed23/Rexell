@@ -1,0 +1,8 @@
+# Trained model artifacts are produced by forecast/train.py and stored in
+# object storage (MinIO bucket: bot-detection-models). Do not commit weights.
+models/*.keras
+models/*.h5
+models/*.pth
+__pycache__/
+*.pyc
+.pytest_cache/
