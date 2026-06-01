@@ -1,0 +1,67 @@
+groups:
+  - name: bot-detection
+    interval: 1m
+    rules:
+      - alert: HighBotDetectionRate
+        expr: |
+          (
+            sum(rate(bot_detection_requests_total{decision=~"block|challenge"}[5m]))
+            /
+            clamp_min(sum(rate(bot_detection_requests_total[5m])), 1)
+          ) > 0.20
+        for: 10m
+        labels:
+          severity: high
+        annotations:
+          summary: "Bot detection rate above 20% for 10m"
+          description: "Detection rate = {{ $value | humanizePercentage }} — investigate potential abuse event."
+
+      - alert: ServiceErrorRateWarning
+        expr: |
+          (
+            sum(rate(bot_detection_errors_total[5m]))
+            /
+            clamp_min(sum(rate(bot_detection_requests_total[5m])), 1)
+          ) > 0.01
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Error rate above 1%"
+
+      - alert: ServiceErrorRateCritical
+        expr: |
+          (
+            sum(rate(bot_detection_errors_total[5m]))
+            /
+            clamp_min(sum(rate(bot_detection_requests_total[5m])), 1)
+          ) > 0.05
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Error rate above 5%"
+
+      - alert: MLInferenceLatencyHigh
+        expr: histogram_quantile(0.95, sum by (le) (rate(ml_inference_latency_seconds_bucket[5m]))) > 0.5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "ML inference p95 latency above 500ms"
+
+      - alert: FallbackModeActive
+        expr: max(fallback_mode_active) == 1
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Bot detection fallback mode is active"
+
+      - alert: ModelAccuracyDegraded
+        expr: bot_detection_model_accuracy < 0.9
+        for: 30m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Deployed model accuracy below 90%"

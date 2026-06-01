@@ -1,0 +1,30 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: training-monthly
+  namespace: bot-detection
+spec:
+  schedule: "0 2 1 * *"
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: training
+              image: ghcr.io/rexell/bot-detection-training:latest
+              command: ["python", "-m", "services.training.cronjob"]
+              envFrom:
+                - configMapRef:
+                    name: bot-detection-config
+                - secretRef:
+                    name: bot-detection-secrets
+              resources:
+                requests:
+                  cpu: "1000m"
+                  memory: "2Gi"
+                limits:
+                  cpu: "4000m"
+                  memory: "8Gi"

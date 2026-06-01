@@ -13,6 +13,10 @@ import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { celoSepolia } from "@/lib/celoSepolia";
+import { waitForTransactionReceipt } from "wagmi/actions";
+import { useConfig } from "wagmi";
+import { useGuardedPurchase } from "@/lib/bot-detection/useGuardedPurchase";
+import { BotChallengeModal } from "@/components/AI/BotChallengeModal";
 
 interface ResaleTicket {
   tokenId: bigint;
@@ -24,8 +28,18 @@ interface ResaleTicket {
 
 export default function MarketPage() {
   const { address, isConnected } = useAccount();
+  const config = useConfig();
   const { writeContractAsync } = useWriteContract();
   const [purchasingTokenId, setPurchasingTokenId] = useState<bigint | null>(null);
+
+  // Bot-detection guard
+  const {
+    runGuard,
+    consumeToken: consumeBotToken,
+    pendingChallenge,
+    verifyChallenge,
+    cancelChallenge,
+  } = useGuardedPurchase({ walletAddress: address });
 
   // Get all approved resale tickets using the new contract function
   const {
@@ -67,6 +81,16 @@ export default function MarketPage() {
     try {
       setPurchasingTokenId(tokenId);
 
+      // Bot-detection guard before purchase
+      const guard = await runGuard({
+        action: "resale",
+        eventId: tokenId.toString(),
+      });
+      if (!guard.proceed) {
+        setPurchasingTokenId(null);
+        return;
+      }
+
       // First, approve cUSD token spending
       toast.info("Approving cUSD spending...");
       const approveHash = await writeContractAsync({
@@ -80,6 +104,10 @@ export default function MarketPage() {
         throw new Error("Failed to approve cUSD spending");
       }
 
+      // Wait for the approval tx to be mined before buying
+      toast.info("Waiting for approval confirmation...");
+      await waitForTransactionReceipt(config, { hash: approveHash });
+
       toast.info("Purchasing ticket...");
 
       // Call the buyResaleTicket function with the price as maxPrice
@@ -87,10 +115,17 @@ export default function MarketPage() {
         address: contractAddress,
         abi: rexellAbi,
         functionName: "buyResaleTicket",
-        args: [tokenId, price], // Pass both tokenId and maxPrice
+        args: [tokenId, price],
       });
 
       if (hash) {
+        // Use the local guard token directly. setState would be stale here
+        // because React schedules updates for the next render.
+        if (guard.verificationToken) {
+          consumeBotToken(guard.verificationToken, hash).catch(
+            () => undefined,
+          );
+        }
         toast.success(`Ticket #${tokenId.toString()} purchased successfully!`);
 
         // Refresh the market after purchase
@@ -245,6 +280,22 @@ export default function MarketPage() {
           </>
         )}
       </div>
+      <BotChallengeModal
+        challenge={pendingChallenge}
+        onConfirm={async () => {
+          // POST /v1/verify-challenge → on success the hook primes a
+          // verification token so the next runGuard short-circuits
+          // detection (otherwise we'd re-trigger the same challenge
+          // and loop forever).
+          const ok = await verifyChallenge({ confirmed: true });
+          if (ok) {
+            toast(
+              "Verification accepted. Click Buy again to complete the purchase.",
+            );
+          }
+        }}
+        onCancel={cancelChallenge}
+      />
     </main>
   );
 }

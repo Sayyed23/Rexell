@@ -1,0 +1,2 @@
+overrides:
+  '@rexell/bot-detection-sdk': link:../bot-detection/sdk

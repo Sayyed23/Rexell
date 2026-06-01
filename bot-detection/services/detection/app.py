@@ -20,6 +20,7 @@ from typing import Optional
 import httpx
 import redis.asyncio as aioredis
 from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
@@ -28,6 +29,7 @@ from .handler import DetectionHandler
 from .logger import configure_logging, get_logger, set_correlation_id
 from .rate_limiter import SlidingWindowRateLimiter, rate_limit_dependency
 from .token_validator import validate_token, consume_token
+from fastapi import Response
 
 logger = get_logger(__name__)
 
@@ -47,6 +49,21 @@ try:
         UserReputationRepository,
     )
     from shared.config import settings
+    from shared.resale_analyzer import (
+        ResalePatternAnalyzer,
+        TrustedStatusManager,
+    )
+    from shared.fallback import FallbackController, make_health_check
+    from shared.metrics import BotDetectionMetrics, CONTENT_TYPE_LATEST
+    from shared.audit import hash_api_key, record_access
+    from shared.privacy import anonymize_behavioral_payload
+    from shared.db.models import (
+        BehavioralDataModel,
+        RiskScoreModel,
+        UserReputationModel,
+        ChallengeStateModel,
+    )
+    from sqlalchemy import delete as _sql_delete
 except ImportError as exc:
     raise ImportError(
         "Failed to import shared modules. Ensure PYTHONPATH includes "
@@ -74,7 +91,7 @@ async def lifespan(app: FastAPI):
     - Dispose DB engine
     """
     configure_logging(os.getenv("LOG_LEVEL", "INFO"))
-    logger.info("Detection Service starting up", event="startup")
+    logger.info("startup", message="Detection Service starting up")
 
     # PostgreSQL
     db_url = os.getenv("DATABASE_URL", settings.DATABASE_URL)
@@ -101,9 +118,26 @@ async def lifespan(app: FastAPI):
     http_client = httpx.AsyncClient(base_url=ml_url)
     app.state.http_client = http_client
 
+    # Prometheus metrics
+    app.state.metrics = BotDetectionMetrics()
+
+    # Fallback-mode controller polls the local /v1/health endpoint. The
+    # controller itself only takes action via Redis so this stays lightweight.
+    async def _self_health() -> bool:
+        try:
+            await redis_client.ping()
+            return True
+        except Exception:  # noqa: BLE001
+            return False
+
+    fallback = FallbackController(redis_client, _self_health)
+    app.state.fallback = fallback
+    if os.getenv("FALLBACK_CONTROLLER_ENABLED", "false").lower() == "true":
+        await fallback.start()
+
     logger.info(
-        "Detection Service ready",
-        event="startup_complete",
+        "startup_complete",
+        message="Detection Service ready",
         db_url=db_url.split("@")[-1] if "@" in db_url else db_url,
         redis_url=redis_url.split("@")[-1] if "@" in redis_url else redis_url,
         ml_url=ml_url,
@@ -111,11 +145,12 @@ async def lifespan(app: FastAPI):
     yield
 
     # Teardown
-    logger.info("Detection Service shutting down", event="shutdown")
+    logger.info("shutdown", message="Detection Service shutting down")
+    await fallback.stop()
     await redis_client.aclose()
     await http_client.aclose()
     await engine.dispose()
-    logger.info("Detection Service shutdown complete", event="shutdown_complete")
+    logger.info("shutdown_complete", message="Detection Service shutdown complete")
 
 
 # ---------------------------------------------------------------------------
@@ -130,6 +165,22 @@ def create_app() -> FastAPI:
         version="1.0.0",
         description="Real-time bot detection for the Rexell ticketing platform",
         lifespan=lifespan,
+    )
+
+    # ------------------------------------------------------------------
+    # Middleware: CORS — allow the frontend to call the API
+    # ------------------------------------------------------------------
+    cors_origins = os.getenv(
+        "CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000"
+    ).split(",")
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[o.strip() for o in cors_origins],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+        expose_headers=["X-Correlation-ID", "X-Verification-Token"],
     )
 
     # ------------------------------------------------------------------
@@ -176,8 +227,8 @@ def create_app() -> FastAPI:
     async def value_error_handler(request: Request, exc: ValueError):
         """Handle validation errors as 400 Bad Request."""
         logger.warning(
-            "Validation error",
-            event="validation_error",
+            "validation_error",
+            message="Validation error",
             error=str(exc),
             path=request.url.path,
         )
@@ -190,8 +241,8 @@ def create_app() -> FastAPI:
     async def generic_exception_handler(request: Request, exc: Exception):
         """Catch-all handler for unexpected errors — returns 500."""
         logger.error(
-            "Unhandled exception",
-            event="internal_error",
+            "internal_error",
+            message="Unhandled exception",
             error=str(exc),
             exc_info=True,
             path=request.url.path,
@@ -232,16 +283,37 @@ def create_app() -> FastAPI:
         Rate limited to 100 req/s per API key (burst: 200).
         """
         cid = getattr(request.state, "correlation_id", str(uuid.uuid4()))
+        metrics = request.app.state.metrics
+
+        # Inject the client IP server-side. The SDK / frontend cannot supply
+        # this reliably; honour an X-Forwarded-For header set by an upstream
+        # proxy and fall back to the direct peer.
+        if not body.behavioralData.ipAddress:
+            xff = request.headers.get("x-forwarded-for")
+            client_ip = (
+                xff.split(",")[0].strip() if xff else (request.client.host if request.client else None)
+            )
+            body.behavioralData.ipAddress = client_ip
 
         # Build per-request handler with fresh DB session
-        async with request.app.state.session_factory() as session:
-            handler = _build_handler(request, session)
-            try:
-                response = await handler.handle(body, correlation_id=cid)
-            except Exception as exc:
-                # Attempt rule-based fallback for ML service failures
-                response = await _handle_with_fallback(request, body, exc, cid)
+        with metrics.observe_latency("/v1/detect"):
+            async with request.app.state.session_factory() as session:
+                handler = _build_handler(request, session)
+                try:
+                    response = await handler.handle(body, correlation_id=cid)
+                    await session.commit()
+                except Exception as exc:
+                    metrics.record_error("detection_pipeline")
+                    # Attempt rule-based fallback for ML service failures
+                    response = await _handle_with_fallback(request, body, exc, cid)
 
+        metrics.record_decision(response.decision.value, response.riskScore)
+        fallback = getattr(request.app.state, "fallback", None)
+        if fallback is not None:
+            try:
+                metrics.set_fallback(await fallback.is_active())
+            except Exception:  # noqa: BLE001
+                pass
         return response
 
     # ------------------------------------------------------------------
@@ -340,6 +412,11 @@ def create_app() -> FastAPI:
                 tx_hash=body.txHash,
                 token_repo=token_repo,
             )
+            # Persist the consumed_at / tx_hash update. Without an explicit
+            # commit, the async session context manager rolls the transaction
+            # back on exit and the token can be replayed indefinitely.
+            if success:
+                await session.commit()
 
         if success:
             return ConsumeTokenResponse(consumed=True)
@@ -416,6 +493,134 @@ def create_app() -> FastAPI:
             },
         }
 
+    # ------------------------------------------------------------------
+    # POST /v1/resale-check: resale detection pattern analyser (Task 11)
+    # ------------------------------------------------------------------
+
+    class ResaleCheckRequest(BaseModel):
+        walletAddress: str
+        ticketId: Optional[str] = None
+
+    class ResaleCheckResponse(BaseModel):
+        flagged: bool
+        requiresAdditionalVerification: bool
+        trusted: bool
+        requestsInWindow: int
+
+    @app.post(
+        "/v1/resale-check",
+        response_model=ResaleCheckResponse,
+        status_code=status.HTTP_200_OK,
+        summary="Track resale request and determine trusted/flag status",
+        dependencies=[Depends(rate_limit_dependency)],
+    )
+    async def resale_check(
+        request: Request,
+        body: ResaleCheckRequest,
+        api_key: str = Depends(require_api_key),
+    ) -> ResaleCheckResponse:
+        from shared.utils.crypto import hash_wallet_address as _hw
+
+        user_hash = _hw(body.walletAddress)
+        async with request.app.state.session_factory() as session:
+            reputation_repo = UserReputationRepository(session)
+            analyzer = ResalePatternAnalyzer(
+                redis_client=request.app.state.redis,
+                reputation_repo=reputation_repo,
+            )
+            count = await analyzer.record_request(user_hash)
+            # record_request may have issued a core UPDATE on user_reputation
+            # via _flag_account; expire the identity map so the next read
+            # re-fetches the row and reflects the new ``flagged`` value.
+            session.expire_all()
+            record = await reputation_repo.get_or_create(user_hash)
+            # Snapshot the ORM attributes BEFORE commit + session close.
+            # SQLAlchemy's default expire_on_commit=True invalidates loaded
+            # attributes after commit and the ``async with`` block then
+            # closes the session, so any later access (outside the block)
+            # would trigger a lazy-load on a detached instance and raise
+            # DetachedInstanceError.
+            flagged = bool(record.flagged)
+            trusted = bool(record.trusted_status)
+            await session.commit()
+
+        return ResaleCheckResponse(
+            flagged=flagged,
+            requiresAdditionalVerification=flagged and not trusted,
+            trusted=trusted,
+            requestsInWindow=count,
+        )
+
+    # ------------------------------------------------------------------
+    # DELETE /v1/user-data: GDPR/CCPA data deletion endpoint (Task 22.2)
+    # ------------------------------------------------------------------
+
+    class DeleteUserDataRequest(BaseModel):
+        walletAddress: str
+
+    class DeleteUserDataResponse(BaseModel):
+        deleted: bool
+        tables: dict
+
+    @app.delete(
+        "/v1/user-data",
+        response_model=DeleteUserDataResponse,
+        status_code=status.HTTP_200_OK,
+        summary="Delete all data for the given wallet address",
+        dependencies=[Depends(rate_limit_dependency)],
+    )
+    async def delete_user_data(
+        request: Request,
+        body: DeleteUserDataRequest,
+        api_key: str = Depends(require_api_key),
+    ) -> DeleteUserDataResponse:
+        from shared.utils.crypto import hash_wallet_address as _hw
+
+        user_hash = _hw(body.walletAddress)
+        tables_deleted: dict[str, int] = {}
+
+        async with request.app.state.session_factory() as session:
+            # VerificationTokenModel also stores user_hash and must be wiped
+            # to satisfy the GDPR/CCPA "delete every row tied to this wallet"
+            # contract. Importing locally keeps the top-of-file imports lean.
+            from shared.db.models import VerificationTokenModel as _VTM
+
+            # Delete order matters: risk_scores.behavioral_data_id has a FK
+            # to behavioral_data.id with no ON DELETE action, so deleting
+            # behavioral_data first raises ForeignKeyViolation. Wipe child
+            # tables (risk_scores) before parents (behavioral_data).
+            for model in (
+                RiskScoreModel,
+                BehavioralDataModel,
+                ChallengeStateModel,
+                UserReputationModel,
+                _VTM,
+            ):
+                stmt = _sql_delete(model).where(model.user_hash == user_hash)
+                result = await session.execute(stmt)
+                tables_deleted[model.__tablename__] = int(result.rowcount or 0)
+
+            await record_access(
+                session,
+                accessor=hash_api_key(api_key),
+                operation_type="DELETE",
+                resource_type="user_data",
+                resource_id=user_hash,
+                details={"tables": tables_deleted},
+            )
+            await session.commit()
+
+        return DeleteUserDataResponse(deleted=True, tables=tables_deleted)
+
+    # ------------------------------------------------------------------
+    # GET /metrics: Prometheus scrape endpoint (Task 21.1)
+    # ------------------------------------------------------------------
+
+    @app.get("/metrics", include_in_schema=False)
+    async def metrics_endpoint(request: Request) -> Response:
+        payload, content_type = request.app.state.metrics.render()
+        return Response(content=payload, media_type=content_type)
+
     return app
 
 
@@ -480,8 +685,8 @@ async def _handle_with_fallback(
     from shared.config import settings
 
     logger.warning(
-        "Primary detection pipeline failed; using rule-based fallback",
-        event="detection_fallback",
+        "detection_fallback",
+        message="Primary detection pipeline failed; using rule-based fallback",
         error=str(original_exc),
         correlation_id=cid,
     )
@@ -497,6 +702,7 @@ async def _handle_with_fallback(
         decision = DetectionResponseDecision.allow
 
     from shared.models.types import ChallengeType
+    from shared.utils.time_utils import current_timestamp as _current_timestamp
     import uuid as _uuid
 
     if decision == DetectionResponseDecision.challenge:
@@ -512,14 +718,24 @@ async def _handle_with_fallback(
                     "challenge_type": ChallengeType.image_selection.value,
                     "session_id": body.behavioralData.sessionId,
                     "user_hash": "",
+                    # Persist the originating wallet + event so the challenge
+                    # service can bind the issued verification token to them
+                    # when the user solves the challenge. Without these the
+                    # challenge service raises HTTP 422 CHALLENGE_CONTEXT_MISSING.
+                    "wallet_address": body.behavioralData.walletAddress,
+                    "event_id": getattr(body.context, "eventId", None) if body.context else None,
                     "attempts": 0,
                     "status": "pending",
+                    # Mirrors the SETEX TTL above. Without this the challenge
+                    # service crashes with KeyError on validate_challenge and
+                    # the user can never complete the verification flow.
+                    "expires_at": _current_timestamp() + 300,
                 }),
             )
         except Exception as redis_exc:
             logger.error(
-                "Failed to store fallback challenge state in Redis",
-                event="fallback_redis_write_error",
+                "fallback_redis_write_error",
+                message="Failed to store fallback challenge state in Redis",
                 challenge_id=challenge_id,
                 session_id=body.behavioralData.sessionId,
                 error=str(redis_exc),

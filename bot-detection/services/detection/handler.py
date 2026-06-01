@@ -66,9 +66,8 @@ if not _TOKEN_SIGNING_KEY:
     if _IS_PRODUCTION:
         raise RuntimeError("TOKEN_SIGNING_KEY must be set in production environment")
     logger.warning(
-        "TOKEN_SIGNING_KEY not set, using insecure default. "
-        "Do not use in production!",
-        event="insecure_signing_key",
+        "insecure_signing_key",
+        message="TOKEN_SIGNING_KEY not set, using insecure default. Do not use in production!",
     )
     _TOKEN_SIGNING_KEY = "dev-signing-key-insecure"
 # Challenge score boundaries (mirrors challenge_engine.py)
@@ -86,9 +85,18 @@ def _generate_verification_token(
     wallet_address: str,
     event_id: Optional[str],
     max_quantity: Optional[int],
-) -> str:
+    token_id: Optional[str] = None,
+    issued_at: Optional[int] = None,
+    expires_at: Optional[int] = None,
+) -> tuple[str, str, int, int]:
     """
     Generate an HMAC-SHA256 signed verification token encoded as base64.
+
+    Returns ``(token_string, token_id, issued_at, expires_at)`` so that the
+    caller can persist the same identifier and timestamps to the database.
+    Without that, the token's embedded ``tokenId`` would not match any row
+    and ``/v1/validate-token`` / ``/v1/consume-token`` would always fail
+    with "Token not found".
 
     Token payload includes:
     - tokenId (UUID v4)
@@ -97,15 +105,13 @@ def _generate_verification_token(
     - maxQuantity
     - issuedAt (Unix timestamp seconds)
     - expiresAt (issuedAt + 5 minutes)
-
-    Returns:
-        Base64-encoded JSON token string.
     """
-    issued_at = current_timestamp()
-    expires_at = calculate_token_expires_at()
+    token_id = token_id or str(uuid.uuid4())
+    issued_at = issued_at if issued_at is not None else current_timestamp()
+    expires_at = expires_at if expires_at is not None else calculate_token_expires_at()
 
     payload = {
-        "tokenId": str(uuid.uuid4()),
+        "tokenId": token_id,
         "walletAddress": wallet_address,
         "eventId": event_id,
         "maxQuantity": max_quantity,
@@ -124,7 +130,12 @@ def _generate_verification_token(
     token_bytes = json.dumps(token_data, separators=(",", ":"), sort_keys=True).encode(
         "utf-8"
     )
-    return base64.b64encode(token_bytes).decode("utf-8")
+    return (
+        base64.b64encode(token_bytes).decode("utf-8"),
+        token_id,
+        issued_at,
+        expires_at,
+    )
 
 
 class DetectionHandler:
@@ -174,8 +185,8 @@ class DetectionHandler:
         user_hash = hash_wallet_address(wallet_address)
 
         logger.info(
-            "Detection pipeline started",
-            event="detection_start",
+            "detection_start",
+            message="Detection pipeline started",
             session_id=session_id,
             user_hash=user_hash,
             correlation_id=cid,
@@ -260,14 +271,27 @@ class DetectionHandler:
         - block  → log block event, return block response
         """
         if decision == DetectionResponseDecision.allow:
-            token = _generate_verification_token(
+            event_id = getattr(context, "eventId", None)
+            max_quantity = context.requestedQuantity
+            token, token_id, issued_at, expires_at = _generate_verification_token(
                 wallet_address=wallet_address,
-                event_id=getattr(context, "eventId", None),
-                max_quantity=context.requestedQuantity,
+                event_id=event_id,
+                max_quantity=max_quantity,
+            )
+            # Persist the token so /v1/validate-token and /v1/consume-token
+            # can look it up by id. The outer request handler commits the
+            # session after handle() returns.
+            await self.token_repo.create(
+                user_hash=user_hash,
+                event_id=event_id,
+                max_quantity=max_quantity,
+                token_id=token_id,
+                issued_at=issued_at,
+                expires_at=expires_at,
             )
             logger.info(
-                "Detection decision: allow",
-                event="detection_allow",
+                "detection_allow",
+                message="Detection decision: allow",
                 session_id=session_id,
                 user_hash=user_hash,
                 risk_score=round(score, 2),
@@ -285,20 +309,36 @@ class DetectionHandler:
 
             # Store minimal challenge state in Redis (5-minute TTL)
             redis_key = f"challenge:{challenge_id}"
+            # The challenge service reads ``wallet_address`` and ``event_id``
+            # back from this Redis blob when the user successfully completes
+            # the challenge so it can mint a verification token bound to the
+            # original wallet/event. Omitting them caused every successful
+            # challenge to fail with HTTP 422 CHALLENGE_CONTEXT_MISSING.
+            # ``expires_at`` MUST mirror the Redis SETEX TTL below: the
+            # challenge service's ``ChallengeValidator.validate_challenge``
+            # reads ``state["expires_at"]`` to gate the challenge response
+            # and to compute the remaining TTL when persisting the
+            # "completed" state. Without it every successful verify call
+            # would crash with KeyError and surface as HTTP 500 to the
+            # frontend, which then falls through to ``success: false`` and
+            # the user can never complete the challenge.
             challenge_state = {
                 "challenge_id": challenge_id,
                 "challenge_type": challenge_type.value,
                 "session_id": session_id,
                 "user_hash": user_hash,
+                "wallet_address": wallet_address,
+                "event_id": getattr(context, "eventId", None),
                 "attempts": 0,
                 "status": "pending",
+                "expires_at": current_timestamp() + 300,
             }
             try:
                 await self.redis.setex(redis_key, 300, json.dumps(challenge_state))
             except Exception as redis_exc:
                 logger.error(
-                    "Failed to store challenge state in Redis; blocking request",
-                    event="challenge_redis_write_error",
+                    "challenge_redis_write_error",
+                    message="Failed to store challenge state in Redis; blocking request",
                     challenge_id=challenge_id,
                     redis_key=redis_key,
                     session_id=session_id,
@@ -315,8 +355,8 @@ class DetectionHandler:
                 )
 
             logger.warning(
-                "Detection decision: challenge",
-                event="detection_challenge",
+                "detection_challenge",
+                message="Detection decision: challenge",
                 session_id=session_id,
                 user_hash=user_hash,
                 risk_score=round(score, 2),
@@ -333,8 +373,8 @@ class DetectionHandler:
 
         else:  # block
             logger.error(
-                "Detection decision: block",
-                event="detection_block",
+                "detection_block",
+                message="Detection decision: block",
                 session_id=session_id,
                 user_hash=user_hash,
                 risk_score=round(score, 2),

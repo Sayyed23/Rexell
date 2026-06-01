@@ -11,6 +11,8 @@ import { toast } from "sonner";
 import { formatEther } from "viem";
 import { aiModeService, EnforcementAction } from "@/lib/ai/ai-mode";
 import { aiLogger } from "@/lib/ai/logger";
+import { useGuardedPurchase } from "@/lib/bot-detection/useGuardedPurchase";
+import { BotChallengeModal } from "@/components/AI/BotChallengeModal";
 
 interface ResaleTicket {
   tokenId: number;
@@ -32,6 +34,16 @@ export default function BuyResaleTicketPage() {
   const [ticket, setTicket] = useState<ResaleTicket | null>(null);
   const [loading, setLoading] = useState(true);
   const [isPurchasing, setIsPurchasing] = useState(false);
+
+  // Bot-detection guard — collects behavioural telemetry while the user
+  // browses and runs POST /v1/detect before each resale purchase.
+  const {
+    runGuard,
+    consumeToken: consumeBotToken,
+    pendingChallenge,
+    verifyChallenge,
+    cancelChallenge,
+  } = useGuardedPurchase({ walletAddress: address });
 
   // Get resale request details
   const { data: resaleRequest, isPending: isResaleRequestPending } = useReadContract({
@@ -106,6 +118,16 @@ export default function BuyResaleTicketPage() {
         }
       }
 
+      // Server-side bot-detection guard. Resales are particularly
+      // scalper-prone, so we always run /v1/detect with action=resale.
+      const guard = await runGuard({
+        action: "resale",
+        eventId: id,
+      });
+      if (!guard.proceed) {
+        return;
+      }
+
       setIsPurchasing(true);
 
       const priceInWei = BigInt(Math.floor(ticket.price * 1e18));
@@ -121,6 +143,13 @@ export default function BuyResaleTicketPage() {
         if (address && ticket) {
           aiModeService.recordPurchase(address, ticket.eventId);
           aiLogger.log('resale_success', address, ticket.eventId, { ticketId: ticket.tokenId, txHash: hash });
+        }
+        // Use the local guard token directly. setState would be stale here
+        // because React schedules updates for the next render.
+        if (guard.verificationToken) {
+          consumeBotToken(guard.verificationToken, hash).catch(
+            () => undefined,
+          );
         }
         toast.success("Ticket purchased successfully!");
         setTimeout(() => {
@@ -296,6 +325,22 @@ export default function BuyResaleTicketPage() {
           </CardContent>
         </Card>
       </div>
+      <BotChallengeModal
+        challenge={pendingChallenge}
+        onConfirm={async () => {
+          // POST /v1/verify-challenge → on success the hook primes a
+          // verification token so the next runGuard short-circuits
+          // detection (otherwise we'd re-trigger the same challenge
+          // and loop forever).
+          const ok = await verifyChallenge({ confirmed: true });
+          if (ok) {
+            toast(
+              "Verification accepted. Click Buy again to complete the purchase.",
+            );
+          }
+        }}
+        onCancel={cancelChallenge}
+      />
     </div>
   );
 }

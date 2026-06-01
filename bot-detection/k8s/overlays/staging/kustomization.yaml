@@ -1,0 +1,13 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: bot-detection-staging
+resources:
+  - ../../base
+patches:
+  - target:
+      kind: HorizontalPodAutoscaler
+      name: detection
+    patch: |-
+      - op: replace
+        path: /spec/maxReplicas
+        value: 6

@@ -1,0 +1,16 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - secrets.yaml
+  - postgres.yaml
+  - redis.yaml
+  - rabbitmq.yaml
+  - minio.yaml
+  - detection.yaml
+  - challenge.yaml
+  - inference.yaml
+  - training-cronjob.yaml
+  - retention-cronjob.yaml
+  - archival-cronjob.yaml

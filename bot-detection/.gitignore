@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.venv/
+.pytest_cache/
+.mypy_cache/
+
+# JS / SDK
+sdk/node_modules/
+sdk/dist/
+
+# Local env
+.env
+.env.*

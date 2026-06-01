@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: challenge
+  namespace: bot-detection
+  labels:
+    app: challenge
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: challenge
+  template:
+    metadata:
+      labels:
+        app: challenge
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8001"
+    spec:
+      containers:
+        - name: challenge
+          image: ghcr.io/rexell/bot-detection-challenge:latest
+          ports:
+            - containerPort: 8001
+          envFrom:
+            - configMapRef:
+                name: bot-detection-config
+            - secretRef:
+                name: bot-detection-secrets
+          readinessProbe:
+            httpGet:
+              path: /v1/health
+              port: 8001
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /v1/health
+              port: 8001
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: challenge
+  namespace: bot-detection
+spec:
+  selector:
+    app: challenge
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8001

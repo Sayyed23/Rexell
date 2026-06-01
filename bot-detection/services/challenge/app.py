@@ -25,6 +25,7 @@ from typing import Optional
 
 import redis.asyncio as aioredis
 from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from .auth import require_api_key
@@ -66,28 +67,28 @@ def _generate_verification_token(
     wallet_address: str,
     event_id: Optional[str],
     max_quantity: Optional[int],
-) -> str:
+    token_id: Optional[str] = None,
+    issued_at: Optional[int] = None,
+    expires_at: Optional[int] = None,
+) -> tuple[str, str, int, int]:
     """
     Generate an HMAC-SHA256 signed verification token encoded as base64.
 
-    Token payload includes:
-    - tokenId (UUID v4)
-    - walletAddress
-    - eventId
-    - maxQuantity
-    - issuedAt (Unix timestamp seconds)
-    - expiresAt (issuedAt + 5 minutes)
+    Returns ``(token_string, token_id, issued_at, expires_at)`` so the caller
+    can persist the same identifier and timestamps to the database. Without
+    that, the embedded ``tokenId`` would not match any row and downstream
+    ``/v1/validate-token`` / ``/v1/consume-token`` calls would always fail.
 
     Requirements: 5.4, 5.5
-
-    Returns:
-        Base64-encoded JSON token string.
     """
-    issued_at = current_timestamp()
-    expires_at = calculate_token_expires_at()
+    token_id = token_id or str(uuid.uuid4())
+    issued_at = issued_at if issued_at is not None else current_timestamp()
+    expires_at = (
+        expires_at if expires_at is not None else calculate_token_expires_at()
+    )
 
     payload = {
-        "tokenId": str(uuid.uuid4()),
+        "tokenId": token_id,
         "walletAddress": wallet_address,
         "eventId": event_id,
         "maxQuantity": max_quantity,
@@ -106,7 +107,12 @@ def _generate_verification_token(
     token_bytes = json.dumps(
         token_data, separators=(",", ":"), sort_keys=True
     ).encode("utf-8")
-    return base64.b64encode(token_bytes).decode("utf-8")
+    return (
+        base64.b64encode(token_bytes).decode("utf-8"),
+        token_id,
+        issued_at,
+        expires_at,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -182,6 +188,27 @@ def create_app() -> FastAPI:
         version="1.0.0",
         description="Adaptive verification challenge validation for the Rexell ticketing platform",
         lifespan=lifespan,
+    )
+
+    # ------------------------------------------------------------------
+    # Middleware: CORS — must expose ``X-Verification-Token`` so the
+    # frontend's ``fetch`` can read the response header it relies on to
+    # short-circuit re-detection. Without this, browsers strip non-
+    # safelisted response headers from cross-origin reads and the
+    # verification flow loops indefinitely (the JS sees the header as
+    # null even on a successful 200).
+    # ------------------------------------------------------------------
+    cors_origins = os.getenv(
+        "CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000"
+    ).split(",")
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[o.strip() for o in cors_origins],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+        expose_headers=["X-Verification-Token"],
     )
 
     # ------------------------------------------------------------------
@@ -345,19 +372,24 @@ def create_app() -> FastAPI:
                         "message": "Challenge context is no longer available. Please restart the flow.",
                     },
                 )
-            token = _generate_verification_token(
+            token, token_id, issued_at, expires_at = _generate_verification_token(
                 wallet_address=wallet_address,
                 event_id=event_id,
                 max_quantity=None,
             )
 
-            # Persist token record to PostgreSQL
+            # Persist token record to PostgreSQL using the SAME token_id /
+            # timestamps embedded in the signed token, so /v1/validate-token
+            # and /v1/consume-token can look the row up by id.
             async with request.app.state.session_factory() as session:
                 token_repo = VerificationTokenRepository(session)
                 user_hash = hash_wallet_address(wallet_address) if wallet_address else ""
                 await token_repo.create(
                     user_hash=user_hash,
                     event_id=event_id,
+                    token_id=token_id,
+                    issued_at=issued_at,
+                    expires_at=expires_at,
                 )
                 await session.commit()
 

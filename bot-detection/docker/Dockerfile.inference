@@ -1,0 +1,21 @@
+# syntax=docker/dockerfile:1.6
+FROM python:3.11-slim AS builder
+WORKDIR /app
+COPY services/inference/requirements.txt services/inference/requirements.txt
+RUN pip install --upgrade pip && \
+    pip install --prefix=/install -r services/inference/requirements.txt
+
+FROM python:3.11-slim AS runtime
+WORKDIR /app
+RUN apt-get update && apt-get install -y --no-install-recommends libgomp1 && \
+    rm -rf /var/lib/apt/lists/* && \
+    useradd --create-home --shell /bin/bash rexell
+COPY --from=builder /install /usr/local
+COPY services /app/services
+
+ENV PYTHONPATH=/app/services/shared/src \
+    PYTHONUNBUFFERED=1
+USER rexell
+
+EXPOSE 8080
+CMD ["uvicorn", "services.inference.handler:app", "--host", "0.0.0.0", "--port", "8080"]

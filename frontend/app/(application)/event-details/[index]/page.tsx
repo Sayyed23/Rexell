@@ -26,6 +26,8 @@ import Comment from "@/components/Comment";
 import { celoSepolia } from '@/lib/celoSepolia';
 import { aiModeService, EnforcementAction } from "@/lib/ai/ai-mode";
 import { aiLogger } from "@/lib/ai/logger";
+import { useGuardedPurchase } from "@/lib/bot-detection/useGuardedPurchase";
+import { BotChallengeModal } from "@/components/AI/BotChallengeModal";
 
 interface EventComment {
   commenter: string;
@@ -55,6 +57,17 @@ export default function EventDetailsPage({
   const [showStar, setShowStar] = useState(false);
   // Add state for ticket quantity
   const [ticketQuantity, setTicketQuantity] = useState(1);
+
+  // Bot-detection guard (boots the behavioural tracker as soon as a wallet
+  // is connected; runs POST /v1/detect before each purchase; gracefully
+  // degrades when the backend is unreachable).
+  const {
+    runGuard,
+    consumeToken: consumeBotToken,
+    pendingChallenge,
+    verifyChallenge,
+    cancelChallenge,
+  } = useGuardedPurchase({ walletAddress: address });
 
   const {
     data: eventData,
@@ -196,6 +209,24 @@ export default function EventDetailsPage({
     }
     // ---------------------------
 
+    // --- Server-side bot-detection guard (POST /v1/detect) ---
+    // Behavioural data is collected by useBotDetection() while the user
+    // browses; we ship it to the detection service before the contract
+    // write. The helper falls back to "allow" if the backend is offline.
+    const guard = await runGuard({
+      action: ticketQuantity > 1 ? "buyTickets" : "buyTicket",
+      quantity: ticketQuantity,
+      eventId: String(params.index),
+    });
+    if (!guard.proceed) {
+      // Either decision === 'block' (toast already shown) or
+      // decision === 'challenge' (modal mounted via pendingChallenge).
+      return;
+    }
+    // The verification token is read directly from `guard` below — using
+    // React state here would be stale within this same async handler.
+    // -----------------------------------------------------------
+
     try {
       setProcessing(true);
 
@@ -290,6 +321,11 @@ export default function EventDetailsPage({
             });
 
             if (hash) {
+              if (guard.verificationToken) {
+                consumeBotToken(guard.verificationToken, hash).catch(
+                  () => undefined,
+                );
+              }
               toast("Ticket NFTs minted! Redirecting...");
               setIsUploading(false);
               router.push(`/my-tickets`);
@@ -367,6 +403,11 @@ export default function EventDetailsPage({
               if (address) {
                 aiModeService.recordPurchase(address, Number(params.index));
                 aiLogger.log('purchase_success', address, Number(params.index), { txHash: hash, quantity: ticketQuantity });
+              }
+              if (guard.verificationToken) {
+                consumeBotToken(guard.verificationToken, hash).catch(
+                  () => undefined,
+                );
               }
 
               toast("Ticket NFT minted! Redirecting...");
@@ -661,6 +702,24 @@ export default function EventDetailsPage({
           </section>
         </>
       )}
+      <BotChallengeModal
+        challenge={pendingChallenge}
+        onConfirm={async () => {
+          // POST /v1/verify-challenge with the user's confirmation.
+          // On success the hook stores the verification token returned
+          // by the challenge service in a one-shot ref; the next
+          // runGuard call returns it directly instead of re-running
+          // detection (which would otherwise see the same elevated
+          // risk score and re-issue a challenge → infinite loop).
+          const ok = await verifyChallenge({ confirmed: true });
+          if (ok) {
+            toast(
+              "Verification accepted. Click Buy again to complete the purchase.",
+            );
+          }
+        }}
+        onCancel={cancelChallenge}
+      />
     </main>
   );
 }

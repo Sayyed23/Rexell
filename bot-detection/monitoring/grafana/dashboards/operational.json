@@ -1,0 +1,39 @@
+{
+  "title": "Rexell Bot Detection — Operational",
+  "timezone": "browser",
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Request volume (by decision)",
+      "targets": [
+        {
+          "expr": "sum by (decision) (rate(bot_detection_requests_total[1m]))",
+          "legendFormat": "{{decision}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Error rate (5m)",
+      "targets": [
+        {
+          "expr": "sum(rate(bot_detection_errors_total[5m])) / clamp_min(sum(rate(bot_detection_requests_total[5m])), 1)"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Latency p50/p95/p99",
+      "targets": [
+        {"expr": "histogram_quantile(0.50, sum by (le) (rate(bot_detection_latency_seconds_bucket[5m])))", "legendFormat": "p50"},
+        {"expr": "histogram_quantile(0.95, sum by (le) (rate(bot_detection_latency_seconds_bucket[5m])))", "legendFormat": "p95"},
+        {"expr": "histogram_quantile(0.99, sum by (le) (rate(bot_detection_latency_seconds_bucket[5m])))", "legendFormat": "p99"}
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Fallback mode",
+      "targets": [{"expr": "max(fallback_mode_active)"}]
+    }
+  ]
+}

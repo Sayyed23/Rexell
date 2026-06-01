@@ -6,9 +6,9 @@ import {
 } from "@rainbow-me/rainbowkit";
 import { metaMaskWallet } from "@rainbow-me/rainbowkit/wallets";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { WagmiProvider, createConfig, http } from "wagmi";
+import { WagmiProvider, createConfig, fallback, http } from "wagmi";
 import { celo, hardhat } from "wagmi/chains";
-import { celoSepolia } from "@/lib/celoSepolia";
+import { celoSepolia, CELO_SEPOLIA_RPC_URLS } from "@/lib/celoSepolia";
 
 const connectors = connectorsForWallets(
   [
@@ -25,16 +25,29 @@ const connectors = connectorsForWallets(
   },
 );
 
+// Build a fallback transport over every Celo Sepolia RPC so viem rotates to
+// the next endpoint when one returns 429 / 5xx (e.g. "RPC endpoint returned
+// too many errors"). `rank` keeps the fastest healthy node at the top.
+const celoSepoliaTransport = fallback(
+  CELO_SEPOLIA_RPC_URLS.map((url) =>
+    http(url, {
+      retryCount: 3,
+      retryDelay: 1500,
+      timeout: 20_000,
+    }),
+  ),
+  { rank: true, retryCount: 2 },
+);
+
 const config = createConfig({
   connectors,
-  // chains: [celoAlfajores],
   chains: [celo, celoSepolia, hardhat],
   transports: {
     [celo.id]: http(),
-    [celoSepolia.id]: http(),
+    [celoSepolia.id]: celoSepoliaTransport,
     [hardhat.id]: http("http://127.0.0.1:8545"),
   },
-  multiInjectedProviderDiscovery: false, // This can help with MetaMask connection issues
+  multiInjectedProviderDiscovery: false,
 });
 
 export function BlockchainProviders({
