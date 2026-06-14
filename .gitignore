@@ -1,17 +1,37 @@
-node_modules
-.env
+# Dependencies
+node_modules/
 
-# Hardhat files
+# Environment
+.env
+.env.local
+
+# Hardhat
 /cache
 /artifacts
 
-# TypeChain files
+# TypeChain
 /typechain
 /typechain-types
 
-# solidity-coverage files
+# Solidity coverage
 /coverage
 /coverage.json
 
-# Hardhat Ignition default folder for deployments against a local node
+# Hardhat Ignition local-chain deployments
 ignition/deployments/chain-31337
+
+# Build / synth artefacts
+**/cdk.out/
+**/dist/
+**/.next/
+**/.turbo/
+
+# Editor / OS junk
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Stray agent scratch files
+tmpclaude-*
+deploy_output.txt
