@@ -11,6 +11,7 @@
 
 - [About the Project](#about-the-project)
 - [High-Level Architecture](#high-level-architecture)
+- [Detailed System Diagrams (Deployment, ER, Class)](file:///d:/Rexell/SYSTEM_DIAGRAMS.md)
 - [Frontend](#-frontend)
 - [Blockchain / Smart Contracts](#-blockchain--smart-contracts)
 - [AI / ML Anti-Scalping Engine](#-aiml-anti-scalping-engine)
@@ -135,6 +136,12 @@ graph TB
     RC --> Celoscan
     CNN -.->|Training Data| BD
 ```
+
+> 💡 **Detailed System Diagrams**: For modular and highly detailed system views, refer to the dedicated [SYSTEM_DIAGRAMS.md](file:///d:/Rexell/SYSTEM_DIAGRAMS.md) document containing:
+> - **Deployment Diagram**: Visualizes the client browser, Vercel frontend, and Python-based K8s microservices, alongside the Celo blockchain network nodes.
+> - **Entity-Relationship (ER) Diagram**: Connects PostgreSQL behavioral database schemas directly with Solidity smart contract storage schemas.
+> - **Class Diagram**: Highlights classes for Python/FastAPI backend components, browser telemetry SDK, and smart contracts.
+> - **End-to-End Sequence Diagram**: Details flow of interactive challenges, signatures, token issuance, and ticket minting.
 
 ---
 

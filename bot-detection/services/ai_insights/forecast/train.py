@@ -37,7 +37,15 @@ def main() -> None:
     args = parser.parse_args()
 
     import numpy as np
-    import tensorflow as tf
+    
+    # Try importing TensorFlow lazily so that environments without compiled wheels
+    # (e.g. Python 3.14 on Windows) can still run the script in stats-only fallback mode.
+    try:
+        import tensorflow as tf
+        has_tf = True
+    except (ImportError, ModuleNotFoundError):
+        tf = None
+        has_tf = False
 
     out_dir = Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -67,6 +75,14 @@ def main() -> None:
     span = (hi - lo) or 1.0
     with open(out_dir / settings.SCALER_FILE, "w") as fh:
         json.dump({"min": lo, "max": hi}, fh, indent=2)
+    print(f"Saved scaler -> {out_dir / settings.SCALER_FILE}")
+
+    if not has_tf:
+        print("\n[!] WARNING: TensorFlow is not available/compatible with this environment.")
+        print("[!] Pre-compiled TensorFlow wheels are not yet available on PyPI for Python 3.14+ on Windows.")
+        print("[!] Successfully generated baseline metrics (event_stats.json & resale_scaler.json) in stats-only mode.")
+        print("[!] Gracefully exiting (LSTM model training skipped).\n")
+        return
 
     Xs = (X_arr - lo) / span
     ys = (y_arr - lo) / span
@@ -94,7 +110,6 @@ def main() -> None:
     model_path = out_dir / settings.LSTM_MODEL_FILE
     model.save(str(model_path))
     print(f"Saved model -> {model_path}")
-    print(f"Saved scaler -> {out_dir / settings.SCALER_FILE}")
 
 
 if __name__ == "__main__":

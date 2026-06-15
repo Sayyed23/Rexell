@@ -26,6 +26,39 @@ _PROMPT_TEMPLATE = (
 )
 
 
+def _get_active_ollama_model() -> Optional[str]:
+    """Check Ollama local API to see if the requested model is available,
+    falling back dynamically to other pulled models if needed."""
+    try:
+        import httpx
+        resp = httpx.get(f"{settings.OLLAMA_BASE_URL.rstrip('/')}/api/tags", timeout=2.0)
+        if resp.status_code == 200:
+            models_info = resp.json().get("models", [])
+            pulled_names = {m["name"] for m in models_info}
+            # 1. Prefer the configured model if pulled
+            target = settings.OLLAMA_MODEL
+            if target in pulled_names:
+                return target
+            if f"{target}:latest" in pulled_names:
+                return f"{target}:latest"
+            
+            # 2. Dynamic fallbacks among already pulled models
+            fallbacks = ["qwen2.5-coder:7b", "llama3.2:1b", "aya:8b"]
+            for f in fallbacks:
+                if f in pulled_names:
+                    logger.info("Ollama target model not fully pulled yet, falling back", evt="ollama_model_fallback", target=target, chosen=f)
+                    return f
+            
+            # 3. If any model is pulled, use the first one
+            if models_info:
+                chosen = models_info[0]["name"]
+                logger.info("Using first available Ollama model", evt="ollama_first_model", chosen=chosen)
+                return chosen
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Failed to query Ollama local API tags for fallback checks", evt="ollama_tags_query_failed", error=str(exc))
+    return settings.OLLAMA_MODEL
+
+
 class RAGEngine:
     def __init__(self) -> None:
         self.index = DocumentIndex()
@@ -64,6 +97,28 @@ class RAGEngine:
 
     # ------------------------------------------------------------------
     def _llm_answer(self, question: str, context: str) -> Optional[str]:
+        # 1. Try local Ollama via LangChain first
+        try:
+            from langchain_ollama import OllamaLLM
+
+            # Check if target model is ready, or use a dynamic fallback if download is in progress
+            active_model = _get_active_ollama_model()
+            prompt = _PROMPT_TEMPLATE.format(context=context[:4000], question=question)
+            
+            # Initialize local Ollama model
+            llm = OllamaLLM(
+                base_url=settings.OLLAMA_BASE_URL,
+                model=active_model,
+                timeout=30.0,
+            )
+            response = llm.invoke(prompt)
+            if response and response.strip():
+                logger.info("Answered query using local Ollama", evt="rag_ollama_success", model=active_model)
+                return response.strip()
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Local Ollama query failed; trying HuggingFace / extractive fallbacks", evt="rag_ollama_failed", error=str(exc))
+
+        # 2. Try Hugging Face Inference API as fallback
         token = settings.HUGGINGFACEHUB_API_TOKEN
         if not token:
             return None

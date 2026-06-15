@@ -51,6 +51,10 @@ class Settings:
         "AI_INSIGHTS_RAG_EMBED_MODEL", "sentence-transformers/all-MiniLM-L6-v2"
     )
 
+    # Ollama
+    OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+    OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "mistral")
+
     @property
     def valid_api_keys(self) -> set:
         keys: set = set()

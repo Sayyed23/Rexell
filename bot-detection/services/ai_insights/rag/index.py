@@ -69,7 +69,8 @@ class DocumentIndex:
     def __init__(self) -> None:
         self.chunks: List[str] = []
         self.sources: List[str] = []
-        self._embeddings = None  # numpy array when embedding backend available
+        self.vector_store = None  # LangChain FAISS instance when available
+        self._embeddings = None  # legacy numpy array when embedding backend available
         self._embedder = None
 
     # ------------------------------------------------------------------
@@ -112,6 +113,26 @@ class DocumentIndex:
     def _try_embed(self) -> None:
         if not self.chunks:
             return
+
+        # 1. Try LangChain + FAISS + HuggingFaceEmbeddings first
+        try:
+            from langchain_community.embeddings import HuggingFaceEmbeddings
+            from langchain_community.vectorstores import FAISS
+            from langchain_core.documents import Document
+
+            documents = [
+                Document(page_content=chunk, metadata={"source": source})
+                for chunk, source in zip(self.chunks, self.sources)
+            ]
+            embeddings = HuggingFaceEmbeddings(model_name=settings.RAG_EMBED_MODEL)
+            self.vector_store = FAISS.from_documents(documents, embeddings)
+            logger.info("Computed RAG embeddings using LangChain + FAISS", evt="rag_langchain_embeddings_ready")
+            return
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("LangChain + FAISS vector store unavailable, trying legacy dense embeddings", evt="rag_langchain_fallback", error=str(exc))
+            self.vector_store = None
+
+        # 2. Try legacy sentence_transformers fallback
         try:
             # pyrefly: ignore [missing-import]
             from sentence_transformers import SentenceTransformer  # lazy, heavy
@@ -122,7 +143,7 @@ class DocumentIndex:
                 self._embedder.encode(self.chunks, normalize_embeddings=True),
                 dtype="float32",
             )
-            logger.info("Computed RAG embeddings", evt="rag_embeddings_ready", dim=self._embeddings.shape[1])
+            logger.info("Computed RAG embeddings using legacy backend", evt="rag_embeddings_ready", dim=self._embeddings.shape[1])
         except Exception as exc:  # noqa: BLE001
             logger.warning("Embedding backend unavailable; keyword retrieval active", evt="rag_embed_fallback", error=str(exc))
             self._embedder = None
@@ -133,6 +154,21 @@ class DocumentIndex:
         """Return up to ``k`` (chunk, source, score) tuples for the query."""
         if not self.chunks:
             return []
+
+        # Use LangChain FAISS retrieval if available
+        if self.vector_store is not None:
+            try:
+                # FAISS similarity search returns Tuple[Document, float] (where float is distance or relevance score)
+                docs_and_scores = self.vector_store.similarity_search_with_relevance_scores(query, k=k)
+                results = []
+                for doc, score in docs_and_scores:
+                    source = doc.metadata.get("source", "unknown")
+                    # If score is below 0, replace with 0.0
+                    results.append((doc.page_content, source, max(0.0, float(score))))
+                return results
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("LangChain similarity search failed, falling back to legacy/keyword retrieval", evt="rag_langchain_retrieve_failed", error=str(exc))
+
         if self._embedder is not None and self._embeddings is not None:
             return self._retrieve_dense(query, k)
         return self._retrieve_keyword(query, k)
@@ -163,4 +199,6 @@ class DocumentIndex:
 
     @property
     def backend(self) -> str:
+        if self.vector_store is not None:
+            return "langchain_faiss"
         return "embeddings" if self._embeddings is not None else "keyword"

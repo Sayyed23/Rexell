@@ -15,3 +15,11 @@ pytest>=8.1.1
 # tensorflow-cpu==2.16.1
 # sentence-transformers==2.7.0
 
+# --- LangChain & RAG Dependencies ---
+langchain>=0.1.0
+langchain-community>=0.0.10
+langchain-ollama>=0.1.0
+faiss-cpu>=1.7.4
+sentence-transformers>=2.7.0
+
+
