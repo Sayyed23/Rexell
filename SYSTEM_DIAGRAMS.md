@@ -94,6 +94,23 @@ flowchart TB
     Prometheus -->|scrape metrics| Inf_Service
     Prometheus -->|scrape metrics| Chal_Service
     Grafana -->|query metric metrics| Prometheus
+
+    %% Style classes
+    classDef client fill:#e0f2fe,stroke:#0284c7,stroke-width:2px,color:#0369a1;
+    classDef server fill:#f3e8ff,stroke:#7c3aed,stroke-width:2px,color:#6d28d9;
+    classDef stateful fill:#fef3c7,stroke:#d97706,stroke-width:2px,color:#b45309;
+    classDef blockchain fill:#dcfce7,stroke:#15803d,stroke-width:2px,color:#166534;
+    classDef monitor fill:#fee2e2,stroke:#dc2626,stroke-width:2px,color:#991b1b;
+
+    class FE_Code,SDK,Wallet,Local_Store client;
+    class Next_Server,Ingress,Det_Service,Inf_Service,Chal_Service,Train_Job server;
+    class Postgres,Redis,RabbitMQ,MinIO stateful;
+    class RPC_Node,Rexell_Contract,SIdentity_Contract,cUSD_Contract blockchain;
+    class Prometheus,Grafana monitor;
+
+    linkStyle default stroke:#64748b,stroke-width:1px;
+    linkStyle 0,1,10,11 stroke:#0284c7,stroke-dasharray: 5 5,stroke-width:2px;
+    linkStyle 2,16 stroke:#15803d,stroke-width:2px;
 ```
 
 > [!NOTE]
@@ -256,6 +273,55 @@ The class diagram maps the programmatic components of the system, divided into c
 
 ```mermaid
 classDiagram
+    %% OpenZeppelin and Base contracts
+    class ERC721 {
+        +transferFrom(address from, address to, uint256 tokenId) void
+        +ownerOf(uint256 tokenId) address
+        +balanceOf(address owner) uint256
+    }
+    class ERC721URIStorage {
+        +tokenURI(uint256 tokenId) string
+        #_setTokenURI(uint256 tokenId, string uri) void
+    }
+    class Ownable {
+        +owner() address
+        +transferOwnership(address newOwner) void
+        +onlyOwner() modifier
+    }
+    class ReentrancyGuard {
+        #nonReentrant() modifier
+    }
+
+    %% Smart Contracts (Solidity)
+    class Rexell {
+        +IERC20 cUSDToken
+        +SoulboundIdentity identityContract
+        +uint256 royaltyPercent
+        +uint256 nextEventId
+        +uint256 nextTicketId
+        +mapping verifiedResellers
+        +mapping resaleRequests
+        +createEvent(string name, string venue, uint price, uint ticketsAvailable, string ipfs) void
+        +buyTicket(uint eventId, string nftUri) void
+        +buyTickets(uint eventId, string[] nftUris, uint quantity) void
+        +requestResaleVerification(uint256 tokenId, uint256 price) void
+        +approveResale(uint256 tokenId) void
+        +buyResaleTicket(uint256 tokenId, uint256 maxPrice) void
+        +cancelTicket(uint256 tokenId) void
+    }
+
+    class SoulboundIdentity {
+        +mapping userToIdentity
+        +mapping verificationScores
+        +mapping kycTimestamps
+        +mintIdentity(address user, uint256 score) void
+        +updateScore(address user, uint256 newScore) void
+        +burnIdentity(address user) void
+        +hasValidIdentity(address user) bool
+        +getIdentityDetails(address user) tuple
+        -beforeTokenTransfer(address from, address to, uint256 tokenId) void
+    }
+
     %% Browser SDK & In-Browser AI classes
     class BehavioralTracker {
         -circularBuffer events
@@ -271,10 +337,10 @@ classDiagram
     class BotDetectionClient {
         -string apiUrl
         -string apiKey
-        +detect(wallet, behavioralData) Promise
-        +verifyChallenge(challengeId, proof) Promise
-        +consumeToken(token) Promise
-        +checkResale(wallet, tokenId) Promise
+        +detect(string wallet, object behavioralData) Promise
+        +verifyChallenge(string challengeId, object proof) Promise
+        +consumeToken(string token) Promise
+        +checkResale(string wallet, uint256 tokenId) Promise
     }
 
     class AIModeService {
@@ -283,17 +349,17 @@ classDiagram
         -ScalpingDetector scalpingDetector
         -RiskEvaluationAgent riskAgent
         -PolicyEnforcementAgent policyAgent
-        +assessRisk(wallet, eventId) RiskAssessment
-        +recordPurchase(wallet, eventId) void
+        +assessRisk(string wallet, number eventId) RiskAssessment
+        +recordPurchase(string wallet, number eventId) void
         -loadHistory() void
     }
 
     class RiskEvaluationAgent {
-        +evaluate(botScore, scalpingScore) RiskEvaluation
+        +evaluate(number botScore, number scalpingScore) RiskEvaluation
     }
 
     class PolicyEnforcementAgent {
-        +decide(evaluation) DecisionResponse
+        +decide(RiskEvaluation evaluation) DecisionResponse
     }
 
     %% Backend FastAPI Services
@@ -324,42 +390,23 @@ classDiagram
         +applyFallbackLimits(wallet) boolean
     }
 
-    %% Smart Contracts
-    class Rexell {
-        +IERC20 cUSDToken
-        +SoulboundIdentity identityContract
-        +uint256 royaltyPercent
-        +uint256 nextEventId
-        +uint256 nextTicketId
-        +mapping verifiedResellers
-        +mapping resaleRequests
-        +createEvent(name, venue, price, ticketsAvailable, ipfs) void
-        +buyTicket(eventId, nftUri) void
-        +buyTickets(eventId, nftUris, quantity) void
-        +requestResaleVerification(tokenId, price) void
-        +approveResale(tokenId) void
-        +buyResaleTicket(tokenId, maxPrice) void
-        +cancelTicket(tokenId) void
-    }
+    %% Inheritance Relations
+    ERC721URIStorage --|> ERC721
+    Rexell --|> ERC721URIStorage
+    Rexell --|> Ownable
+    Rexell --|> ReentrancyGuard
+    SoulboundIdentity --|> ERC721
+    SoulboundIdentity --|> Ownable
 
-    class SoulboundIdentity {
-        +mapping userToIdentity
-        +mapping verificationScores
-        +mapping kycTimestamps
-        +mintIdentity(user, score) void
-        +updateScore(user, newScore) void
-        +burnIdentity(user) void
-        +hasValidIdentity(user) bool
-        +getIdentityDetails(user) tuple
-        -beforeTokenTransfer(from, to, tokenId) void
-    }
-
-    %% Relationships
-    BotDetectionClient --> DetectionService : "sends HTTP telemetry"
-    AIModeService --> RiskEvaluationAgent : "orchestrates"
-    AIModeService --> PolicyEnforcementAgent : "enforces"
-    DetectionService --> InferenceService : "requests XGBoost risk score"
-    DetectionService --> ChallengeService : "delegates MFA challenges"
+    %% Associations and Dependencies
+    AIModeService *-- BotDetector
+    AIModeService *-- ScalpingDetector
+    AIModeService *-- RiskEvaluationAgent
+    AIModeService *-- PolicyEnforcementAgent
+    
+    BotDetectionClient ..> DetectionService : "sends HTTP telemetry"
+    DetectionService ..> InferenceService : "requests XGBoost risk score"
+    DetectionService ..> ChallengeService : "delegates MFA challenges"
     DetectionService ..> FallbackController : "uses for active defense"
     
     %% Contract connections
