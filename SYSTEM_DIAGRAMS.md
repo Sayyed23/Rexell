@@ -12,52 +12,52 @@ The deployment diagram illustrates the physical topology of the Rexell platform,
 flowchart TB
     subgraph ClientSpace["🖥️ Client Environment (User's Web Browser)"]
         subgraph Browser["Web Browser"]
-            FE_Code["React Client-Side SPA\n(Next.js 14 App Router)"]
-            SDK["Behavioral SDK Tracker\n(Circular telemetry buffer)"]
-            Wallet["Web3 Wallet\n(MetaMask / RainbowKit)"]
-            Local_Store[("Browser LocalStorage\n(Client AI logs & history)")]
+            FE_Code["React Client-Side SPA <br/> (Next.js 14 App Router)"]
+            SDK["Behavioral SDK Tracker <br/> (Circular telemetry buffer)"]
+            Wallet["Web3 Wallet <br/> (MetaMask / RainbowKit)"]
+            Local_Store[(Browser LocalStorage <br/> Client AI logs and history)]
         end
     end
 
     subgraph CDN["☁️ Edge Delivery Network (Vercel)"]
-        Next_Server["Next.js Node.js Server\n(SSR / ISR & API Gateway routes)"]
+        Next_Server["Next.js Node.js Server <br/> (SSR / ISR and API Gateway routes)"]
     end
 
     subgraph IPFS["💾 Decentralized File System"]
-        Pinata["Pinata Cloud Gateway / IPFS\n(Event assets & NFT JSON metadata)"]
+        Pinata["Pinata Cloud Gateway / IPFS <br/> (Event assets and NFT JSON metadata)"]
     end
 
     subgraph BlockchainNetwork["⛓️ Celo EVM Network (Sepolia / Mainnet)"]
-        RPC_Node["Celo RPC Node / Gateway\n(drpc.org / forno)"]
+        RPC_Node["Celo RPC Node / Gateway <br/> (drpc.org / forno)"]
         
         subgraph Contracts["Smart Contracts"]
-            Rexell_Contract["Rexell.sol\n(ERC-721 Tickets & Marketplace)"]
-            SIdentity_Contract["SoulboundIdentity.sol\n(Non-transferable KYC & trust scores)"]
-            cUSD_Contract["cUSD Stablecoin\n(ERC-20 payment ledger)"]
+            Rexell_Contract["Rexell.sol <br/> (ERC-721 Tickets and Marketplace)"]
+            SIdentity_Contract["SoulboundIdentity.sol <br/> (Non-transferable KYC and trust scores)"]
+            cUSD_Contract["cUSD Stablecoin <br/> (ERC-20 payment ledger)"]
         end
     end
 
     subgraph ServerSpace["🐳 Server Infrastructure (Kubernetes Cluster)"]
-        Ingress["Kubernetes Ingress Controller\n(TLS termination & routing)"]
+        Ingress["Kubernetes Ingress Controller <br/> (TLS termination and routing)"]
 
         subgraph AISM["AI & Bot Detection Services (FastAPI Pods)"]
-            Det_Service["Detection Service Pod\n(Port 8000 /v1/detect)"]
-            Inf_Service["Inference Service Pod\n(Port 8080 XGBoost engine)"]
-            Chal_Service["Challenge Service Pod\n(Port 8001 /v1/challenge)"]
-            Train_Job["Monthly Retraining Job\n(K8s CronJob Pod)"]
+            Det_Service["Detection Service Pod <br/> (Port 8000 /v1/detect)"]
+            Inf_Service["Inference Service Pod <br/> (Port 8080 XGBoost engine)"]
+            Chal_Service["Challenge Service Pod <br/> (Port 8001 /v1/challenge)"]
+            Train_Job["Monthly Retraining Job <br/> (K8s CronJob Pod)"]
         end
 
         subgraph StatefulDeps["Stateful Service Dependencies"]
-            Postgres[("PostgreSQL Pod\n(Risk records & audit logs)")]
-            Redis[("Redis Pod\n(Rate limiter & resale window cache)")]
-            RabbitMQ[("RabbitMQ Pod\n(Alerts & retraining events)")]
-            MinIO[("MinIO / S3 Pod\n(XGBoost model files & parquets)")]
+            Postgres[(PostgreSQL Pod <br/> Risk records and audit logs)]
+            Redis[(Redis Pod <br/> Rate limiter and resale window cache)]
+            RabbitMQ[(RabbitMQ Pod <br/> Alerts and retraining events)]
+            MinIO[(MinIO / S3 Pod <br/> XGBoost model files and parquets)]
         end
     end
 
     subgraph Monitoring["📊 Observability Platform"]
-        Prometheus["Prometheus Server\n(Scrapes FastAPI /metrics)"]
-        Grafana["Grafana Dashboards\n(Operational & detection dashboards)"]
+        Prometheus["Prometheus Server <br/> (Scrapes FastAPI /metrics)"]
+        Grafana["Grafana Dashboards <br/> (Operational and detection dashboards)"]
     end
 
     %% Client Interactions
@@ -124,7 +124,7 @@ erDiagram
         string behavioral_data_id FK "References behavioral_data.id"
         string user_hash FK
         string session_id
-        float score "XGBoost calculated risk index (0.0-100.0)"
+        float score "XGBoost calculated risk index from 0 to 100"
         string decision "ALLOW / CHALLENGE / BLOCK"
         json factors "Feature importance indicators"
         bigint created_at
@@ -219,7 +219,7 @@ erDiagram
     SOULBOUND_IDENTITY_NFT {
         uint256 identityId PK
         address owner FK "One-to-one non-transferable address link"
-        uint256 verificationScore "EVM score index (0-100)"
+        uint256 verificationScore "EVM score index from 0 to 100"
         uint256 kycTimestamp
     }
 
@@ -232,7 +232,7 @@ erDiagram
     USER_REPUTATION ||--o{ CHALLENGE_STATE : "monitors compliance"
 
     %% Hybrid Links (Postgres to Celo Mapping)
-    CELO_ACCOUNT ||--o| USER_REPUTATION : "represented by user_hash (SHA256)"
+    CELO_ACCOUNT ||--o| USER_REPUTATION : "represented by user_hash"
     CELO_ACCOUNT ||--o| SOULBOUND_IDENTITY_NFT : "binds"
     CELO_ACCOUNT ||--o{ NFT_TICKET : "owns"
     CELO_ACCOUNT ||--o{ BLOCKCHAIN_EVENT : "organizes"
@@ -363,7 +363,7 @@ classDiagram
     DetectionService ..> FallbackController : "uses for active defense"
     
     %% Contract connections
-    Rexell --> SoulboundIdentity : "verifies user score >= 70"
+    Rexell --> SoulboundIdentity : "verifies user score is 70 plus"
     BotDetectionClient ..> Rexell : "provides signed verification token"
 ```
 
@@ -376,22 +376,22 @@ To clarify how the modules communicate across the **Client**, **Server-Side AI**
 ```mermaid
 sequenceDiagram
     autonumber
-    actor User as Attendee (Browser)
+    actor User as "Attendee (Browser)"
     participant SDK as Behavioral SDK
     participant FE as Next.js App
-    participant DET as Detection Service (:8000)
-    participant INF as Inference Server (:8080)
-    participant CHA as Challenge Engine (:8001)
-    participant CELO as Celo Blockchain (Rexell.sol)
+    participant DET as "Detection Service (:8000)"
+    participant INF as "Inference Server (:8080)"
+    participant CHA as "Challenge Engine (:8001)"
+    participant CELO as "Celo Blockchain (Rexell.sol)"
 
-    User->>FE: Select event & click "Buy Ticket"
+    User->>FE: Select event and click "Buy Ticket"
     SDK->>DET: POST /v1/detect (behavioral_data, wallet_hash)
-    Note over DET: Feature extraction:<br/>Calculate mouse velocity, click cadence & UA entropy
+    Note over DET: Feature extraction:<br/>Calculate mouse velocity, click cadence and UA entropy
     DET->>INF: POST /predictions (features)
     INF-->>DET: Return risk_score (e.g., 65/100)
     
     rect rgb(240, 248, 255)
-        Note over DET: Challenge Threshold Triggered (50 <= Score < 80)
+        Note over DET: Challenge Threshold Triggered (Score between 50 and 80)
         DET->>CHA: Create verification challenge (IMAGE_SELECT)
         CHA-->>DET: Challenge metadata (challenge_id, visual grid payload)
         DET-->>SDK: Return decision: "challenge" + challenge details
@@ -402,11 +402,11 @@ sequenceDiagram
     end
 
     FE->>DET: Re-request token validation (with challenge session proof)
-    Note over DET: Verify challenge success & sign token<br/>Token = HMAC(wallet + expiry, SIGNING_KEY)
+    Note over DET: Verify challenge success and sign token<br/>Token = HMAC(wallet + expiry, SIGNING_KEY)
     DET-->>FE: Return verification token (5 min TTL)
     
     FE->>CELO: broadcast buyTicket(eventId, nftUri, verification_token)
-    Note over CELO: Smart Contract verifies:<br/>1. Token expiry & hash integrity<br/>2. SoulboundIdentity KYC score >= 70
+    Note over CELO: Smart Contract verifies:<br/>1. Token expiry and hash integrity<br/>2. SoulboundIdentity KYC score is 70 plus
     CELO-->>FE: Transaction receipt (Mint NFT ticket #102)
     
     FE->>DET: POST /v1/token/consume (verification_token)
