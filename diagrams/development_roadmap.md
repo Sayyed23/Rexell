@@ -2,6 +2,8 @@
 
 This timeline describes the 7 development phases of the Rexell platform, highlighting foundation work, ticketing features, anti-scalping AI models, and community interfaces.
 
+![Development Roadmap](images/development_roadmap.png)
+
 ```mermaid
 timeline
     title Rexell Development Roadmap

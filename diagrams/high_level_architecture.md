@@ -2,6 +2,8 @@
 
 This diagram provides a high-level overview of the user browser, the frontend web application layer, the decentralized Celo smart contracts, client-side browser storage, and server-side bot-detection microservices.
 
+![High Level Architecture](images/high_level_architecture.png)
+
 ```mermaid
 graph TB
     subgraph User["🧑 User"]

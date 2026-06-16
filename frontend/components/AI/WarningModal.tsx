@@ -17,7 +17,7 @@ interface WarningModalProps {
  * Premium, security-focused verification alert modal shown when the AI risk pipeline
  * issues an EnforcementAction.WARNING. Halts purchasing flows to demand explicit human
  * confirmation (FR-5.3.4). Built with sharp geometric borders and high-contrast styling
- * to respect the Purple Ban and evoke high-tech security trust.
+ * to respect design system guidelines and evoke high-tech security trust.
  */
 export function WarningModal({
   isOpen,

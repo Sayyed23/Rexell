@@ -39,12 +39,13 @@ export default function ResaleBrowsePage() {
   const [buyingId, setBuyingId] = useState<number | null>(null);
 
   // Fetch all approved tickets
-  const { data: approvedTickets, refetch } = useReadContract({
+  const { data: approvedTicketsRaw, refetch } = useReadContract({
     address: contractAddress as `0x${string}`,
     abi: rexellAbi,
     functionName: "getAllApprovedResaleTickets",
     chainId: celoSepolia.id,
   });
+  const approvedTickets = approvedTicketsRaw as any[] | undefined;
 
   // Fetch token URIs for tickets
   // In a real app, use useReadContracts for batch fetching or an indexer
@@ -155,7 +156,7 @@ export default function ResaleBrowsePage() {
     <div className="container mx-auto px-4 py-8 min-h-screen bg-gray-50/50">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-emerald-600 bg-clip-text text-transparent">
             Resale Marketplace
           </h1>
           <p className="text-gray-600 mt-1">Buy verified tickets from other fans.</p>

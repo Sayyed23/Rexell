@@ -37,12 +37,13 @@ export default function ResaleTicketDetailPage({ params }: { params: { ticketId:
     });
 
     useEffect(() => {
-        if (request && request.owner !== "0x0000000000000000000000000000000000000000") {
+        const req = request as any;
+        if (req && req.owner !== "0x0000000000000000000000000000000000000000") {
             setTicket({
                 id: ticketId.toString(),
-                owner: request.owner,
-                price: request.price,
-                approved: request.approved,
+                owner: req.owner,
+                price: req.price,
+                approved: req.approved,
                 image: "https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?auto=format&fit=crop", // Placeholder
                 name: `Resale Ticket #${ticketId.toString()}`,
             });

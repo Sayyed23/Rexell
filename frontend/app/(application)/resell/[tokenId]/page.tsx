@@ -36,7 +36,7 @@ export default function ResellTicketPage({ params, searchParams }: { params: { t
     const [cutoffTime, setCutoffTime] = useState<Date | null>(null);
 
     // Contract Reads
-    const { data: allEvents } = useReadContract({
+    const { data: allEventsRaw } = useReadContract({
         address: contractAddress as `0x${string}`,
         abi: rexellAbi,
         functionName: "getAllEvents",
@@ -45,9 +45,10 @@ export default function ResellTicketPage({ params, searchParams }: { params: { t
             enabled: !eventIdParam // Only fetch all if we don't have ID
         }
     });
+    const allEvents = allEventsRaw as any[] | undefined;
 
     // Optimized fetch if we have eventId
-    const { data: specificEvent } = useReadContract({
+    const { data: specificEventRaw } = useReadContract({
         address: contractAddress as `0x${string}`,
         abi: rexellAbi,
         functionName: "getEvent",
@@ -57,6 +58,7 @@ export default function ResellTicketPage({ params, searchParams }: { params: { t
             enabled: !!eventIdParam
         }
     });
+    const specificEvent = specificEventRaw as any;
 
     const { data: uri } = useReadContract({
         address: contractAddress as `0x${string}`,

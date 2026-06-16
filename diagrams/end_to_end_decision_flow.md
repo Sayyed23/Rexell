@@ -2,6 +2,8 @@
 
 This sequence diagram traces a single ticket purchase attempt through both client-side and server-side bot-detection systems, ending with contract validation on the Celo network.
 
+![End To End Decision Flow](images/end_to_end_decision_flow.png)
+
 ```mermaid
 sequenceDiagram
     autonumber

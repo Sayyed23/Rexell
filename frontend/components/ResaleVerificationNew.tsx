@@ -71,14 +71,15 @@ export default function ResaleVerificationNew({ tokenId, onVerificationComplete,
 
   // Update status based on contract data
   useEffect(() => {
-    if (resaleRequestData) {
-      setResaleRequest(resaleRequestData);
-      if (resaleRequestData.approved) {
+    const reqData = resaleRequestData as any;
+    if (reqData) {
+      setResaleRequest(reqData);
+      if (reqData.approved) {
         setRequestStatus('approved');
         setIsApproved(true);
-      } else if (resaleRequestData.rejected) {
+      } else if (reqData.rejected) {
         setRequestStatus('rejected');
-      } else if (resaleRequestData.owner !== "0x0000000000000000000000000000000000000000") {
+      } else if (reqData.owner !== "0x0000000000000000000000000000000000000000") {
         setRequestStatus('pending');
       } else {
         setRequestStatus('none');

@@ -2,6 +2,8 @@
 
 This flowchart outlines the three phases of the client-side/in-browser agentic purchase evaluation pipeline: Observation, Decision, and Policy Enforcement.
 
+![Agentic Pipeline](images/agentic_pipeline.png)
+
 ```mermaid
 flowchart LR
     subgraph Observation["🔍 Phase 1 — Observation - ML Layer"]

@@ -25,7 +25,7 @@ interface AIDemandForecastProps {
  * Premium AI Demand Forecast widget for event organizers.
  * Fetches predictive analytics from the LSTM forecasting engine via Next.js api proxy.
  * Styled with visual excellence, crisp geometric elements (rounded-sm), custom pure CSS
- * bar charts, and fully respects the Purple Ban by using deep slate and emerald/amber accents.
+ * bar charts, and fully respects the color system guidelines by using deep slate and emerald/amber accents.
  */
 export function AIDemandForecast({ eventId }: AIDemandForecastProps) {
   const [loading, setLoading] = useState(true);

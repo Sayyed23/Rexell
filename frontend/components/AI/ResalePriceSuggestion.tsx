@@ -63,27 +63,27 @@ export function ResalePriceSuggestion({ eventId, originalPrice, maxPrice, onAppl
     const clamp = (v: number) => (maxPrice && maxPrice > 0 ? Math.min(v, maxPrice) : v);
 
     return (
-        <div className="rounded-lg border border-purple-200 bg-purple-50 p-4">
-            <div className="flex items-center gap-2 text-purple-800 font-medium text-sm">
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+            <div className="flex items-center gap-2 text-emerald-800 font-medium text-sm">
                 <Sparkles className="h-4 w-4" />
                 AI Suggested Resale Price
             </div>
 
             {loading ? (
-                <div className="mt-2 flex items-center gap-2 text-sm text-purple-700">
+                <div className="mt-2 flex items-center gap-2 text-sm text-emerald-700">
                     <Loader2 className="h-4 w-4 animate-spin" /> Analyzing resale history…
                 </div>
             ) : data ? (
                 <div className="mt-2 space-y-2">
                     <div className="flex items-baseline gap-2">
-                        <span className="text-2xl font-bold text-purple-900">
+                        <span className="text-2xl font-bold text-emerald-900">
                             {clamp(data.suggestedPrice).toFixed(2)} {data.currency}
                         </span>
-                        <span className="text-xs text-purple-600">
+                        <span className="text-xs text-emerald-600">
                             range {clamp(data.low).toFixed(2)}–{clamp(data.high).toFixed(2)}
                         </span>
                     </div>
-                    <p className="text-xs text-purple-700">
+                    <p className="text-xs text-emerald-700">
                         Expected markup {data.expectedMarkupPct.toFixed(1)}% · confidence{" "}
                         {(data.confidence * 100).toFixed(0)}% ·{" "}
                         {data.basis === "lstm" ? "LSTM model" : "historical baseline"}
@@ -92,7 +92,7 @@ export function ResalePriceSuggestion({ eventId, originalPrice, maxPrice, onAppl
                         type="button"
                         size="sm"
                         variant="outline"
-                        className="border-purple-300 text-purple-800 hover:bg-purple-100"
+                        className="border-emerald-300 text-emerald-800 hover:bg-emerald-100"
                         onClick={() => onApply(clamp(data.suggestedPrice).toFixed(2))}
                     >
                         Use suggested price

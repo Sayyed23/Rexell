@@ -45,7 +45,7 @@ export default function ListResalePage() {
     });
 
     // Get user's ticket URIs
-    const { data: userTicketsData, refetch: refetchUserTickets } = useReadContract({
+    const { data: userTicketsDataRaw, refetch: refetchUserTickets } = useReadContract({
         address: contractAddress,
         abi: rexellAbi,
         functionName: "getUserTickets",
@@ -55,6 +55,7 @@ export default function ListResalePage() {
         },
         chainId: celoSepolia.id,
     });
+    const userTicketsData = userTicketsDataRaw as string[] | undefined;
 
     // Get token IDs for the user's tickets
     const { data: tokenIdsData } = useReadContracts({
@@ -85,7 +86,7 @@ export default function ListResalePage() {
                     }
                     return null;
                 })
-                .filter((ticket): ticket is UserTicket => ticket !== null);
+                .filter((ticket: UserTicket | null): ticket is UserTicket => ticket !== null);
 
             setUserTickets(tickets);
             setLoading(false);

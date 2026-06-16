@@ -37,6 +37,8 @@
 
 ## Development Phases
 
+![Development Roadmap](diagrams/images/development_roadmap.png)
+
 ```mermaid
 timeline
     title Rexell Development Roadmap
@@ -92,6 +94,8 @@ timeline
 
 ### Flow
 
+![Project Plan 2](diagrams/images/PROJECT_PLAN_2.png)
+
 ```mermaid
 flowchart LR
     A["Initialize\nHardhat"] --> B["Write Solidity\nContracts"]
@@ -122,6 +126,8 @@ flowchart LR
 | 2.9 | Build app layout | React | `app/(application)/layout.tsx` with header, footer, nav |
 
 ### Flow
+
+![Project Plan 3](diagrams/images/PROJECT_PLAN_3.png)
 
 ```mermaid
 flowchart LR
@@ -155,6 +161,8 @@ flowchart LR
 | 3.11 | Purchase History page | React, Wagmi | `app/(application)/history/page.tsx` |
 
 ### Flow
+
+![Project Plan 4](diagrams/images/PROJECT_PLAN_4.png)
 
 ```mermaid
 flowchart TD
@@ -193,6 +201,8 @@ flowchart TD
 | 4.11 | Build AI API route | Next.js API Routes | `app/api/ai/route.ts` |
 
 ### Pipeline Architecture
+
+![Project Plan 5](diagrams/images/PROJECT_PLAN_5.png)
 
 ```mermaid
 flowchart TB
@@ -248,6 +258,8 @@ flowchart TB
 
 ### Resale Flow
 
+![Project Plan 6](diagrams/images/PROJECT_PLAN_6.png)
+
 ```mermaid
 flowchart LR
     A["Ticket Owner"] --> B["Request Resale\n· Set price\n· Submit to contract"]
@@ -279,6 +291,8 @@ flowchart LR
 | 6.6 | Verified badge on tickets | React | Badge icon for score ≥ 70 |
 
 ### Engagement Flow
+
+![Project Plan 7](diagrams/images/PROJECT_PLAN_7.png)
 
 ```mermaid
 flowchart TD
@@ -318,6 +332,8 @@ flowchart TD
 
 ### Deployment Pipeline
 
+![Project Plan 8](diagrams/images/PROJECT_PLAN_8.png)
+
 ```mermaid
 flowchart LR
     A["Run Tests\n(Contract + Frontend)"] --> B["Gas\nOptimization"]
@@ -332,6 +348,8 @@ flowchart LR
 ---
 
 ## 📅 Gantt Chart
+
+![Project Plan 9](diagrams/images/PROJECT_PLAN_9.png)
 
 ```mermaid
 gantt
@@ -384,6 +402,8 @@ gantt
 ---
 
 ## 🗺️ Module Dependency Map
+
+![Project Plan 10](diagrams/images/PROJECT_PLAN_10.png)
 
 ```mermaid
 flowchart BT

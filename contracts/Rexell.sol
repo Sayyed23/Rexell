@@ -103,6 +103,28 @@ contract Rexell is ERC721URIStorage, Ownable, ReentrancyGuard {
     // Security mappings
     mapping(address => uint256) public nonces; // Protection against replay attacks
     mapping(uint256 => bool) public ticketCancelled; // Track cancelled tickets
+
+    struct SeatLock {
+        address lockedBy;
+        uint256 lockedUntil;
+    }
+
+    // Seat map mappings
+    // eventId => seatLabel => owner
+    mapping(uint256 => mapping(string => address)) public seatOwners;
+    // eventId => user => list of seat labels
+    mapping(uint256 => mapping(address => string[])) public userSeats;
+    // eventId => list of all sold seat labels
+    mapping(uint256 => string[]) public soldSeats;
+    // eventId => seatCategory => price
+    mapping(uint256 => mapping(string => uint256)) public seatCategoryPrices;
+    // eventId => seatLabel => lock info
+    mapping(uint256 => mapping(string => SeatLock)) public seatLocks;
+
+    event SeatCategoryPriceSet(uint256 indexed eventId, string category, uint256 price);
+    event SeatPurchased(uint256 indexed eventId, string seatLabel, address indexed buyer, string category);
+    event SeatLocked(uint256 indexed eventId, string seatLabel, address indexed lockedBy, uint256 lockedUntil);
+    event SeatUnlocked(uint256 indexed eventId, string seatLabel, address indexed unlockedBy);
     
     // Add events for resale functionality with royalty tracking
     event ResaleRequested(uint256 indexed tokenId, address indexed owner, uint256 price);
@@ -175,6 +197,111 @@ contract Rexell is ERC721URIStorage, Ownable, ReentrancyGuard {
         }
         
         _event.ticketsAvailable -= quantity;
+    }
+
+    // Dynamic Seat Map buying function (Overloaded)
+    function buyTickets(
+        uint eventId, 
+        string[] memory nftUris, 
+        string[] memory seatLabels, 
+        string[] memory categories
+    ) public payable nonReentrant {
+        Event storage _event = events[eventId];
+        uint quantity = nftUris.length;
+        require(quantity > 0, "Quantity must be greater than 0");
+        require(seatLabels.length == quantity, "Seat labels length mismatch");
+        require(categories.length == quantity, "Categories length mismatch");
+        require(_event.ticketsAvailable >= quantity, "Not enough tickets available");
+
+        uint256 totalCost = 0;
+        for (uint i = 0; i < quantity; i++) {
+            string memory seatLabel = seatLabels[i];
+            string memory category = categories[i];
+            
+            // On-chain validation prevents race conditions
+            require(seatOwners[eventId][seatLabel] == address(0), "Seat already sold");
+
+            // Check if seat is locked by someone else on-chain
+            SeatLock memory currentLock = seatLocks[eventId][seatLabel];
+            if (currentLock.lockedUntil > block.timestamp) {
+                require(currentLock.lockedBy == msg.sender, "Seat locked by another user");
+                // Clear lock on purchase
+                delete seatLocks[eventId][seatLabel];
+            }
+
+            uint256 seatPrice = seatCategoryPrices[eventId][category];
+            if (seatPrice == 0) {
+                seatPrice = _event.price;
+            }
+            totalCost += seatPrice;
+
+            // Mark seat as owned
+            seatOwners[eventId][seatLabel] = msg.sender;
+            userSeats[eventId][msg.sender].push(seatLabel);
+            soldSeats[eventId].push(seatLabel);
+
+            emit SeatPurchased(eventId, seatLabel, msg.sender, category);
+        }
+
+        // Transfer payment from buyer to organizer
+        if (totalCost > 0) {
+            require(cUSDToken.transferFrom(msg.sender, _event.organizer, totalCost), "Payment failed");
+        }
+
+        for (uint i = 0; i < quantity; i++) {
+            mintTicketNft(eventId, nftUris[i]);
+            _event.ticketHolders.push(msg.sender);
+        }
+
+        _event.ticketsAvailable -= quantity;
+    }
+
+    function lockSeats(uint256 eventId, string[] memory seatLabels) public {
+        require(eventId < events.length, "Event does not exist");
+        for (uint i = 0; i < seatLabels.length; i++) {
+            string memory seatLabel = seatLabels[i];
+            require(seatOwners[eventId][seatLabel] == address(0), "Seat already sold");
+            
+            SeatLock memory currentLock = seatLocks[eventId][seatLabel];
+            if (currentLock.lockedUntil > block.timestamp) {
+                require(currentLock.lockedBy == msg.sender, "Seat locked by another user");
+            }
+            
+            seatLocks[eventId][seatLabel] = SeatLock({
+                lockedBy: msg.sender,
+                lockedUntil: block.timestamp + 10 minutes
+            });
+            
+            emit SeatLocked(eventId, seatLabel, msg.sender, block.timestamp + 10 minutes);
+        }
+    }
+
+    function unlockSeats(uint256 eventId, string[] memory seatLabels) public {
+        require(eventId < events.length, "Event does not exist");
+        for (uint i = 0; i < seatLabels.length; i++) {
+            string memory seatLabel = seatLabels[i];
+            SeatLock memory currentLock = seatLocks[eventId][seatLabel];
+            if (currentLock.lockedUntil > block.timestamp) {
+                require(currentLock.lockedBy == msg.sender, "Only the locker can unlock");
+                delete seatLocks[eventId][seatLabel];
+                emit SeatUnlocked(eventId, seatLabel, msg.sender);
+            }
+        }
+    }
+
+    function setSeatCategoryPrice(uint256 eventId, string memory category, uint256 price) public {
+        require(eventId < events.length, "Event does not exist");
+        require(msg.sender == events[eventId].organizer || msg.sender == mine, "Only event organizer or owner can set prices");
+        seatCategoryPrices[eventId][category] = price;
+        emit SeatCategoryPriceSet(eventId, category, price);
+    }
+
+    function getSoldSeats(uint256 eventId) public view returns (string[] memory) {
+        return soldSeats[eventId];
+    }
+
+    function getUserSeats(uint256 eventId, address user) public view returns (string[] memory) {
+        return userSeats[eventId][user];
     }
 
     function mintTicketNft(uint eventId, string memory nftUri) internal {

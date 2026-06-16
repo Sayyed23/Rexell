@@ -95,13 +95,14 @@ export default function BuyResaleTicketPage() {
 
   // Load ticket details
   useEffect(() => {
-    if (resaleRequest && !isResaleRequestPending && id) {
+    const req = resaleRequest as any;
+    if (req && !isResaleRequestPending && id) {
       setTicket({
         tokenId: Number(id),
-        owner: resaleRequest.owner,
-        price: parseFloat(formatEther(resaleRequest.price)),
+        owner: req.owner,
+        price: parseFloat(formatEther(req.price)),
         eventId: 0, // Would need to store eventId in ticket struct
-        isForSale: resaleRequest.approved && !resaleRequest.rejected,
+        isForSale: req.approved && !req.rejected,
         isResale: true,
       });
       setLoading(false);

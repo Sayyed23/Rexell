@@ -24,13 +24,14 @@ export default function ResaleApprovalDashboard({ activeTab, setActiveTab }: { a
   const [loading, setLoading] = useState(true);
 
   // Fetch resale requests
-  const { data: userResaleRequests, refetch, error } = useReadContract({
+  const { data: userResaleRequestsRaw, refetch, error } = useReadContract({
     address: contractAddress,
     abi: rexellAbi,
     functionName: "getUserResaleRequests",
     args: [address as `0x${string}`],
     chainId: celoSepolia.id,
   });
+  const userResaleRequests = userResaleRequestsRaw as any[] | undefined;
 
   // Fetch details for each resale request
   useEffect(() => {

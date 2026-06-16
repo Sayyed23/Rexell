@@ -14,6 +14,7 @@ interface Details {
   walletAddress: string;
   timestamp: number;
   ticketNo: number;
+  seatLabel?: string;
 }
 
 export const generateTicketImage = async (ticketDetails: Details) => {
@@ -35,6 +36,7 @@ export const generateTicketImage = async (ticketDetails: Details) => {
     walletAddress,
     timestamp,
     ticketNo,
+    seatLabel,
   } = ticketDetails;
 
   const formattedTime = new Date(timestamp).toLocaleString();
@@ -46,6 +48,7 @@ export const generateTicketImage = async (ticketDetails: Details) => {
     Time: formattedTime,
     Amount: price,
     TicketNo: ticketNo,
+    Seat: seatLabel || "N/A",
   });
 
   // Generate QR code as a base64 string with the custom data
@@ -62,9 +65,9 @@ export const generateTicketImage = async (ticketDetails: Details) => {
     <div class="flex w-full max-w-3xl shadow-lg">
       <div class="relative flex-1 rounded-md bg-cover bg-center p-6 text-white shadow-lg" style="background-image: url('/static/images/ticket/ticket.png')">
         <p class="text-sm uppercase text-nude">${category}</p>
-        <h1 class="text-4xl font-bold text-purple-500">${eventName}</h1>
+        <h1 class="text-4xl font-bold text-emerald-500">${eventName}</h1>
         <p class="mt-4 text-3xl font-bold text-gray-300">${date}</p>
-        <div class="mt-6 flex justify-between">
+        <div class="mt-6 flex justify-between gap-2">
           <div class="rounded-lg bg-gray-800 bg-opacity-50 p-4">
             <p class="text-sm font-semibold">Location</p>
             <p class="text-lg">${location}</p>
@@ -73,6 +76,12 @@ export const generateTicketImage = async (ticketDetails: Details) => {
             <p class="text-sm font-semibold">At</p>
             <p class="text-lg">${time}</p>
           </div>
+          ${seatLabel ? `
+          <div class="rounded-lg bg-emerald-800 bg-opacity-60 p-4 border border-emerald-500">
+            <p class="text-sm font-semibold text-emerald-300">Seat</p>
+            <p class="text-lg font-bold">${seatLabel}</p>
+          </div>
+          ` : ""}
         </div>
         <div class="mt-6 rounded-lg bg-gray-900 bg-opacity-50 p-4">
           <p class="text-sm uppercase">Price</p>

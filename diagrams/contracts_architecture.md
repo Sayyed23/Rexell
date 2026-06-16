@@ -2,6 +2,8 @@
 
 This diagram displays the relationship and layout of smart contracts deployed on Celo blockchain networks.
 
+![Contracts Architecture](images/contracts_architecture.png)
+
 ```mermaid
 classDiagram
     class Rexell {

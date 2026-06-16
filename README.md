@@ -59,6 +59,8 @@
 
 ## High-Level Architecture
 
+![High Level Architecture](diagrams/images/high_level_architecture.png)
+
 ```mermaid
 graph TB
     subgraph User["🧑 User"]
@@ -263,6 +265,8 @@ The project uses **Solidity** smart contracts deployed on the **Celo** blockchai
 
 ### Contracts
 
+![Contracts Architecture](diagrams/images/contracts_architecture.png)
+
 ```mermaid
 classDiagram
     class Rexell {
@@ -333,6 +337,8 @@ Rexell includes a multi-layered AI system that detects and prevents ticket scalp
 
 ### Architecture — Agentic Pipeline
 
+![Readme 3](diagrams/images/README_3.png)
+
 ```mermaid
 flowchart LR
     subgraph Observation["🔍 Phase 1 — Observation - ML Layer"]
@@ -388,6 +394,8 @@ In addition to the in-browser agentic engine described above, Rexell ships a pro
 Full operator manual: [`bot-detection/docs/INTEGRATION_GUIDE.md`](bot-detection/docs/INTEGRATION_GUIDE.md). The summary below explains the architecture, where each piece lives in the repo, and how the AI plugs into the Next.js front-end and the on-chain ticket flow.
 
 ### 1. Component Architecture
+
+![Component Architecture](diagrams/images/component_architecture.png)
 
 ```mermaid
 flowchart LR
@@ -539,6 +547,8 @@ Additional flags are enforced on top of the score:
 
 ### 6. ML Lifecycle
 
+![ML Lifecycle](diagrams/images/ml_lifecycle.png)
+
 ```mermaid
 flowchart LR
     PG[("PostgreSQL<br/>behavioral_data + risk_scores")]
@@ -593,6 +603,8 @@ Graceful degradation is built in: if the bot-detection backend is unreachable th
 
 Rexell uses a **decentralized storage** approach — no traditional database.
 
+![Readme 6](diagrams/images/README_6.png)
+
 ```mermaid
 flowchart TB
     subgraph OnChain["⛓️ On-Chain - Celo Blockchain"]
@@ -637,6 +649,8 @@ flowchart TB
 
 ### Deployment Flow
 
+![Readme 7](diagrams/images/README_7.png)
+
 ```mermaid
 flowchart LR
     subgraph Dev["👨‍💻 Development"]
@@ -662,6 +676,8 @@ flowchart LR
 ## 🔁 End-to-End AI Decision Flow
 
 This diagram traces a single ticket purchase through every AI / risk surface in the system — from the moment the user lands on the buy page through the on-chain mint.
+
+![Readme 8](diagrams/images/README_8.png)
 
 ```mermaid
 sequenceDiagram
@@ -709,6 +725,8 @@ The **lib/ai/** in-browser agents act as a low-latency first-pass filter (no net
 
 ### End-to-End User Journey
 
+![Readme 9](diagrams/images/README_9.png)
+
 ```mermaid
 flowchart TD
     Start(["🧑 User opens Rexell"]) --> Connect["Connect MetaMask Wallet\nvia RainbowKit"]
@@ -749,6 +767,8 @@ flowchart TD
 ## 📋 Project Plan
 
 Rexell is developed in **7 phases**:
+
+![Development Roadmap](diagrams/images/development_roadmap.png)
 
 ```mermaid
 timeline
@@ -873,6 +893,8 @@ timeline
 
 ## 📅 Gantt Chart
 
+![Project Plan 9](diagrams/images/PROJECT_PLAN_9.png)
+
 ```mermaid
 gantt
     title Rexell Development Timeline
@@ -924,6 +946,8 @@ gantt
 ---
 
 ## 🗺️ Module Dependency Map
+
+![Readme 12](diagrams/images/README_12.png)
 
 ```mermaid
 flowchart BT

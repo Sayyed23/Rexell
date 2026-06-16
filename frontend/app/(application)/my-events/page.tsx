@@ -24,7 +24,7 @@ export default function MyEventsPage() {
   const { address, isConnected } = useAccount();
 
   const {
-    data: events,
+    data: eventsRaw,
     isPending,
     error,
   } = useReadContract({
@@ -34,6 +34,7 @@ export default function MyEventsPage() {
     args: [address!!],
     chainId: celoSepolia.id,
   });
+  const events = eventsRaw as any[] | undefined;
 
   const [isMounted, setIsMounted] = useState(false);
 

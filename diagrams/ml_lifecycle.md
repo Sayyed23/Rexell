@@ -2,6 +2,8 @@
 
 This flowchart describes the monthly offline training pipeline for the XGBoost bot-detection model, starting from raw PostgreSQL tables to real-time A/B candidate deployments.
 
+![ML Lifecycle](images/ml_lifecycle.png)
+
 ```mermaid
 flowchart LR
     PG[("PostgreSQL<br/>behavioral_data + risk_scores")]

@@ -52,10 +52,11 @@ export default function ResaleTicket({ tokenId, onResaleComplete }: ResaleTicket
   });
 
   useEffect(() => {
-    if (resaleRequest) {
-      setResalePrice((Number(resaleRequest.price) / 1e18).toString());
+    const req = resaleRequest as any;
+    if (req) {
+      setResalePrice((Number(req.price) / 1e18).toString());
       // Check if already listed (approved and not rejected)
-      if (resaleRequest.approved && !resaleRequest.rejected) {
+      if (req.approved && !req.rejected) {
         setIsListed(true);
       }
     }
@@ -185,7 +186,7 @@ export default function ResaleTicket({ tokenId, onResaleComplete }: ResaleTicket
     );
   }
 
-  if (!resaleRequest || !resaleRequest.approved) {
+  if (!resaleRequest || !(resaleRequest as any).approved) {
     return (
       <Card>
         <CardContent className="flex flex-col items-center justify-center py-8">
@@ -232,7 +233,7 @@ export default function ResaleTicket({ tokenId, onResaleComplete }: ResaleTicket
             <Label className="text-sm font-medium text-gray-700">
               {isListed ? "Listed Price" : "Original Requested Price"}
             </Label>
-            <p className="text-lg font-semibold">{formatPrice(resaleRequest.price)} cUSD</p>
+            <p className="text-lg font-semibold">{formatPrice((resaleRequest as any).price)} cUSD</p>
           </div>
         </div>
 
@@ -286,7 +287,7 @@ export default function ResaleTicket({ tokenId, onResaleComplete }: ResaleTicket
                 <p className="font-medium mb-1">Listing Active:</p>
                 <p className="text-xs">
                   Your ticket is currently listed in the resale market.
-                  Buyers can purchase it at {formatPrice(resaleRequest.price)} cUSD.
+                  Buyers can purchase it at {formatPrice((resaleRequest as any).price)} cUSD.
                   You can cancel the listing anytime before its sold.
                 </p>
               </div>

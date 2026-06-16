@@ -2,6 +2,8 @@
 
 This diagram details the layout of client browser telemetry SDK files, FastAPI service routes, and stateful backing dependencies.
 
+![Component Architecture](images/component_architecture.png)
+
 ```mermaid
 flowchart LR
     subgraph Browser["🖥️ Next.js (frontend/)"]

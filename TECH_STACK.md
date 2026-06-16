@@ -21,6 +21,8 @@
 
 ## High-Level Architecture
 
+![Tech Stack 1](diagrams/images/TECH_STACK_1.png)
+
 ```mermaid
 graph TB
     subgraph User["🧑 User"]
@@ -194,6 +196,8 @@ The project uses **Solidity** smart contracts deployed on the **Celo** blockchai
 
 ### Contracts
 
+![Tech Stack 2](diagrams/images/TECH_STACK_2.png)
+
 ```mermaid
 classDiagram
     class Rexell {
@@ -264,6 +268,8 @@ Rexell includes a multi-layered AI system that detects and prevents ticket scalp
 
 ### Architecture — Agentic Pipeline
 
+![Tech Stack 3](diagrams/images/TECH_STACK_3.png)
+
 ```mermaid
 flowchart LR
     subgraph Observation["🔍 Phase 1 — Observation (ML Layer)"]
@@ -315,6 +321,8 @@ flowchart LR
 ## 💾 Storage & Data Layer
 
 Rexell uses a **decentralized storage** approach — no traditional database.
+
+![Tech Stack 4](diagrams/images/TECH_STACK_4.png)
 
 ```mermaid
 flowchart TB
@@ -369,6 +377,8 @@ NEXT_PUBLIC_IPFS_GATEWAY="https://olive-labour-earthworm-132.mypinata.cloud"
 
 ### Deployment Flow
 
+![Readme 7](diagrams/images/README_7.png)
+
 ```mermaid
 flowchart LR
     subgraph Dev["👨‍💻 Development"]
@@ -394,6 +404,8 @@ flowchart LR
 ## 🔄 Application Flow
 
 ### End-to-End User Journey
+
+![Readme 9](diagrams/images/README_9.png)
 
 ```mermaid
 flowchart TD

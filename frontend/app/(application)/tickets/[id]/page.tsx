@@ -20,7 +20,7 @@ export default function TicketsPage({ params }: { params: { id: number } }) {
 
   // First, get the event details
   const {
-    data: event,
+    data: eventRaw,
     isPending: isEventPending,
     error: eventError,
   } = useReadContract({
@@ -29,10 +29,11 @@ export default function TicketsPage({ params }: { params: { id: number } }) {
     functionName: "getEvent",
     args: [BigInt(params.id)],
   });
+  const event = eventRaw as any;
 
   // Then, get the user's tickets for this event
   const {
-    data: userTickets,
+    data: userTicketsRaw,
     isPending: isTicketsPending,
     error: ticketsError,
     refetch,
@@ -45,6 +46,7 @@ export default function TicketsPage({ params }: { params: { id: number } }) {
       enabled: !!address && !!event,
     }
   });
+  const userTickets = userTicketsRaw as any[] | undefined;
 
   // Get the actual token ID using the new function (for the first ticket)
   const {

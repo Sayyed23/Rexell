@@ -18,6 +18,7 @@ Usage:
     python seo_checker.py <project_path>
 """
 import sys
+import os
 import json
 import re
 from pathlib import Path
@@ -34,7 +35,8 @@ except:
 SKIP_DIRS = {
     'node_modules', '.next', 'dist', 'build', '.git', '.github',
     '__pycache__', '.vscode', '.idea', 'coverage', 'test', 'tests',
-    '__tests__', 'spec', 'docs', 'documentation', 'examples'
+    '__tests__', 'spec', 'docs', 'documentation', 'examples',
+    '.venv', 'venv', 'env'
 }
 
 # Files to skip (not pages)
@@ -77,19 +79,16 @@ def is_page_file(file_path: Path) -> bool:
 
 def find_pages(project_path: Path) -> list:
     """Find page files to check."""
-    patterns = ['**/*.html', '**/*.htm', '**/*.jsx', '**/*.tsx']
-    
+    extensions = {'.html', '.htm', '.jsx', '.tsx'}
     files = []
-    for pattern in patterns:
-        for f in project_path.glob(pattern):
-            # Skip excluded directories
-            if any(skip in f.parts for skip in SKIP_DIRS):
-                continue
-            
-            # Check if it's likely a page
-            if is_page_file(f):
-                files.append(f)
-    
+    for root, dirs, filenames in os.walk(str(project_path)):
+        # Prune excluded directories in-place
+        dirs[:] = [d for d in dirs if d not in SKIP_DIRS]
+        for filename in filenames:
+            file_path = Path(root) / filename
+            if file_path.suffix.lower() in extensions:
+                if is_page_file(file_path):
+                    files.append(file_path)
     return files[:50]  # Limit to 50 files
 
 
@@ -100,10 +99,10 @@ def check_page(file_path: Path) -> dict:
     try:
         content = file_path.read_text(encoding='utf-8', errors='ignore')
     except Exception as e:
-        return {"file": str(file_path.name), "issues": [f"Error: {e}"]}
+        return {"file": str(file_path), "issues": [f"Error: {e}"]}
     
     # Detect if this is a layout/template file (has Head component)
-    is_layout = 'Head>' in content or '<head' in content.lower()
+    is_layout = bool(re.search(r'<Head\b', content)) or bool(re.search(r'<head\b', content.lower()))
     
     # 1. Title tag
     has_title = '<title' in content.lower() or 'title=' in content or 'Head>' in content
@@ -140,7 +139,7 @@ def check_page(file_path: Path) -> dict:
     # has_canonical = 'rel="canonical"' in content.lower()
     
     return {
-        "file": str(file_path.name),
+        "file": str(file_path),
         "issues": issues
     }
 
@@ -191,10 +190,8 @@ def main():
             print(f"  [{count}] {issue}")
         
         print(f"\nAffected files ({len(all_issues)}):")
-        for item in all_issues[:5]:
+        for item in all_issues:
             print(f"  - {item['file']}")
-        if len(all_issues) > 5:
-            print(f"  ... and {len(all_issues) - 5} more")
     else:
         print("\n[OK] No SEO issues found!")
     

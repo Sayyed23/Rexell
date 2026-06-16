@@ -2,6 +2,8 @@
 
 This flowchart outlines the deployment workflow from writing code to launching smart contracts and Next.js frontend pages.
 
+![Deployment Flow](images/deployment_flow.png)
+
 ```mermaid
 flowchart LR
     subgraph Dev["👨‍💻 Development"]

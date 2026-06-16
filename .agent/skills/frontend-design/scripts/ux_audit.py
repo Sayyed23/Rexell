@@ -109,11 +109,11 @@ class UXAuditor:
         except: return
         
         self.files_checked += 1
-        filename = os.path.basename(filepath)
+        filename = filepath # Use full file path for detailed debugging
 
         # Pre-calculate common flags
         has_long_text = bool(re.search(r'<p|<div.*class=.*text|article|<span.*text', content, re.IGNORECASE))
-        has_form = bool(re.search(r'<form|<input|password|credit|card|payment', content, re.IGNORECASE))
+        has_form = bool(re.search(r'<form|<input\b|type=["\'](?:text|password|email|number|tel|url|search)["\']', content, re.IGNORECASE))
         complex_elements = len(re.findall(r'<input|<select|<textarea|<option', content, re.IGNORECASE))
 
         # --- 1. PSYCHOLOGY LAWS ---
@@ -208,7 +208,8 @@ class UXAuditor:
             self.warnings.append(f"[Cognitive Load] {filename}: High visual noise detected. Many colors and borders increase cognitive load.")
 
         # Familiar patterns
-        if has_form:
+        is_markup = Path(filepath).suffix.lower() in {'.tsx', '.jsx', '.html', '.vue', '.svelte'}
+        if has_form and is_markup:
             has_standard_labels = bool(re.search(r'<label|placeholder|aria-label', content, re.IGNORECASE))
             if not has_standard_labels:
                 self.issues.append(f"[Cognitive Load] {filename}: Form inputs without labels. Use <label> for accessibility and clarity.")
@@ -674,7 +675,7 @@ class UXAuditor:
     def audit_directory(self, directory: str) -> None:
         extensions = {'.tsx', '.jsx', '.html', '.vue', '.svelte', '.css'}
         for root, dirs, files in os.walk(directory):
-            dirs[:] = [d for d in dirs if d not in {'node_modules', '.git', 'dist', 'build', '.next'}]
+            dirs[:] = [d for d in dirs if d not in {'node_modules', '.git', 'dist', 'build', '.next', '.venv', 'venv', 'env'}]
             for file in files:
                 if Path(file).suffix in extensions:
                     self.audit_file(os.path.join(root, file))
@@ -708,7 +709,7 @@ def main():
         print("-" * 50)
         if report['issues']:
             print(f"[!] ISSUES ({len(report['issues'])}):")
-            for i in report['issues'][:10]: print(f"  - {i}")
+            for i in report['issues']: print(f"  - {i}")
         if report['warnings']:
             print(f"[*] WARNINGS ({len(report['warnings'])}):")
             for w in report['warnings'][:15]: print(f"  - {w}")

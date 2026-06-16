@@ -29,6 +29,7 @@ import { aiLogger } from "@/lib/ai/logger";
 import { useGuardedPurchase } from "@/lib/bot-detection/useGuardedPurchase";
 import { BotChallengeModal } from "@/components/AI/BotChallengeModal";
 import { WarningModal } from "@/components/AI/WarningModal";
+import { SeatMap } from "@/components/SeatMap";
 
 interface EventComment {
   commenter: string;
@@ -58,6 +59,8 @@ export default function EventDetailsPage({
   const [showStar, setShowStar] = useState(false);
   // Add state for ticket quantity
   const [ticketQuantity, setTicketQuantity] = useState(1);
+  const [selectedSeats, setSelectedSeats] = useState<{ label: string; category: string; price: number }[]>([]);
+  const [isReservingOnChain, setIsReservingOnChain] = useState(false);
 
   // AI Advisory warning modal state (FR-5.3.4)
   const [warningOpen, setWarningOpen] = useState(false);
@@ -175,6 +178,35 @@ export default function EventDetailsPage({
     }
   }, [rating]);
 
+  const handleOnChainLock = async () => {
+    if (selectedSeats.length === 0) {
+      toast.error("Please select at least one seat first.");
+      return;
+    }
+    if (!address) {
+      toast.error("Please connect your wallet first");
+      return;
+    }
+    try {
+      setIsReservingOnChain(true);
+      const seatLabels = selectedSeats.map((s) => s.label);
+      const hash = await writeContractAsync({
+        address: contractAddress,
+        abi: rexellAbi,
+        functionName: "lockSeats",
+        args: [BigInt(params.index), seatLabels],
+      });
+      if (hash) {
+        toast.success("Seats reserved on-chain successfully!");
+      }
+    } catch (error: any) {
+      console.error("On-chain lock failed:", error);
+      toast.error("Failed to lock seats on-chain: " + (error.message || "Unknown error"));
+    } finally {
+      setIsReservingOnChain(false);
+    }
+  };
+
   async function buyTicket(e?: React.FormEvent<HTMLFormElement>, bypassWarning = false) {
     if (e) e.preventDefault();
     if (!isConnected) {
@@ -199,21 +231,25 @@ export default function EventDetailsPage({
     }
 
     const price = event?.[7] ? BigInt(event[7]) : 0n;
-    const totalCost = price * BigInt(ticketQuantity);
+    const usingSeatMap = selectedSeats.length > 0;
+    const finalQuantity = usingSeatMap ? selectedSeats.length : ticketQuantity;
+
+    // Calculate totalCost dynamically based on selected seats prices or GA price
+    const totalCost = usingSeatMap
+      ? selectedSeats.reduce((acc, seat) => acc + BigInt(Math.floor(seat.price * 1e18)), 0n)
+      : price * BigInt(ticketQuantity);
 
     console.log("Purchase debug:", {
       price: price.toString(),
       totalCost: totalCost.toString(),
       cUSDBalance: cUSDBalance?.toString(),
       free,
-      ticketQuantity,
+      quantity: finalQuantity,
     });
-
-    // Balance check removed - let the smart contract handle validation
 
     // --- AI Mode Integration ---
     if (address && !bypassWarning) {
-      aiLogger.log('purchase_attempt', address, Number(params.index), { quantity: ticketQuantity, price: totalCost.toString() });
+      aiLogger.log('purchase_attempt', address, Number(params.index), { quantity: finalQuantity, price: totalCost.toString() });
 
       const risk = aiModeService.assessRisk(address, Number(params.index));
 
@@ -233,42 +269,27 @@ export default function EventDetailsPage({
           reason: risk.reason,
         });
         setWarningOpen(true);
-        // Halt transaction flow until explicitly verified by the user in the WarningModal
         return;
       }
     }
-    // ---------------------------
 
-    // --- Server-side bot-detection guard (POST /v1/detect) ---
-    // Behavioural data is collected by useBotDetection() while the user
-    // browses; we ship it to the detection service before the contract
-    // write. The helper falls back to "allow" if the backend is offline.
+    // --- Server-side bot-detection guard ---
     const guard = await runGuard({
-      action: ticketQuantity > 1 ? "buyTickets" : "buyTicket",
-      quantity: ticketQuantity,
+      action: finalQuantity > 1 ? "buyTickets" : "buyTicket",
+      quantity: finalQuantity,
       eventId: String(params.index),
     });
     if (!guard.proceed) {
-      // Either decision === 'block' (toast already shown) or
-      // decision === 'challenge' (modal mounted via pendingChallenge).
       return;
     }
-    // The verification token is read directly from `guard` below — using
-    // React state here would be stale within this same async handler.
-    // -----------------------------------------------------------
 
     try {
       setProcessing(true);
-
-      // For free tickets, we don't need payment
       let paid = true;
 
       // For paid tickets, we need to approve the contract to spend tokens
       if (!free) {
-        // Import the approval function
         const { approveTokens } = await import("@/lib/TokenFuction");
-
-        // Approve the contract to spend the required amount
         paid = await approveTokens(contractAddress, totalCost);
       }
 
@@ -277,15 +298,13 @@ export default function EventDetailsPage({
           setProcessing(false);
           setIsUploading(true);
 
-          // If buying multiple tickets
-          if (ticketQuantity > 1) {
-            // Generate multiple ticket images
+          if (usingSeatMap) {
+            // Generate multiple ticket images with seat labels
             const nftUris = [];
-
-            for (let i = 0; i < ticketQuantity; i++) {
+            for (let i = 0; i < finalQuantity; i++) {
+              const seat = selectedSeats[i];
               const ticketNumber = event?.[10]?.length + i + 1;
 
-              // Generate the ticket image
               const nftImage = await generateTicketImage({
                 eventName: event?.[2],
                 date: new Date(Number(event?.[5]) * 1000).toLocaleDateString("en-US", {
@@ -294,35 +313,26 @@ export default function EventDetailsPage({
                   year: "numeric",
                 }),
                 time: event?.[6],
-                category: event?.[4],
+                category: seat.category,
                 location: event?.[3],
                 organiser: event?.[1],
-                price: free
-                  ? "Free"
-                  : `${(Number(event?.[7]) / 10 ** 18).toString()} cUSD`,
+                price: free ? "Free" : `${seat.price.toFixed(2)} cUSD`,
                 walletAddress: address as string,
                 timestamp: Date.now(),
                 ticketNo: ticketNumber,
+                seatLabel: seat.label,
               });
 
-              console.log(nftImage);
-
-              // Validate the generated image URL
               if (!nftImage || !nftImage.startsWith("data:image/png;base64,")) {
                 throw new Error("Invalid NFT image URL.");
               }
 
-              // Convert the base64 data URL to a blob
               const response = await fetch(nftImage);
-              console.log(response);
-
               if (!response.ok) {
                 throw new Error("Failed to fetch the image blob.");
               }
 
               const blob = await response.blob();
-
-              // Prepare the blob for uploading to IPFS
               const data = new FormData();
               data.set("file", blob);
 
@@ -342,7 +352,88 @@ export default function EventDetailsPage({
               nftUris.push(resData.IpfsHash);
             }
 
-            // Buy multiple tickets
+            // Call overloaded buyTickets for seat-specific purchase
+            const seatLabels = selectedSeats.map((s) => s.label);
+            const categories = selectedSeats.map((s) => s.category);
+
+            const hash = await writeContractAsync({
+              address: contractAddress,
+              abi: rexellAbi,
+              functionName: "buyTickets",
+              args: [BigInt(params.index), nftUris, seatLabels, categories],
+            });
+
+            if (hash) {
+              if (guard.verificationToken) {
+                consumeBotToken(guard.verificationToken, hash).catch(() => undefined);
+              }
+              // Clear off-chain lock keys
+              await fetch("/api/seats/lock", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  action: "unlock",
+                  eventId: Number(params.index),
+                  seatLabels,
+                  walletAddress: address,
+                }),
+              });
+
+              toast("Ticket NFTs minted! Redirecting...");
+              setIsUploading(false);
+              router.push(`/my-tickets`);
+            }
+          } else if (ticketQuantity > 1) {
+            // General Admission multiple tickets
+            const nftUris = [];
+            for (let i = 0; i < ticketQuantity; i++) {
+              const ticketNumber = event?.[10]?.length + i + 1;
+              const nftImage = await generateTicketImage({
+                eventName: event?.[2],
+                date: new Date(Number(event?.[5]) * 1000).toLocaleDateString("en-US", {
+                  day: "2-digit",
+                  month: "short",
+                  year: "numeric",
+                }),
+                time: event?.[6],
+                category: event?.[4],
+                location: event?.[3],
+                organiser: event?.[1],
+                price: free ? "Free" : `${(Number(event?.[7]) / 10 ** 18).toString()} cUSD`,
+                walletAddress: address as string,
+                timestamp: Date.now(),
+                ticketNo: ticketNumber,
+              });
+
+              if (!nftImage || !nftImage.startsWith("data:image/png;base64,")) {
+                throw new Error("Invalid NFT image URL.");
+              }
+
+              const response = await fetch(nftImage);
+              if (!response.ok) {
+                throw new Error("Failed to fetch the image blob.");
+              }
+
+              const blob = await response.blob();
+              const data = new FormData();
+              data.set("file", blob);
+
+              const res = await fetch("/api/files", {
+                method: "POST",
+                body: data,
+              });
+
+              if (!res.ok) {
+                throw new Error(`Failed to upload ticket image to IPFS: ${res.statusText}`);
+              }
+
+              const resData = await res.json();
+              if (!resData.IpfsHash) {
+                throw new Error("Failed to retrieve IPFS Hash from upload response.");
+              }
+              nftUris.push(resData.IpfsHash);
+            }
+
             const hash = await writeContractAsync({
               address: contractAddress,
               abi: rexellAbi,
@@ -352,19 +443,15 @@ export default function EventDetailsPage({
 
             if (hash) {
               if (guard.verificationToken) {
-                consumeBotToken(guard.verificationToken, hash).catch(
-                  () => undefined,
-                );
+                consumeBotToken(guard.verificationToken, hash).catch(() => undefined);
               }
               toast("Ticket NFTs minted! Redirecting...");
               setIsUploading(false);
               router.push(`/my-tickets`);
             }
           } else {
-            // Buy single ticket (existing logic)
+            // General Admission single ticket
             const ticketNumber = event?.[10]?.length + 1;
-
-            // Generate the ticket image
             const nftImage = await generateTicketImage({
               eventName: event?.[2],
               date: new Date(Number(event?.[5]) * 1000).toLocaleDateString("en-US", {
@@ -376,32 +463,22 @@ export default function EventDetailsPage({
               category: event?.[4],
               location: event?.[3],
               organiser: event?.[1],
-              price: free
-                ? "Free"
-                : `${(Number(event?.[7]) / 10 ** 18).toString()} cUSD`,
+              price: free ? "Free" : `${(Number(event?.[7]) / 10 ** 18).toString()} cUSD`,
               walletAddress: address as string,
               timestamp: Date.now(),
               ticketNo: ticketNumber,
             });
 
-            console.log(nftImage);
-
-            // Validate the generated image URL
             if (!nftImage || !nftImage.startsWith("data:image/png;base64,")) {
               throw new Error("Invalid NFT image URL.");
             }
 
-            // Convert the base64 data URL to a blob
             const response = await fetch(nftImage);
-            console.log(response);
-
             if (!response.ok) {
               throw new Error("Failed to fetch the image blob.");
             }
 
             const blob = await response.blob();
-
-            // Prepare the blob for uploading to IPFS
             const data = new FormData();
             data.set("file", blob);
 
@@ -420,7 +497,6 @@ export default function EventDetailsPage({
             }
             setCid(resData.IpfsHash);
 
-            // Buy single ticket
             const hash = await writeContractAsync({
               address: contractAddress,
               abi: rexellAbi,
@@ -429,15 +505,12 @@ export default function EventDetailsPage({
             });
 
             if (hash) {
-              // Record successful purchase for AI tracking
               if (address) {
                 aiModeService.recordPurchase(address, Number(params.index));
-                aiLogger.log('purchase_success', address, Number(params.index), { txHash: hash, quantity: ticketQuantity });
+                aiLogger.log('purchase_success', address, Number(params.index), { txHash: hash, quantity: 1 });
               }
               if (guard.verificationToken) {
-                consumeBotToken(guard.verificationToken, hash).catch(
-                  () => undefined,
-                );
+                consumeBotToken(guard.verificationToken, hash).catch(() => undefined);
               }
 
               toast("Ticket NFT minted! Redirecting...");
@@ -457,10 +530,7 @@ export default function EventDetailsPage({
       }
     } catch (error) {
       console.log(error);
-      toast.error(
-        `Purchase failed! Ensure you have ${Number(event?.[7]) / 10 ** 18} cUSD`,
-      );
-      toast.error(`${error}`);
+      toast.error(`Purchase failed! Ensure you have ${Number(totalCost) / 10 ** 18} cUSD`);
     } finally {
       setProcessing(false);
     }
@@ -584,47 +654,109 @@ export default function EventDetailsPage({
                     </Button>
                   </Link>
                 ) : passed && !isTicketPurchased ? null : (
-                  <form onSubmit={buyTicket}>
-                    {/* Quantity selector */}
-                    <div className="mb-4">
-                      <label htmlFor="quantity" className="block text-sm font-medium text-gray-700 mb-2">
-                        Number of Tickets
-                      </label>
-                      <select
-                        id="quantity"
-                        value={ticketQuantity}
-                        onChange={(e) => setTicketQuantity(parseInt(e.target.value))}
-                        className="block w-full rounded-md border border-gray-300 bg-white py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
-                        disabled={buyTicketPending || isTicketPurchased || isUploading || processing || over}
-                      >
-                        {Array.from({ length: Math.min(10, Number(event?.[8]) || 10) }, (_, i) => (
-                          <option key={i + 1} value={i + 1}>
-                            {i + 1}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
+                  <form onSubmit={buyTicket} className="space-y-4">
+                    {selectedSeats.length === 0 ? (
+                      <>
+                        <div className="mb-4">
+                          <label htmlFor="quantity" className="block text-sm font-medium text-gray-700 mb-2">
+                            Number of Tickets (General Admission)
+                          </label>
+                          <select
+                            id="quantity"
+                            value={ticketQuantity}
+                            onChange={(e) => setTicketQuantity(parseInt(e.target.value))}
+                            className="block w-full rounded-md border border-gray-300 bg-white py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
+                            disabled={buyTicketPending || isTicketPurchased || isUploading || processing || over}
+                          >
+                            {Array.from({ length: Math.min(10, Number(event?.[8]) || 10) }, (_, i) => (
+                              <option key={i + 1} value={i + 1}>
+                                {i + 1}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
 
-                    <Button
-                      className="w-full hover:bg-blue-600 sm:w-auto"
-                      type="submit"
-                      disabled={
-                        buyTicketPending ||
-                        isTicketPurchased ||
-                        isUploading ||
-                        processing ||
-                        over
-                      }
-                    >
-                      <Ticket className="mr-2 h-5 w-5" />
-                      {processing
-                        ? "Processing..."
-                        : isUploading
-                          ? "Minting NFT Ticket..."
-                          : buyTicketPending
-                            ? "Buying Ticket..."
-                            : `Buy ${ticketQuantity} Ticket${ticketQuantity > 1 ? 's' : ''}`}
-                    </Button>
+                        <Button
+                          className="w-full hover:bg-blue-600 sm:w-auto bg-blue-500 text-white"
+                          type="submit"
+                          disabled={
+                            buyTicketPending ||
+                            isTicketPurchased ||
+                            isUploading ||
+                            processing ||
+                            over
+                          }
+                        >
+                          <Ticket className="mr-2 h-5 w-5" />
+                          {processing
+                            ? "Processing..."
+                            : isUploading
+                              ? "Minting NFT Ticket..."
+                              : buyTicketPending
+                                ? "Buying Ticket..."
+                                : `Buy ${ticketQuantity} Ticket${ticketQuantity > 1 ? 's' : ''}`}
+                        </Button>
+                      </>
+                    ) : (
+                      <div className="space-y-4 p-4 border border-emerald-500/20 bg-emerald-50/50 rounded-xl">
+                        <div>
+                          <h3 className="text-sm font-semibold text-emerald-800">Selected Seats ({selectedSeats.length})</h3>
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            {selectedSeats.map((seat) => (
+                              <span key={seat.label} className="px-2.5 py-1 text-xs font-bold bg-emerald-600 text-white rounded-full">
+                                {seat.label} ({seat.category})
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="flex justify-between items-center pt-2 border-t border-emerald-500/20">
+                          <span className="text-sm text-gray-600">Total Price:</span>
+                          <span className="text-xl font-bold text-emerald-700">
+                            {selectedSeats.reduce((acc, seat) => acc + seat.price, 0).toFixed(2)} cUSD
+                          </span>
+                        </div>
+
+                        <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                          <Button
+                            className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                            type="submit"
+                            disabled={
+                              buyTicketPending ||
+                              isTicketPurchased ||
+                              isUploading ||
+                              processing ||
+                              over
+                            }
+                          >
+                            <Ticket className="mr-2 h-5 w-5" />
+                            {processing
+                              ? "Processing..."
+                              : isUploading
+                                ? "Minting NFTs..."
+                                : buyTicketPending
+                                  ? "Confirming Transaction..."
+                                  : "Buy Selected Seats"}
+                          </Button>
+                          
+                          <Button
+                            className="flex-1 border border-amber-500 bg-amber-50 hover:bg-amber-100 text-amber-700 font-semibold"
+                            type="button"
+                            onClick={handleOnChainLock}
+                            disabled={
+                              buyTicketPending ||
+                              isTicketPurchased ||
+                              isUploading ||
+                              processing ||
+                              isReservingOnChain ||
+                              over
+                            }
+                          >
+                            🔒 {isReservingOnChain ? "Reserving..." : "Reserve Seats On-Chain (10m)"}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </form>
                 )}
                 {showStar && (
@@ -652,6 +784,24 @@ export default function EventDetailsPage({
                 <div className="absolute inset-0 rounded-lg bg-gradient-to-b from-transparent to-black opacity-30"></div>
               </div>
             </div>
+            
+            {/* Interactive Seat Map */}
+            {!passed && !isTicketPurchased && !over && isConnected && (
+              <div className="mt-8 space-y-4 pt-8 border-t border-gray-200">
+                <h2 className="text-2xl font-bold text-slate-800">Select Seats on Layout Map</h2>
+                <p className="text-gray-500 text-sm">
+                  Click on available seats (outlined green) to select them. Selected seats will place a temporary lock in Redis and let you buy specific spots.
+                </p>
+                <SeatMap
+                  eventId={Number(params.index)}
+                  basePrice={Number(event?.[7]) / 10 ** 18}
+                  walletAddress={address as string}
+                  onSelectionChange={(seats) => {
+                    setSelectedSeats(seats);
+                  }}
+                />
+              </div>
+            )}
           </div>
         )}
       </section>
@@ -660,9 +810,9 @@ export default function EventDetailsPage({
         <>
           <section className="w-full py-2 md:py-2 lg:py-2">
             <div className="container px-4 md:px-6">
-              <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl md:text-5xl">
+              <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl md:text-5xl">
                 Description
-              </h1>
+              </h2>
               <p className="pt-6 text-gray-600">{event?.[9]}</p>
             </div>
           </section>

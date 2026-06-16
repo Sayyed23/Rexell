@@ -2,6 +2,8 @@
 
 This sequence diagram traces the operations that run across client, backend service, and smart contract layers during a secure NFT ticket purchase attempt.
 
+![Sequence Diagram](images/sequence_diagram.png)
+
 ```mermaid
 sequenceDiagram
     autonumber

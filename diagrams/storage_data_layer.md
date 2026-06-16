@@ -2,6 +2,8 @@
 
 This diagram maps the storage boundaries between on-chain blockchain storage and off-chain storage assets.
 
+![Storage Data Layer](images/storage_data_layer.png)
+
 ```mermaid
 flowchart TB
     subgraph OnChain["⛓️ On-Chain - Celo Blockchain"]

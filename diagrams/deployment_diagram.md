@@ -2,6 +2,8 @@
 
 This diagram visualizes the system's runtime components, highlighting client environments, edge servers, storage layers, and containerized microservices alongside the Celo EVM blockchain network.
 
+![Deployment Diagram](images/deployment_diagram.png)
+
 ```mermaid
 flowchart TB
     subgraph ClientSpace["🖥️ Client Environment (User's Web Browser)"]

@@ -8,6 +8,8 @@ This document provides a comprehensive view of Rexell's architecture, including 
 
 The deployment diagram illustrates the physical topology of the Rexell platform, detailing the runtime environments for the frontend web application, the EVM-compatible blockchain network, and the server-side AI/ML bot-detection microservices running on a Kubernetes cluster.
 
+![Deployment Diagram](diagrams/images/deployment_diagram.png)
+
 ```mermaid
 flowchart TB
     subgraph ClientSpace["🖥️ Client Environment (User's Web Browser)"]
@@ -121,6 +123,8 @@ flowchart TB
 ## 🗃️ 2. Entity-Relationship (ER) Diagram
 
 This diagram displays the hybrid data storage configuration. It illustrates how the relational SQL database schemas (representing the server-side bot-detection telemetry and states) map conceptually to the decentralized storage schemas on the Celo blockchain.
+
+![ER Diagram](diagrams/images/er_diagram.png)
 
 ```mermaid
 erDiagram
@@ -267,9 +271,15 @@ erDiagram
 
 ---
 
-## 🏛️ 3. Class Diagram
+## 🏛️ 3. Class Diagrams
 
-The class diagram maps the programmatic components of the system, divided into client-side browser modules, backend Python microservices, and Solidity smart contracts.
+The class diagrams map the programmatic components of the system, divided into client-side browser modules, backend Python microservices, and Solidity smart contracts.
+
+### ⛓️ 3.1 Smart Contracts Class Diagram
+
+This diagram maps the inheritance, fields, and functions of the core smart contracts deployed on Celo.
+
+![Class Diagram 1](diagrams/images/class_diagram_1.png)
 
 ```mermaid
 classDiagram
@@ -322,7 +332,24 @@ classDiagram
         -beforeTokenTransfer(address from, address to, uint256 tokenId) void
     }
 
-    %% Browser SDK & In-Browser AI classes
+    %% Inheritance Relations
+    ERC721URIStorage --|> ERC721
+    Rexell --|> ERC721URIStorage
+    Rexell --|> Ownable
+    Rexell --|> ReentrancyGuard
+    SoulboundIdentity --|> ERC721
+    SoulboundIdentity --|> Ownable
+    Rexell --> SoulboundIdentity : "verifies KYC status"
+```
+
+### 🖥️ 3.2 Client-Side & Browser SDK Class Diagram
+
+This diagram captures classes operating within the attendee's browser environment, including the telemetry tracker and local risk evaluation agents.
+
+![Class Diagram 2](diagrams/images/class_diagram_2.png)
+
+```mermaid
+classDiagram
     class BehavioralTracker {
         -circularBuffer events
         -number sampleIntervalMs
@@ -362,7 +389,20 @@ classDiagram
         +decide(RiskEvaluation evaluation) DecisionResponse
     }
 
-    %% Backend FastAPI Services
+    %% Associations and Dependencies
+    AIModeService *-- RiskEvaluationAgent
+    AIModeService *-- PolicyEnforcementAgent
+    BotDetectionClient ..> AIModeService : "queries risk rules"
+```
+
+### 🐳 3.3 Backend API Services Class Diagram
+
+This diagram displays the server-side microservice controllers responsible for real-time model inference, challenge verification, and active rate-limiting defense.
+
+![Class Diagram 3](diagrams/images/class_diagram_3.png)
+
+```mermaid
+classDiagram
     class DetectionService {
         -string secretSigningKey
         +detect(request) DetectionResponse
@@ -390,28 +430,10 @@ classDiagram
         +applyFallbackLimits(wallet) boolean
     }
 
-    %% Inheritance Relations
-    ERC721URIStorage --|> ERC721
-    Rexell --|> ERC721URIStorage
-    Rexell --|> Ownable
-    Rexell --|> ReentrancyGuard
-    SoulboundIdentity --|> ERC721
-    SoulboundIdentity --|> Ownable
-
     %% Associations and Dependencies
-    AIModeService *-- BotDetector
-    AIModeService *-- ScalpingDetector
-    AIModeService *-- RiskEvaluationAgent
-    AIModeService *-- PolicyEnforcementAgent
-    
-    BotDetectionClient ..> DetectionService : "sends HTTP telemetry"
     DetectionService ..> InferenceService : "requests XGBoost risk score"
     DetectionService ..> ChallengeService : "delegates MFA challenges"
     DetectionService ..> FallbackController : "uses for active defense"
-    
-    %% Contract connections
-    Rexell --> SoulboundIdentity : "verifies user score is 70 plus"
-    BotDetectionClient ..> Rexell : "provides signed verification token"
 ```
 
 ---
@@ -419,6 +441,8 @@ classDiagram
 ## 🔄 4. End-to-End Multi-Module Decision Flow
 
 To clarify how the modules communicate across the **Client**, **Server-Side AI**, and **Blockchain** boundaries, the sequence chart below shows a typical transaction workflow:
+
+![Sequence Diagram](diagrams/images/sequence_diagram.png)
 
 ```mermaid
 sequenceDiagram

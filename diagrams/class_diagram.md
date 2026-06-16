@@ -2,6 +2,18 @@
 
 This UML class diagram defines the software classes, properties, and methods of the Next.js React client modules, Python microservices, and Solidity EVM contracts.
 
+# 🏛️ Rexell - Class Diagrams
+
+This document defines the software classes, properties, and methods of the Next.js React client modules, Python microservices, and Solidity EVM contracts, separated into modular component diagrams.
+
+---
+
+## ⛓️ 1. Smart Contracts Class Diagram
+
+This diagram maps the inheritance, fields, and functions of the core smart contracts deployed on Celo.
+
+![Class Diagram 1](images/class_diagram_1.png)
+
 ```mermaid
 classDiagram
     %% OpenZeppelin and Base contracts
@@ -53,7 +65,26 @@ classDiagram
         -beforeTokenTransfer(address from, address to, uint256 tokenId) void
     }
 
-    %% Browser SDK & In-Browser AI classes
+    %% Inheritance Relations
+    ERC721URIStorage --|> ERC721
+    Rexell --|> ERC721URIStorage
+    Rexell --|> Ownable
+    Rexell --|> ReentrancyGuard
+    SoulboundIdentity --|> ERC721
+    SoulboundIdentity --|> Ownable
+    Rexell --> SoulboundIdentity : "verifies KYC status"
+```
+
+---
+
+## 🖥️ 2. Client-Side & Browser SDK Class Diagram
+
+This diagram captures classes operating within the attendee's browser environment, including the telemetry tracker and local risk evaluation agents.
+
+![Class Diagram 2](images/class_diagram_2.png)
+
+```mermaid
+classDiagram
     class BehavioralTracker {
         -circularBuffer events
         -number sampleIntervalMs
@@ -93,7 +124,22 @@ classDiagram
         +decide(RiskEvaluation evaluation) DecisionResponse
     }
 
-    %% Backend FastAPI Services
+    %% Associations and Dependencies
+    AIModeService *-- RiskEvaluationAgent
+    AIModeService *-- PolicyEnforcementAgent
+    BotDetectionClient ..> AIModeService : "queries risk rules"
+```
+
+---
+
+## 🐳 3. Backend API Services Class Diagram
+
+This diagram displays the server-side microservice controllers responsible for real-time model inference, challenge verification, and active rate-limiting defense.
+
+![Class Diagram 3](images/class_diagram_3.png)
+
+```mermaid
+classDiagram
     class DetectionService {
         -string secretSigningKey
         +detect(request) DetectionResponse
@@ -121,26 +167,8 @@ classDiagram
         +applyFallbackLimits(wallet) boolean
     }
 
-    %% Inheritance Relations
-    ERC721URIStorage --|> ERC721
-    Rexell --|> ERC721URIStorage
-    Rexell --|> Ownable
-    Rexell --|> ReentrancyGuard
-    SoulboundIdentity --|> ERC721
-    SoulboundIdentity --|> Ownable
-
     %% Associations and Dependencies
-    AIModeService *-- BotDetector
-    AIModeService *-- ScalpingDetector
-    AIModeService *-- RiskEvaluationAgent
-    AIModeService *-- PolicyEnforcementAgent
-    
-    BotDetectionClient ..> DetectionService : "sends HTTP telemetry"
     DetectionService ..> InferenceService : "requests XGBoost risk score"
     DetectionService ..> ChallengeService : "delegates MFA challenges"
     DetectionService ..> FallbackController : "uses for active defense"
-    
-    %% Contract connections
-    Rexell --> SoulboundIdentity : "verifies user score is 70 plus"
-    BotDetectionClient ..> Rexell : "provides signed verification token"
 ```

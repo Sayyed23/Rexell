@@ -25,7 +25,7 @@ export default function EventDetailsPage({
   const { address, isConnected } = useAccount();
 
   const {
-    data: event,
+    data: eventRaw,
     isPending,
     error,
   } = useReadContract({
@@ -34,6 +34,7 @@ export default function EventDetailsPage({
     functionName: "getEvent",
     args: [BigInt(params.id)],
   });
+  const event = eventRaw as any;
 
   useEffect(() => {
     if (event) {
@@ -111,7 +112,7 @@ export default function EventDetailsPage({
                     <p>No attendees yet</p>
                   </div>
                 ) : (
-                  event?.[11].map((attendee, index) => (
+                  event?.[11].map((attendee: any, index: number) => (
                     <li className="flex items-center gap-2" key={index}>
                       <div>
                         <User />

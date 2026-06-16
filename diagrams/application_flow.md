@@ -2,6 +2,8 @@
 
 This flowchart outlines the end-to-end user journey from landing page, connecting wallet, creating events, purchasing NFT tickets, rating, comments, and the anti-scalping resale market flow.
 
+![Application Flow](images/application_flow.png)
+
 ```mermaid
 flowchart TD
     Start(["🧑 User opens Rexell"]) --> Connect["Connect MetaMask Wallet <br/> via RainbowKit"]

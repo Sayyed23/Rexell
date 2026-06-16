@@ -9,12 +9,15 @@ module.exports = {
         settings: {
             optimizer: {
                 enabled: true,
-                runs: 200,
+                runs: 100,
             },
             viaIR: true,
         }
     },
     networks: {
+        hardhat: {
+            allowUnlimitedContractSize: true,
+        },
         Sepolia: {
             url: "https://forno.celo-sepolia.celo-testnet.org",
             accounts: [process.env.PRIVATE_KEY],
