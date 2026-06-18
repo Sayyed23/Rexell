@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import ReactStars from "react-rating-stars-component";
-import { useAccount, useReadContract, useWriteContract } from "wagmi";
+import { useAccount, useReadContract, useWriteContract, usePublicClient, useWalletClient } from "wagmi";
 import { processCheckout } from "@/lib/TokenFuction";
 import {
   rexellAbi,
@@ -44,6 +44,8 @@ export default function EventDetailsPage({
 }) {
   const router = useRouter();
   const { address, isConnected } = useAccount();
+  const publicClient = usePublicClient();
+  const { data: walletClient } = useWalletClient();
   const [cid, setCid] = useState("");
   const [over, setOver] = useState(false);
   const [free, setFree] = useState(false);
@@ -287,10 +289,45 @@ export default function EventDetailsPage({
       setProcessing(true);
       let paid = true;
 
-      // For paid tickets, we need to approve the contract to spend tokens
+      let approvalError = "";
+      // For paid tickets, we need to approve the contract to spend tokens.
+      // We use walletClient.writeContract directly to send the approve tx
+      // through MetaMask's own RPC, bypassing rate-limited public RPCs.
       if (!free) {
-        const { approveTokens } = await import("@/lib/TokenFuction");
-        paid = await approveTokens(contractAddress, totalCost);
+        try {
+          if (!walletClient) {
+            throw new Error("Wallet not connected. Please reconnect your wallet.");
+          }
+          const hash = await walletClient.writeContract({
+            address: tokencUSDContractAddress as `0x${string}`,
+            abi: tokencUSDAbi,
+            functionName: "approve",
+            args: [contractAddress as `0x${string}`, totalCost],
+            chain: celoSepolia,
+            account: address as `0x${string}`,
+            gas: 100_000n, // explicit gas skips eth_estimateGas RPC call
+          });
+          // Wait for confirmation if publicClient is available
+          if (publicClient) {
+            try {
+              const receipt = await publicClient.waitForTransactionReceipt({ hash, timeout: 60_000 });
+              paid = receipt.status === "success";
+              if (!paid) approvalError = "Approval transaction reverted on chain.";
+            } catch {
+              // waitForTransactionReceipt may fail if RPCs are rate-limited,
+              // but the tx was already sent via wallet. Give it a moment.
+              await new Promise(resolve => setTimeout(resolve, 5000));
+              paid = true;
+            }
+          } else {
+            await new Promise(resolve => setTimeout(resolve, 5000));
+            paid = true;
+          }
+        } catch (error: any) {
+          console.error("Approval error:", error);
+          approvalError = error?.shortMessage || error?.message || String(error);
+          paid = false;
+        }
       }
 
       if (paid) {
@@ -526,7 +563,7 @@ export default function EventDetailsPage({
           setIsUploading(false);
         }
       } else {
-        toast.error(`Failed to approve payment of ${Number(totalCost) / 10 ** 18} cUSD`);
+        toast.error(`Failed to approve payment of ${Number(totalCost) / 10 ** 18} cUSD. ${approvalError}`);
       }
     } catch (error) {
       console.log(error);

@@ -15,6 +15,8 @@ export const CELO_SEPOLIA_RPC_URLS: readonly string[] = ENV_RPCS.length
       'https://celo-sepolia.drpc.org',
       'https://11142220.rpc.thirdweb.com',
       'https://celo-sepolia.gateway.tenderly.co',
+      'https://rpc.ankr.com/celo_sepolia',
+      'https://celo-sepolia.blockpi.network/v1/rpc/public',
     ];
 
 export const celoSepolia = defineChain({

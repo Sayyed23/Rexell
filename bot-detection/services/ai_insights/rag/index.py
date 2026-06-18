@@ -116,9 +116,9 @@ class DocumentIndex:
 
         # 1. Try LangChain + FAISS + HuggingFaceEmbeddings first
         try:
-            from langchain_community.embeddings import HuggingFaceEmbeddings
-            from langchain_community.vectorstores import FAISS
-            from langchain_core.documents import Document
+            from langchain_community.embeddings import HuggingFaceEmbeddings  # type: ignore
+            from langchain_community.vectorstores import FAISS  # type: ignore
+            from langchain_core.documents import Document  # type: ignore
 
             documents = [
                 Document(page_content=chunk, metadata={"source": source})

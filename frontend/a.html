@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rexell UML Deployment Architecture</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .mermaid-container {
+            overflow-x: auto;
+            overflow-y: hidden;
+            display: flex;
+            justify-content: center;
+            padding: 1.5rem;
+            background-color: white;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .mermaid svg {
+            max-width: none !important;
+            height: auto;
+        }
+        .mermaid-container::-webkit-scrollbar {
+            height: 8px;
+        }
+        .mermaid-container::-webkit-scrollbar-track {
+            background: #f1f5f9; 
+            border-radius: 4px;
+        }
+        .mermaid-container::-webkit-scrollbar-thumb {
+            background: #cbd5e1; 
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen flex flex-col items-center py-10 px-4 md:px-8 space-y-10">
+
+    <!-- PART 1 -->
+    <div class="max-w-6xl w-full bg-white shadow-md rounded-xl overflow-hidden border border-slate-200">
+        <div class="bg-blue-50 border-b border-slate-200 p-6">
+            <h2 class="text-2xl md:text-3xl font-bold text-slate-900 mb-2">
+                Part 1: Client & Decentralized Network Nodes
+            </h2>
+            <p class="text-slate-600 font-medium">
+                UML Deployment View: Focuses on physical/logical nodes, execution environments, and communication protocols.
+            </p>
+        </div>
+
+        <div class="mermaid-container">
+            <pre class="mermaid">
+flowchart TB
+    %% Nodes and Environments
+    subgraph ClientNode ["«Device»<br/>User Client (PC/Mobile)"]
+        subgraph BrowserEnv ["«Execution Environment»<br/>Web Browser"]
+            FE_Code["«Artifact»<br/>React SPA (Next.js)"]
+            SDK["«Artifact»<br/>Behavioral SDK"]
+            Wallet["«Artifact»<br/>Web3 Wallet Extension"]
+            Local_Store[("«Storage»<br/>Browser LocalStorage")]
+        end
+    end
+
+    subgraph VercelNode ["«Cloud Infrastructure»<br/>Vercel Edge Network"]
+        Next_Server["«Execution Environment»<br/>Node.js Server (SSR/API)"]
+    end
+
+    subgraph IPFSNode ["«Decentralized Network»<br/>IPFS Storage Layer"]
+        Pinata["«Gateway Node»<br/>Pinata Cloud"]
+    end
+
+    subgraph CeloNode ["«Blockchain Network»<br/>Celo EVM (Sepolia/Mainnet)"]
+        RPC_Node["«Gateway Node»<br/>RPC Gateway (drpc.org)"]
+        subgraph EVM ["«Execution Environment»<br/>Ethereum Virtual Machine"]
+            Contracts["«Artifact»<br/>Smart Contracts<br/>(Rexell, S-Identity, cUSD)"]
+        end
+    end
+
+    Backend_Stub(("«Load Balancer»<br/>Kubernetes Ingress<br/>(See Part 2)"))
+
+    %% Deployment Communication Paths (Protocols)
+    SDK -.->|Internal API| FE_Code
+    FE_Code <-->|Browser Storage API| Local_Store
+    
+    FE_Code <-->|HTTPS / WSS| Next_Server
+    Next_Server -->|"HTTPS (IPFS API)"| Pinata
+    FE_Code -->|HTTPS| Pinata
+    
+    Wallet <-->|"JSON-RPC (HTTPS)"| RPC_Node
+    RPC_Node <-->|"JSON-RPC (HTTPS)"| FE_Code
+    RPC_Node <-->|EVM Opcodes| Contracts
+    
+    FE_Code -->|HTTPS / TLS 1.3| Backend_Stub
+
+    %% Styles
+    classDef client fill:#e0f2fe,stroke:#0284c7,stroke-width:2px,color:#0369a1;
+    classDef blockchain fill:#dcfce7,stroke:#15803d,stroke-width:2px,color:#166534;
+    classDef external fill:#f8fafc,stroke:#94a3b8,stroke-width:2px,stroke-dasharray: 5 5;
+    classDef cloud fill:#f3f4f6,stroke:#6b7280,stroke-width:2px;
+
+    %% IMPORTANT: Do not include subgraphs like EVM in node class assignments
+    class FE_Code,SDK,Wallet,Local_Store client;
+    class RPC_Node,Contracts blockchain;
+    class Next_Server,Pinata cloud;
+    class Backend_Stub external;
+            </pre>
+        </div>
+    </div>
+
+    <!-- PART 2 -->
+    <div class="max-w-6xl w-full bg-white shadow-md rounded-xl overflow-hidden border border-slate-200">
+        <div class="bg-purple-50 border-b border-slate-200 p-6">
+            <h2 class="text-2xl md:text-3xl font-bold text-slate-900 mb-2">
+                Part 2: Kubernetes Cluster & Backend Nodes
+            </h2>
+            <p class="text-slate-600 font-medium">
+                UML Deployment View: Focuses on containerized environments, databases, and internal port/protocol mapping.
+            </p>
+        </div>
+
+        <div class="mermaid-container">
+            <pre class="mermaid">
+flowchart TB
+    Client_Stub(("«Client App»<br/>Browser<br/>(See Part 1)"))
+
+    subgraph K8sNode ["«Cluster»<br/>Kubernetes Server Infrastructure"]
+        Ingress["«Execution Environment»<br/>Ingress Controller (Nginx)"]
+
+        subgraph AI_Node ["«Node Pool»<br/>AI & Bot Detection Services"]
+            Det_Service["«Container»<br/>FastAPI Detection Pod"]
+            Inf_Service["«Container»<br/>XGBoost Inference Pod"]
+            Chal_Service["«Container»<br/>FastAPI Challenge Pod"]
+            Train_Job["«Container»<br/>CronJob Pod (Retraining)"]
+        end
+
+        subgraph Stateful_Node ["«Node Pool»<br/>Stateful Volume Backed Deployments"]
+            Postgres[("«Database»<br/>PostgreSQL Pod")]
+            Redis[("«Cache»<br/>Redis Pod")]
+            RabbitMQ[("«Message Broker»<br/>RabbitMQ Pod")]
+            MinIO[("«Object Storage»<br/>MinIO Pod")]
+        end
+    end
+
+    subgraph ObsNode ["«Monitoring Node»<br/>Observability Platform"]
+        Prometheus["«Execution Environment»<br/>Prometheus Server"]
+        Grafana["«Execution Environment»<br/>Grafana Server"]
+    end
+
+    %% Communication Paths (Protocols and Ports)
+    Client_Stub -->|HTTPS / TLS 1.3| Ingress
+    Ingress -->|HTTP Port 8000| Det_Service
+    Ingress -->|HTTP Port 8001| Chal_Service
+
+    Det_Service <-->|gRPC / HTTP Port 8080| Inf_Service
+    Det_Service <-->|Internal HTTP| Chal_Service
+    
+    Det_Service <-->|TCP Port 5432| Postgres
+    Det_Service <-->|TCP Port 6379| Redis
+    Det_Service -->|AMQP Port 5672| RabbitMQ
+    
+    Inf_Service -->|S3 API| MinIO
+    Train_Job -->|TCP Port 5432| Postgres
+    Train_Job -->|S3 API| MinIO
+
+    Prometheus -.->|HTTP Scrape /metrics| Det_Service
+    Prometheus -.->|HTTP Scrape /metrics| Inf_Service
+    Prometheus -.->|HTTP Scrape /metrics| Chal_Service
+    Grafana -->|PromQL HTTP| Prometheus
+
+    %% Styles
+    classDef server fill:#f3e8ff,stroke:#7c3aed,stroke-width:2px,color:#6d28d9;
+    classDef stateful fill:#fef3c7,stroke:#d97706,stroke-width:2px,color:#b45309;
+    classDef monitor fill:#fee2e2,stroke:#dc2626,stroke-width:2px,color:#991b1b;
+    classDef external fill:#f8fafc,stroke:#94a3b8,stroke-width:2px,stroke-dasharray: 5 5;
+
+    class Ingress,Det_Service,Inf_Service,Chal_Service,Train_Job server;
+    class Postgres,Redis,RabbitMQ,MinIO stateful;
+    class Prometheus,Grafana monitor;
+    class Client_Stub external;
+            </pre>
+        </div>
+    </div>
+
+    <!-- Initialize Mermaid.js -->
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'base',
+            themeVariables: {
+                fontFamily: 'ui-sans-serif, system-ui, sans-serif',
+                primaryColor: '#ffffff',
+                primaryTextColor: '#1e293b',
+                lineColor: '#475569'
+            },
+            flowchart: {
+                curve: 'linear', /* Standard UML look */
+                nodeSpacing: 50,
+                rankSpacing: 60
+            }
+        });
+    </script>
+</body>
+</html>

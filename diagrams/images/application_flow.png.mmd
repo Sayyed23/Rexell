@@ -1,0 +1,32 @@
+flowchart TD
+    Start(["🧑 User opens Rexell"]) --> Connect["Connect MetaMask Wallet <br/> via RainbowKit"]
+    Connect --> Landing["Landing Page"]
+
+    Landing --> CreateEvent["📝 Create Event <br/> · Name, Venue, Category <br/> · Date, Time, Price <br/> · Upload image → Pinata IPFS"]
+    Landing --> BrowseEvents["🔍 Browse Events"]
+
+    CreateEvent --> SC_Create["Smart Contract <br/> createEvent()"]
+    SC_Create --> EventLive["✅ Event Live on Blockchain"]
+
+    BrowseEvents --> EventDetail["View Event Details"]
+    EventDetail --> AICheck{"🤖 AI Risk <br/> Assessment"}
+
+    AICheck -->|"✅ ALLOW"| BuyTicket["💰 Buy Ticket <br/> · Pay in cUSD <br/> · Mint NFT"]
+    AICheck -->|"⚠️ WARNING"| Warning["Show Warning <br/> Proceed?"]
+    AICheck -->|"🚫 BLOCK"| Blocked["Purchase Blocked"]
+
+    Warning -->|Yes| BuyTicket
+    BuyTicket --> SC_Buy["Smart Contract <br/> buyTicket()"]
+    SC_Buy --> NFT["🎫 NFT Ticket Minted <br/> · Stored in wallet <br/> · QR Code generated"]
+
+    NFT --> PostEvent{"Event <br/> Passed?"}
+    PostEvent -->|Yes| Rate["⭐ Rate Event"]
+    PostEvent -->|Yes| Comment["💬 Post Comments"]
+    PostEvent -->|No| Resale["🔄 Request Resale"]
+
+    Resale --> OrgApproval{"Organizer <br/> Approves?"}
+    OrgApproval -->|"✅ Yes"| Execute["Execute Resale <br/> · 5% Royalty to Organizer <br/> · Transfer NFT to Buyer"]
+    OrgApproval -->|"❌ No"| Rejected["Resale Rejected"]
+
+    Rate --> SC_Rate["Smart Contract <br/> submitRating()"]
+    Comment --> SC_Comment["Smart Contract <br/> addComment()"]

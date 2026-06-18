@@ -23,7 +23,7 @@ export const approveTokens = async (spender: `0x${string}`, amount: bigint) => {
       transport: custom(window.ethereum),
     });
 
-    const [address] = await privateClient.getAddresses();
+    const [address] = await privateClient.requestAddresses();
 
     try {
       // First check current allowance
