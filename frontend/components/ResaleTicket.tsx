@@ -33,7 +33,7 @@ export default function ResaleTicket({ tokenId, onResaleComplete }: ResaleTicket
     functionName: "getResaleRequest",
     args: [BigInt(tokenId)],
     query: {
-      enabled: !!tokenId && tokenId > 0,
+      enabled: tokenId !== undefined && tokenId !== null && tokenId >= 0,
     }
   });
 
@@ -47,7 +47,7 @@ export default function ResaleTicket({ tokenId, onResaleComplete }: ResaleTicket
     functionName: "tokenURI",
     args: [BigInt(tokenId)],
     query: {
-      enabled: !!tokenId && tokenId > 0,
+      enabled: tokenId !== undefined && tokenId !== null && tokenId >= 0,
     }
   });
 

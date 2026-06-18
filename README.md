@@ -381,9 +381,9 @@ flowchart LR
 | `ml/generate_data.py` | Python | Generate synthetic training data |
 | `ml/train_model.py` | Python | Train ML model (TensorFlow/scikit-learn) |
 | `ml/train_model.js` | JavaScript | Alternative JS-based training |
-| `dataset/CNN.ipynb` | Jupyter | CNN model experimentation notebook |
-| `dataset/assemble_dataset.py` | Python | Assemble and preprocess raw datasets |
-| `dataset/blockchain_ticketing_master.csv` | CSV | 2.3 MB master ticketing dataset |
+| `bot-detection/ai_model_training/CNN.ipynb` | Jupyter | CNN model experimentation notebook |
+| `bot-detection/ai_model_training/assemble_dataset.py` | Python | Assemble and preprocess raw datasets |
+| `bot-detection/dataset/blockchain_ticketing_master.csv` | CSV | 2.3 MB master ticketing dataset |
 
 ---
 

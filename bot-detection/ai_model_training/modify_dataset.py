@@ -84,8 +84,10 @@ def modify_dataset_for_accuracy(input_file, output_file, target_min=90, target_m
     print(f"Final accuracy: {final_accuracy:.2f}%")
 
 if __name__ == "__main__":
-    input_file = "synthetic_ticketing_dataset.csv"
-    output_file = "synthetic_ticketing_dataset_modified.csv"
+    import os
+    SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+    input_file = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "dataset", "synthetic_ticketing_dataset.csv"))
+    output_file = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "dataset", "synthetic_ticketing_dataset_modified.csv"))
     
     # Set seed for reproducibility
     random.seed(42)

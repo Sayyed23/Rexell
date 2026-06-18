@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import ReactStars from "react-rating-stars-component";
-import { useAccount, useReadContract, useWriteContract, usePublicClient, useWalletClient } from "wagmi";
+import { useAccount, useReadContract, useWriteContract, usePublicClient } from "wagmi";
 import { processCheckout } from "@/lib/TokenFuction";
 import {
   rexellAbi,
@@ -45,7 +45,6 @@ export default function EventDetailsPage({
   const router = useRouter();
   const { address, isConnected } = useAccount();
   const publicClient = usePublicClient();
-  const { data: walletClient } = useWalletClient();
   const [cid, setCid] = useState("");
   const [over, setOver] = useState(false);
   const [free, setFree] = useState(false);
@@ -131,6 +130,8 @@ export default function EventDetailsPage({
     error: buyTicketError,
     writeContractAsync,
   } = useWriteContract();
+
+  const { writeContractAsync: approveContractAsync } = useWriteContract();
 
   useEffect(() => {
     if (Number(event?.[8]) == 0) {
@@ -249,6 +250,11 @@ export default function EventDetailsPage({
       quantity: finalQuantity,
     });
 
+    if (!free && cUSDBalance !== undefined && BigInt(cUSDBalance as any) < totalCost) {
+      toast.error(`Insufficient cUSD balance. You need ${Number(totalCost) / 10 ** 18} cUSD, but only have ${Number(cUSDBalance) / 10 ** 18} cUSD.`);
+      return;
+    }
+
     // --- AI Mode Integration ---
     if (address && !bypassWarning) {
       aiLogger.log('purchase_attempt', address, Number(params.index), { quantity: finalQuantity, price: totalCost.toString() });
@@ -295,33 +301,45 @@ export default function EventDetailsPage({
       // through MetaMask's own RPC, bypassing rate-limited public RPCs.
       if (!free) {
         try {
-          if (!walletClient) {
-            throw new Error("Wallet not connected. Please reconnect your wallet.");
-          }
-          const hash = await walletClient.writeContract({
-            address: tokencUSDContractAddress as `0x${string}`,
-            abi: tokencUSDAbi,
-            functionName: "approve",
-            args: [contractAddress as `0x${string}`, totalCost],
-            chain: celoSepolia,
-            account: address as `0x${string}`,
-            gas: 100_000n, // explicit gas skips eth_estimateGas RPC call
-          });
-          // Wait for confirmation if publicClient is available
+          // Check current allowance
+          let currentAllowance = 0n;
           if (publicClient) {
             try {
-              const receipt = await publicClient.waitForTransactionReceipt({ hash, timeout: 60_000 });
-              paid = receipt.status === "success";
-              if (!paid) approvalError = "Approval transaction reverted on chain.";
-            } catch {
-              // waitForTransactionReceipt may fail if RPCs are rate-limited,
-              // but the tx was already sent via wallet. Give it a moment.
+              currentAllowance = await publicClient.readContract({
+                address: tokencUSDContractAddress as `0x${string}`,
+                abi: tokencUSDAbi,
+                functionName: "allowance",
+                args: [address as `0x${string}`, contractAddress as `0x${string}`],
+              });
+            } catch (err) {
+              console.error("Failed to check allowance:", err);
+            }
+          }
+
+          if (currentAllowance < totalCost) {
+            toast.info("Approving cUSD spending...");
+            const hash = await approveContractAsync({
+              address: tokencUSDContractAddress as `0x${string}`,
+              abi: tokencUSDAbi,
+              functionName: "approve",
+              args: [contractAddress as `0x${string}`, totalCost],
+            });
+            // Wait for confirmation if publicClient is available
+            if (publicClient) {
+              try {
+                const receipt = await publicClient.waitForTransactionReceipt({ hash, timeout: 60_000 });
+                paid = receipt.status === "success";
+                if (!paid) approvalError = "Approval transaction reverted on chain.";
+              } catch {
+                await new Promise(resolve => setTimeout(resolve, 5000));
+                paid = true;
+              }
+            } else {
               await new Promise(resolve => setTimeout(resolve, 5000));
               paid = true;
             }
           } else {
-            await new Promise(resolve => setTimeout(resolve, 5000));
-            paid = true;
+            paid = true; // Allowance is already sufficient
           }
         } catch (error: any) {
           console.error("Approval error:", error);

@@ -64,7 +64,8 @@ export default function TicketsPage({ params }: { params: { id: number } }) {
   });
 
   // Fallback: Use event ID as tokenId if the specific function fails
-  const effectiveTokenId = tokenId || (event ? BigInt(params.id) : null);
+  const effectiveTokenId = (tokenId !== undefined && tokenId !== null) ? tokenId : (event ? BigInt(params.id) : null);
+
 
   const [showResaleVerification, setShowResaleVerification] = useState(false);
   const [resaleVerified, setResaleVerified] = useState(false);
@@ -170,7 +171,7 @@ export default function TicketsPage({ params }: { params: { id: number } }) {
                 <div className="space-y-4">
                   <Button
                     onClick={() => {
-                      if (!effectiveTokenId && !loadingTimeout) {
+                      if (effectiveTokenId === null && !loadingTimeout) {
                         toast.error("Cannot proceed: Ticket information not available. Please refresh the page and try again.");
                         return;
                       }
@@ -183,11 +184,11 @@ export default function TicketsPage({ params }: { params: { id: number } }) {
                         }
                       }, 100);
                     }}
-                    disabled={!effectiveTokenId && !loadingTimeout}
+                    disabled={effectiveTokenId === null && !loadingTimeout}
                     className="bg-yellow-500 hover:bg-yellow-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105"
                     size="lg"
                   >
-                    {!effectiveTokenId ? (loadingTimeout ? "Use Event ID" : "Loading Ticket Info...") : "Request Resale Verification"}
+                    {effectiveTokenId === null ? (loadingTimeout ? "Use Event ID" : "Loading Ticket Info...") : "Request Resale Verification"}
                   </Button>
 
                   {showResaleVerification && (
@@ -202,7 +203,7 @@ export default function TicketsPage({ params }: { params: { id: number } }) {
                   )}
 
                   {/* Debug button for testing - only show if effectiveTokenId is available */}
-                  {!showResaleVerification && effectiveTokenId && (
+                  {!showResaleVerification && effectiveTokenId !== null && (
                     <Button
                       onClick={() => setShowResaleVerification(true)}
                       variant="outline"
@@ -221,7 +222,7 @@ export default function TicketsPage({ params }: { params: { id: number } }) {
 
               {showResaleVerification && (
                 <div id="resale-verification-form" className="mt-6">
-                  {effectiveTokenId ? (
+                  {effectiveTokenId !== null ? (
                     <ResaleVerificationNew
                       tokenId={Number(effectiveTokenId)}
                       onVerificationComplete={handleVerificationComplete}
@@ -297,7 +298,7 @@ export default function TicketsPage({ params }: { params: { id: number } }) {
                 </div>
               )}
 
-              {resaleVerified && effectiveTokenId && (
+              {resaleVerified && effectiveTokenId !== null && (
                 <div className="mt-6">
                   <ResaleTicket
                     tokenId={Number(effectiveTokenId)}

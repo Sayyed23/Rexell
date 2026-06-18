@@ -65,7 +65,7 @@ export default function ResaleVerificationNew({ tokenId, onVerificationComplete,
     functionName: "getResaleRequest",
     args: [BigInt(effectiveTokenId)],
     query: {
-      enabled: !!effectiveTokenId && effectiveTokenId > 0,
+      enabled: effectiveTokenId !== undefined && effectiveTokenId !== null && effectiveTokenId >= 0,
     }
   });
 
@@ -90,7 +90,7 @@ export default function ResaleVerificationNew({ tokenId, onVerificationComplete,
   // Auto-refresh status every 10 seconds
   useEffect(() => {
     const interval = setInterval(() => {
-      if (effectiveTokenId && effectiveTokenId > 0) {
+      if (effectiveTokenId !== undefined && effectiveTokenId !== null && effectiveTokenId >= 0) {
         refetchResaleRequest();
       }
     }, 10000);
@@ -105,7 +105,7 @@ export default function ResaleVerificationNew({ tokenId, onVerificationComplete,
     }
 
     // Check if token ID is valid
-    if (!effectiveTokenId || effectiveTokenId === 0) {
+    if (effectiveTokenId === undefined || effectiveTokenId === null || effectiveTokenId < 0) {
       toast.error("Invalid token ID. Please refresh the page and try again.");
       return;
     }

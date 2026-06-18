@@ -182,7 +182,7 @@ const TicketItem = ({ eventId, uri, address, index, total }: { eventId: bigint, 
   }) as { data: any, refetch: () => void };
 
   const handleFinalizeListing = async () => {
-    if (!tokenId || !resaleRequest) return;
+    if (tokenId === undefined || tokenId === null || !resaleRequest) return;
     try {
       setIsFinalizing(true);
       await writeContractAsync({

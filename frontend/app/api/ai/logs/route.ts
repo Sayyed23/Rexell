@@ -11,7 +11,7 @@ if (!fs.existsSync(dataDir)) {
 }
 
 // Define CSV path
-const CSV_FILE_PATH = path.join(process.cwd(), '..', 'dataset', 'blockchain_ticketing_master.csv');
+const CSV_FILE_PATH = path.join(process.cwd(), '..', 'bot-detection', 'dataset', 'blockchain_ticketing_master.csv');
 
 export async function POST(req: NextRequest) {
     try {

@@ -7,8 +7,9 @@ from datetime import datetime, timedelta
 import os
 
 # Configuration
-OUTPUT_FILE = "blockchain_ticketing_master.csv"
-SOURCE_DIR = "source"
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+OUTPUT_FILE = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "dataset", "blockchain_ticketing_master.csv"))
+SOURCE_DIR = os.path.join(SCRIPT_DIR, "source")
 N_ROWS = 12000  # Generate slightly more than 10k
 EVENTS_COUNT = 50
 FRAUD_RATE = 0.08  # 8% suspicious activity
