@@ -1,41 +1,44 @@
+"""Train the client-side bot detection model from training_data.json.
+
+Features (10 behavioral biometrics, already normalized to [0, 1]):
+  mouse_velocity_mean, mouse_velocity_std, mouse_acceleration,
+  mouse_curvature, click_frequency, flight_time_mean, flight_time_std,
+  dwell_time_mean, navigation_entropy, page_dwell_time_dist
+
+Outputs a TensorFlow.js model to public/ai_model/.
+"""
+
 import json
 import numpy as np
 import tensorflow as tf
 import tensorflowjs as tfjs
 import os
 
+FEATURE_KEYS = [
+    "mouse_velocity_mean",
+    "mouse_velocity_std",
+    "mouse_acceleration",
+    "mouse_curvature",
+    "click_frequency",
+    "flight_time_mean",
+    "flight_time_std",
+    "dwell_time_mean",
+    "navigation_entropy",
+    "page_dwell_time_dist",
+]
+
 # Load Data
 with open("ml/training_data.json", "r") as f:
     raw_data = json.load(f)
 
-# Preprocess
-X = []
-y = []
-
-for item in raw_data:
-    features = [
-        item["time_since_last_buy"],
-        item["purchase_count_10s"],
-        item["event_diversity_24h"]
-    ]
-    X.append(features)
-    y.append(item["label"])
-
-X = np.array(X)
-y = np.array(y)
-
-# Normalize Data (Simple Min-Max scaling logic for demo, hardcoded ranges)
-# time_since_last_buy: 0 to 3600
-# purchase_count_10s: 0 to 10
-# event_diversity_24h: 0 to 20
-X[:, 0] = X[:, 0] / 3600.0
-X[:, 1] = X[:, 1] / 10.0
-X[:, 2] = X[:, 2] / 20.0
+# Preprocess — values are already in [0, 1], no manual normalization needed
+X = np.array([[item[k] for k in FEATURE_KEYS] for item in raw_data])
+y = np.array([item["label"] for item in raw_data])
 
 # Build Model
 model = tf.keras.Sequential([
-    tf.keras.layers.Dense(16, activation='relu', input_shape=(3,)),
-    tf.keras.layers.Dense(8, activation='relu'),
+    tf.keras.layers.Dense(32, activation='relu', input_shape=(len(FEATURE_KEYS),)),
+    tf.keras.layers.Dense(16, activation='relu'),
     tf.keras.layers.Dense(1, activation='sigmoid')
 ])
 
