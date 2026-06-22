@@ -65,9 +65,17 @@ export function SeatMap({
   });
 
   // Compute prices based on category and fallbacks
-  const vipPrice = vipPriceRaw ? parseFloat(formatEther(vipPriceRaw as bigint)) : basePrice * 2.0;
-  const premiumPrice = premiumPriceRaw ? parseFloat(formatEther(premiumPriceRaw as bigint)) : basePrice * 1.0;
-  const executivePrice = executivePriceRaw ? parseFloat(formatEther(executivePriceRaw as bigint)) : basePrice * 0.8;
+  const vipPrice = vipPriceRaw && (vipPriceRaw as bigint) > 0n 
+    ? parseFloat(formatEther(vipPriceRaw as bigint)) 
+    : (basePrice > 0 ? basePrice * 2.0 : 0.02);
+    
+  const premiumPrice = premiumPriceRaw && (premiumPriceRaw as bigint) > 0n 
+    ? parseFloat(formatEther(premiumPriceRaw as bigint)) 
+    : (basePrice > 0 ? basePrice * 1.5 : 0.015);
+    
+  const executivePrice = executivePriceRaw && (executivePriceRaw as bigint) > 0n 
+    ? parseFloat(formatEther(executivePriceRaw as bigint)) 
+    : (basePrice > 0 ? basePrice * 1.2 : 0.01);
 
   const getSeatPrice = (category: string) => {
     if (category === "VIP") return vipPrice;
@@ -94,6 +102,24 @@ export function SeatMap({
       console.error("Failed to fetch seat locks:", e);
     }
   }, [eventId]);
+
+  const handleReleaseAllLocks = useCallback(async () => {
+    if (selectedSeats.length === 0) return;
+    try {
+      await fetch("/api/seats/lock", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "unlock",
+          eventId,
+          seatLabels: selectedSeats.map((s) => s.label),
+          walletAddress,
+        }),
+      });
+    } catch (e) {
+      console.error("Failed to release locks on cleanup:", e);
+    }
+  }, [eventId, selectedSeats, walletAddress]);
 
   // Initial fetch and polling every 5 seconds
   useEffect(() => {
@@ -124,25 +150,7 @@ export function SeatMap({
       onSelectionChange([]);
       toast.error("Your 10-minute reservation lock expired!");
     }
-  }, [lockTimer]);
-
-  const handleReleaseAllLocks = async () => {
-    if (selectedSeats.length === 0) return;
-    try {
-      await fetch("/api/seats/lock", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "unlock",
-          eventId,
-          seatLabels: selectedSeats.map((s) => s.label),
-          walletAddress,
-        }),
-      });
-    } catch (e) {
-      console.error("Failed to release locks on cleanup:", e);
-    }
-  };
+  }, [lockTimer, handleReleaseAllLocks, onSelectionChange]);
 
   // Lock seat off-chain via Redis
   const toggleSeat = async (seatLabel: string, category: string) => {

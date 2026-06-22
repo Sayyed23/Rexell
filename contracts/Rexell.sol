@@ -6,11 +6,14 @@ import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import "./SoulboundIdentity.sol";
 
-contract Rexell is ERC721URIStorage, Ownable, ReentrancyGuard {
+contract Rexell is ERC721URIStorage, Ownable, ReentrancyGuard, EIP712 {
     IERC20 public cUSDToken;
     address public mine;
+    address public constant ADMIN_WALLET = 0xE282B88468E0554477a7580956c1f65939B623D8;
     uint256 public royaltyPercent = 5; // 5% royalty for resales
     
     SoulboundIdentity public identityContract;
@@ -23,13 +26,65 @@ contract Rexell is ERC721URIStorage, Ownable, ReentrancyGuard {
     // address public cUSDTokenAddress = // 0x874069Fa1Eb16D44d622F2e0Ca25eeA172369bC1 //testnet
     // 0x765DE816845861e75A25fCA122bb6898B8B1282a //mainnet
 
-    constructor(address _cUSDTokenAddress, address _identityContractAddress) ERC721("Rexell", "BTK") {
+    // Anti-Sybil Configuration
+    struct IdentityAttestation {
+        address user;
+        uint256 score;
+        uint256 expiresAt;
+        uint256 nonce;
+        bytes[] signatures;
+    }
+
+    uint256 public constant MIN_SCORE = 70;
+    mapping(address => bool) public isOracleSigner;
+    mapping(uint256 => bool) public usedAttestationNonces;
+
+    event OracleSignerStatusChanged(address indexed signer, bool status);
+
+    constructor(address _cUSDTokenAddress, address _identityContractAddress) 
+        ERC721("Rexell", "BTK") 
+        EIP712("Rexell", "1")
+    {
         mine = msg.sender;
         platformFeeRecipient = msg.sender; // Default to deployer
         cUSDToken = IERC20(_cUSDTokenAddress);
         if (_identityContractAddress != address(0)) {
             identityContract = SoulboundIdentity(_identityContractAddress);
         }
+    }
+
+    function setOracleSigner(address signer, bool status) external onlyOwner {
+        isOracleSigner[signer] = status;
+        emit OracleSignerStatusChanged(signer, status);
+    }
+
+    function _verifyOracleSignature(IdentityAttestation calldata att) internal view returns (bool) {
+        if (att.signatures.length < 3) {
+            return false;
+        }
+
+        bytes32 structHash = keccak256(abi.encode(
+            keccak256("IdentityAttestation(address user,uint256 score,uint256 expiresAt,uint256 nonce)"),
+            att.user,
+            att.score,
+            att.expiresAt,
+            att.nonce
+        ));
+        bytes32 hash = _hashTypedDataV4(structHash);
+
+        address lastSigner = address(0);
+        uint256 validSignaturesCount = 0;
+
+        for (uint256 i = 0; i < att.signatures.length; i++) {
+            address signer = ECDSA.recover(hash, att.signatures[i]);
+            if (isOracleSigner[signer]) {
+                require(signer > lastSigner, "Signers must be unique and sorted");
+                lastSigner = signer;
+                validSignaturesCount++;
+            }
+        }
+
+        return validSignaturesCount >= 3;
     }
 
     struct Event {
@@ -165,10 +220,24 @@ contract Rexell is ERC721URIStorage, Ownable, ReentrancyGuard {
         nextEventId++;
     }
 
-    function buyTicket(uint eventId, string memory nftUri) public payable nonReentrant {
+    function buyTicket(uint eventId, string memory nftUri, IdentityAttestation calldata att) public payable nonReentrant {
         Event storage _event = events[eventId];       
         require(_event.ticketsAvailable > 0, "No tickets available");
         
+        // Prevent organizer from buying tickets for their own event
+        require(_event.organizer != msg.sender, "Organizer cannot buy tickets for their own event");
+        
+        // Anti-scalping 4-seat cap per user/wallet
+        require(_event.userToNftUris[msg.sender].length + 1 <= 4, "Purchase exceeds 4 tickets limit per user");
+        
+        // Anti-Sybil validation
+        require(att.user == msg.sender, "Attestation user mismatch");
+        require(att.expiresAt > block.timestamp, "Attestation expired");
+        require(att.score >= MIN_SCORE, "Score below threshold");
+        require(_verifyOracleSignature(att), "Invalid attestation");
+        require(!usedAttestationNonces[att.nonce], "Replay detected");
+        usedAttestationNonces[att.nonce] = true;
+
         // Transfer payment from buyer to organizer
         if (_event.price > 0) {
             require(cUSDToken.transferFrom(msg.sender, _event.organizer, _event.price), "Payment failed");
@@ -180,11 +249,25 @@ contract Rexell is ERC721URIStorage, Ownable, ReentrancyGuard {
     }
 
     // Add new function to buy multiple tickets
-    function buyTickets(uint eventId, string[] memory nftUris, uint quantity) public payable nonReentrant {
+    function buyTickets(uint eventId, string[] memory nftUris, uint quantity, IdentityAttestation calldata att) public payable nonReentrant {
         Event storage _event = events[eventId];
         require(quantity > 0, "Quantity must be greater than 0");
         require(_event.ticketsAvailable >= quantity, "Not enough tickets available");
         
+        // Prevent organizer from buying tickets for their own event
+        require(_event.organizer != msg.sender, "Organizer cannot buy tickets for their own event");
+        
+        // Anti-scalping 4-seat cap per user/wallet
+        require(_event.userToNftUris[msg.sender].length + quantity <= 4, "Purchase exceeds 4 tickets limit per user");
+        
+        // Anti-Sybil validation
+        require(att.user == msg.sender, "Attestation user mismatch");
+        require(att.expiresAt > block.timestamp, "Attestation expired");
+        require(att.score >= MIN_SCORE, "Score below threshold");
+        require(_verifyOracleSignature(att), "Invalid attestation");
+        require(!usedAttestationNonces[att.nonce], "Replay detected");
+        usedAttestationNonces[att.nonce] = true;
+
         // Transfer payment from buyer to organizer
         uint totalCost = _event.price * quantity;
         if (totalCost > 0) {
@@ -204,7 +287,8 @@ contract Rexell is ERC721URIStorage, Ownable, ReentrancyGuard {
         uint eventId, 
         string[] memory nftUris, 
         string[] memory seatLabels, 
-        string[] memory categories
+        string[] memory categories,
+        IdentityAttestation calldata att
     ) public payable nonReentrant {
         Event storage _event = events[eventId];
         uint quantity = nftUris.length;
@@ -212,6 +296,20 @@ contract Rexell is ERC721URIStorage, Ownable, ReentrancyGuard {
         require(seatLabels.length == quantity, "Seat labels length mismatch");
         require(categories.length == quantity, "Categories length mismatch");
         require(_event.ticketsAvailable >= quantity, "Not enough tickets available");
+
+        // Prevent organizer from buying tickets for their own event
+        require(_event.organizer != msg.sender, "Organizer cannot buy tickets for their own event");
+
+        // Anti-scalping 4-seat cap per user/wallet
+        require(_event.userToNftUris[msg.sender].length + quantity <= 4, "Purchase exceeds 4 tickets limit per user");
+
+        // Anti-Sybil validation
+        require(att.user == msg.sender, "Attestation user mismatch");
+        require(att.expiresAt > block.timestamp, "Attestation expired");
+        require(att.score >= MIN_SCORE, "Score below threshold");
+        require(_verifyOracleSignature(att), "Invalid attestation");
+        require(!usedAttestationNonces[att.nonce], "Replay detected");
+        usedAttestationNonces[att.nonce] = true;
 
         uint256 totalCost = 0;
         for (uint i = 0; i < quantity; i++) {
@@ -231,7 +329,15 @@ contract Rexell is ERC721URIStorage, Ownable, ReentrancyGuard {
 
             uint256 seatPrice = seatCategoryPrices[eventId][category];
             if (seatPrice == 0) {
-                seatPrice = _event.price;
+                if (keccak256(bytes(category)) == keccak256(bytes("VIP"))) {
+                    seatPrice = _event.price * 2;
+                } else if (keccak256(bytes(category)) == keccak256(bytes("Premium"))) {
+                    seatPrice = _event.price;
+                } else if (keccak256(bytes(category)) == keccak256(bytes("Executive"))) {
+                    seatPrice = (_event.price * 8) / 10;
+                } else {
+                    seatPrice = _event.price;
+                }
             }
             totalCost += seatPrice;
 
@@ -291,7 +397,7 @@ contract Rexell is ERC721URIStorage, Ownable, ReentrancyGuard {
 
     function setSeatCategoryPrice(uint256 eventId, string memory category, uint256 price) public {
         require(eventId < events.length, "Event does not exist");
-        require(msg.sender == events[eventId].organizer || msg.sender == mine, "Only event organizer or owner can set prices");
+        require(msg.sender == events[eventId].organizer || msg.sender == mine || msg.sender == ADMIN_WALLET, "Only event organizer or owner can set prices");
         seatCategoryPrices[eventId][category] = price;
         emit SeatCategoryPriceSet(eventId, category, price);
     }
@@ -548,7 +654,7 @@ contract Rexell is ERC721URIStorage, Ownable, ReentrancyGuard {
     }
 
     // Function to request resale verification
-    function requestResaleVerification(uint256 tokenId, uint256 price) public nonReentrant {
+    function requestResaleVerification(uint256 tokenId, uint256 price, IdentityAttestation calldata att) public nonReentrant {
         // require(tokenId > 0, "Invalid token ID"); // Removed to allow token ID 0
         require(_exists(tokenId), "Ticket does not exist");
         require(ownerOf(tokenId) == msg.sender, "You are not the owner of this ticket");
@@ -556,10 +662,13 @@ contract Rexell is ERC721URIStorage, Ownable, ReentrancyGuard {
         require(resaleRequests[tokenId].owner == address(0), "Resale request already exists for this ticket");
         require(!ticketCancelled[tokenId], "Ticket has been cancelled");
         
-        
-        if (address(identityContract) != address(0)) {
-            require(identityContract.hasValidIdentity(msg.sender), "Seller not verified via Soulbound Identity");
-        }
+        // Anti-Sybil validation
+        require(att.user == msg.sender, "Attestation user mismatch");
+        require(att.expiresAt > block.timestamp, "Attestation expired");
+        require(att.score >= MIN_SCORE, "Score below threshold");
+        require(_verifyOracleSignature(att), "Invalid attestation");
+        require(!usedAttestationNonces[att.nonce], "Replay detected");
+        usedAttestationNonces[att.nonce] = true;
 
         // Find associated event to check rules
         bool eventFound = false;
@@ -635,7 +744,7 @@ contract Rexell is ERC721URIStorage, Ownable, ReentrancyGuard {
         
         // Check if caller is event organizer or contract owner
         address eventOrganizer = getEventOrganizerForToken(tokenId);
-        require(msg.sender == eventOrganizer || msg.sender == mine, "Only event organizer or contract owner can approve");
+        require(msg.sender == eventOrganizer || msg.sender == mine || msg.sender == ADMIN_WALLET, "Only event organizer or contract owner can approve");
         
         resaleRequests[tokenId].approved = true;
         emit ResaleApproved(tokenId, resaleRequests[tokenId].owner);
@@ -650,7 +759,7 @@ contract Rexell is ERC721URIStorage, Ownable, ReentrancyGuard {
         
         // Check if caller is event organizer or contract owner
         address eventOrganizer = getEventOrganizerForToken(tokenId);
-        require(msg.sender == eventOrganizer || msg.sender == mine, "Only event organizer or contract owner can reject");
+        require(msg.sender == eventOrganizer || msg.sender == mine || msg.sender == ADMIN_WALLET, "Only event organizer or contract owner can reject");
         
         resaleRequests[tokenId].rejected = true;
         emit ResaleRejected(tokenId, resaleRequests[tokenId].owner);
@@ -754,11 +863,23 @@ contract Rexell is ERC721URIStorage, Ownable, ReentrancyGuard {
     }
 
     // New function to buy a resale ticket with royalty payment
-    function buyResaleTicket(uint256 tokenId, uint256 maxPrice) public nonReentrant {
+    function buyResaleTicket(uint256 tokenId, uint256 maxPrice, IdentityAttestation calldata att) public nonReentrant {
         require(_exists(tokenId), "Ticket does not exist");
-        require(ownerOf(tokenId) != msg.sender, "Cannot buy your own ticket");
+        require(resaleRequests[tokenId].owner != msg.sender, "Cannot buy your own ticket");
         require(resaleRequests[tokenId].approved, "Resale not approved");
         require(!ticketCancelled[tokenId], "Ticket has been cancelled");
+        
+        // Prevent organizer from buying resale tickets for their own event
+        address organizer = getEventOrganizerForToken(tokenId);
+        require(organizer != msg.sender, "Organizer cannot buy resale tickets for their own event");
+        
+        // Anti-Sybil validation for resale buyer
+        require(att.user == msg.sender, "Attestation user mismatch");
+        require(att.expiresAt > block.timestamp, "Attestation expired");
+        require(att.score >= MIN_SCORE, "Score below threshold");
+        require(_verifyOracleSignature(att), "Invalid attestation");
+        require(!usedAttestationNonces[att.nonce], "Replay detected");
+        usedAttestationNonces[att.nonce] = true;
         
         ResaleRequest storage request = resaleRequests[tokenId];
         require(request.price <= maxPrice, "Price exceeds maximum allowed");
@@ -771,8 +892,7 @@ contract Rexell is ERC721URIStorage, Ownable, ReentrancyGuard {
         uint256 platformFeeAmount = (price * platformFeePercent) / 100;
         uint256 sellerAmount = price - royaltyAmount - platformFeeAmount;
         
-        // Get event organizer
-        address organizer = getEventOrganizerForToken(tokenId);
+        // Get event organizer fallback if needed
         if (organizer == address(0)) {
             organizer = mine; // Fallback to contract owner
         }
@@ -832,7 +952,7 @@ contract Rexell is ERC721URIStorage, Ownable, ReentrancyGuard {
     // Function to cancel a ticket (emergency function)
     function cancelTicket(uint256 tokenId) public {
         require(_exists(tokenId), "Ticket does not exist");
-        require(ownerOf(tokenId) == msg.sender || msg.sender == mine, "Not authorized to cancel ticket");
+        require(ownerOf(tokenId) == msg.sender || msg.sender == mine || msg.sender == ADMIN_WALLET, "Not authorized to cancel ticket");
         
         ticketCancelled[tokenId] = true;
         emit TicketCancelled(tokenId, msg.sender);
@@ -856,6 +976,28 @@ contract Rexell is ERC721URIStorage, Ownable, ReentrancyGuard {
         nextTicketId++;
     }
 
+    // Function to check if a user holds tickets for any pending (future) events
+    // Called by SoulboundIdentity.sol to prevent unbonding if tickets are held
+    function hasPendingEvents(address user) public view returns (bool) {
+        for (uint256 i = 0; i < nextTicketId; i++) {
+            if (_exists(i) && ownerOf(i) == user && !ticketCancelled[i]) {
+                string memory uri = tokenURI(i);
+                for (uint e = 0; e < events.length; e++) {
+                    string[] memory eventNftUris = events[e].nftUris;
+                    for (uint j = 0; j < eventNftUris.length; j++) {
+                        if (keccak256(bytes(eventNftUris[j])) == keccak256(bytes(uri))) {
+                            // If event date is in the future, return true
+                            if (events[e].date / 1000 > block.timestamp) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
     //function to withdraw from the contract
     function withdraw(address _address) public onlyContractOwner {
         require(cUSDToken.transfer(_address, cUSDToken.balanceOf(address(this))), "Unable to withdraw from contract");
@@ -863,7 +1005,7 @@ contract Rexell is ERC721URIStorage, Ownable, ReentrancyGuard {
 
     //modifier for onlyOwner
     modifier onlyContractOwner() {
-        require(msg.sender == mine , "Only owner can call this function");
+        require(msg.sender == mine || msg.sender == ADMIN_WALLET, "Only owner can call this function");
         _;
     }
 }

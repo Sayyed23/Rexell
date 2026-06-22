@@ -117,11 +117,45 @@ export default function ListResalePage() {
 
             const priceInWei = parseEther(resalePrice);
 
+            // Fetch Anti-Sybil Attestation from Oracle
+            toast.info("Requesting Anti-Sybil verification from Oracle...");
+            let attestation;
+            try {
+                const attestResponse = await fetch("http://localhost:8000/api/identity/attest", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ user_address: address }),
+                });
+                if (!attestResponse.ok) {
+                    throw new Error("Failed to retrieve attestation from Anti-Sybil Oracle.");
+                }
+                const data = await attestResponse.json();
+                
+                attestation = {
+                    user: data.user as `0x${string}`,
+                    score: BigInt(data.score),
+                    expiresAt: BigInt(data.expiresAt),
+                    nonce: BigInt(data.nonce),
+                    signatures: data.signatures as `0x${string}`[]
+                };
+
+                if (attestation.score < 70n) {
+                    toast.error(`Verification failed: Your Anti-Sybil score is ${data.score}/100. Score >= 70 required to resell.`);
+                    setIsListing(false);
+                    return;
+                }
+            } catch (err: any) {
+                console.error("Attestation error:", err);
+                toast.error(`Anti-Sybil Verification Error: ${err.message || String(err)}`);
+                setIsListing(false);
+                return;
+            }
+
             const hash = await writeContractAsync({
                 address: contractAddress as `0x${string}`,
                 abi: rexellAbi,
                 functionName: "requestResaleVerification",
-                args: [BigInt(selectedTicket), priceInWei],
+                args: [BigInt(selectedTicket), priceInWei, attestation],
             });
 
             if (hash) {

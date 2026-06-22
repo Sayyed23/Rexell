@@ -14,6 +14,7 @@ import { aiLogger } from "@/lib/ai/logger";
 import { useGuardedPurchase } from "@/lib/bot-detection/useGuardedPurchase";
 import { BotChallengeModal } from "@/components/AI/BotChallengeModal";
 import { WarningModal } from "@/components/AI/WarningModal";
+import { logAppActivity } from "@/lib/activityLogger";
 
 interface ResaleTicket {
   tokenId: number;
@@ -162,13 +163,47 @@ export default function BuyResaleTicketPage() {
 
       setIsPurchasing(true);
 
+      // Fetch Anti-Sybil Attestation from Oracle
+      toast.info("Requesting Anti-Sybil verification from Oracle...");
+      let attestation;
+      try {
+        const attestResponse = await fetch("http://localhost:8000/api/identity/attest", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ user_address: address }),
+        });
+        if (!attestResponse.ok) {
+          throw new Error("Failed to retrieve attestation from Anti-Sybil Oracle.");
+        }
+        const data = await attestResponse.json();
+        
+        attestation = {
+          user: data.user as `0x${string}`,
+          score: BigInt(data.score),
+          expiresAt: BigInt(data.expiresAt),
+          nonce: BigInt(data.nonce),
+          signatures: data.signatures as `0x${string}`[]
+        };
+
+        if (attestation.score < 70n) {
+          toast.error(`Verification failed: Your Anti-Sybil score is ${data.score}/100. Score >= 70 required to purchase.`);
+          setIsPurchasing(false);
+          return;
+        }
+      } catch (err: any) {
+        console.error("Attestation error:", err);
+        toast.error(`Anti-Sybil Verification Error: ${err.message || String(err)}`);
+        setIsPurchasing(false);
+        return;
+      }
+
       const priceInWei = BigInt(Math.floor(ticket.price * 1e18));
 
       const hash = await writeContractAsync({
         address: contractAddress,
         abi: rexellAbi,
         functionName: "buyResaleTicket",
-        args: [BigInt(id), priceInWei],
+        args: [BigInt(id), priceInWei, attestation],
       });
 
       if (hash) {
@@ -184,6 +219,7 @@ export default function BuyResaleTicketPage() {
           );
         }
         toast.success("Ticket purchased successfully!");
+        await logAppActivity(address || "", "BUY_RESALE", hash, { tokenId: ticket.tokenId, priceCusd: ticket.price });
         setTimeout(() => {
           router.push("/my-tickets");
         }, 2000);

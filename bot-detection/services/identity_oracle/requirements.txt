@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+pydantic
+eth-account
+python-dotenv
+sqlalchemy
+pyodbc

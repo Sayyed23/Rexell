@@ -3,15 +3,31 @@
 import Link from "next/link";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useEffect, useState } from "react";
-import { useAccount } from "wagmi";
+import { useAccount, useReadContract } from "wagmi";
+import { rexellAbi, contractAddress } from "@/blockchain/abi/rexell-abi";
+import { celoSepolia } from "@/lib/celoSepolia";
 
 export function Header() {
   const { isConnected, address } = useAccount();
   const [isClient, setIsClient] = useState(false);
 
+  const { data: contractOwner } = useReadContract({
+    address: contractAddress,
+    abi: rexellAbi,
+    functionName: "mine",
+    chainId: celoSepolia.id,
+  });
+
   useEffect(() => {
     setIsClient(true);
   }, []);
+
+  const userAddressLower = address?.toLowerCase();
+  const ownerAddressLower = (contractOwner as string)?.toLowerCase();
+  const isAdmin =
+    userAddressLower === "0xe282b88468e0554477a7580956c1f65939b623d8" ||
+    userAddressLower === "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266" ||
+    (ownerAddressLower && userAddressLower === ownerAddressLower);
 
   const navLinks = [
     {
@@ -33,6 +49,10 @@ export function Header() {
     {
       name: "Market",
       href: "/market",
+    },
+    {
+      name: "History",
+      href: "/history",
     },
   ];
 
@@ -132,6 +152,17 @@ export function Header() {
                     Manage Resales
                   </Link>
                 </li>
+                {/* Admin Dashboard */}
+                {isAdmin && (
+                  <li>
+                    <Link
+                      className="text-blue-600 font-semibold transition hover:text-blue-700 hover:underline flex items-center gap-1"
+                      href="/admin"
+                    >
+                      Admin
+                    </Link>
+                  </li>
+                )}
               </ul>
             </nav>
             <div className="hidden sm:block">

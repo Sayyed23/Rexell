@@ -1,7 +1,7 @@
 "use client";
 
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useReadContract, useAccount } from "wagmi";
@@ -50,7 +50,7 @@ export default function EventsPage() {
     averageRating: bigint;
   }
 
-  const events = (data as unknown as Event[]) || [];
+  const events = useMemo(() => (data as unknown as Event[]) || [], [data]);
 
   useEffect(() => {
     if (events) {

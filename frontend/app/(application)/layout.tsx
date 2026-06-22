@@ -1,9 +1,12 @@
 "use client";
 
-import { CalendarCheckIcon, CalendarIcon, PlusIcon, TicketIcon } from "lucide-react";
+import { CalendarCheckIcon, CalendarIcon, PlusIcon, TicketIcon, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { Assistant } from "@/components/AI/Assistant";
+import { useAccount, useReadContract } from "wagmi";
+import { rexellAbi, contractAddress } from "@/blockchain/abi/rexell-abi";
+import { celoSepolia } from "@/lib/celoSepolia";
 
 const NavItem = ({
   href,
@@ -25,6 +28,13 @@ const NavItem = ({
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const [isClient, setIsClient] = useState(false);
+  const { address } = useAccount();
+  const { data: contractOwner } = useReadContract({
+    address: contractAddress,
+    abi: rexellAbi,
+    functionName: "mine",
+    chainId: celoSepolia.id,
+  });
 
   useEffect(() => {
     setIsClient(true);
@@ -50,6 +60,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     );
   }
 
+  const userAddressLower = address?.toLowerCase();
+  const ownerAddressLower = (contractOwner as string)?.toLowerCase();
+  const isAdmin =
+    userAddressLower === "0xe282b88468e0554477a7580956c1f65939b623d8" ||
+    userAddressLower === "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266" ||
+    (ownerAddressLower && userAddressLower === ownerAddressLower);
+
   return (
     <div className="flex h-screen flex-col">
       <main className="flex-1 overflow-auto">
@@ -63,6 +80,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <NavItem href="/my-events" icon={CalendarCheckIcon} label="My Events" />
         <NavItem href="/my-tickets" icon={TicketIcon} label="My Tickets" />
         <NavItem href="/resale-approval" icon={TicketIcon} label="Resale Approval" />
+        {isAdmin && <NavItem href="/admin" icon={ShieldCheck} label="Admin" />}
       </nav>
       <Assistant />
     </div>

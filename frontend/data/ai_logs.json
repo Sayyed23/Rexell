@@ -579,5 +579,25 @@
       "txHash": "0xb40bdf4d1f0153632240ac9f0f9ba2168beddcacd1f670badda68411e13ccec9",
       "quantity": 1
     }
+  },
+  {
+    "eventType": "purchase_attempt",
+    "wallet": "0x7027F4B8e3809F809A87C3d90F9De510742B5aCA",
+    "eventId": 0,
+    "timestamp": 1781954944447,
+    "metadata": {
+      "quantity": 1,
+      "price": "0"
+    }
+  },
+  {
+    "eventType": "purchase_success",
+    "wallet": "0x7027F4B8e3809F809A87C3d90F9De510742B5aCA",
+    "eventId": 0,
+    "timestamp": 1781954970874,
+    "metadata": {
+      "txHash": "0xdcf56b8c047701192991692bd51b47c5f0ee69a9a48726fc3ac957cdf7323db1",
+      "quantity": 1
+    }
   }
 ]

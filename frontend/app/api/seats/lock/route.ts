@@ -5,7 +5,7 @@ export async function POST(request: NextRequest) {
   try {
     const { action, eventId, seatLabels, walletAddress } = await request.json();
 
-    if (!eventId || !seatLabels || !Array.isArray(seatLabels) || !walletAddress) {
+    if (eventId === undefined || eventId === null || !seatLabels || !Array.isArray(seatLabels) || !walletAddress) {
       return NextResponse.json(
         { error: "Invalid request parameters" },
         { status: 400 }

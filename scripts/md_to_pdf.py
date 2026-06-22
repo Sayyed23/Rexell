@@ -1,0 +1,239 @@
+import os
+import re
+from reportlab.lib.pagesizes import letter
+from reportlab.lib import colors
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, KeepTogether, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.enums import TA_CENTER, TA_LEFT
+
+def convert_md_to_pdf(md_path, pdf_path):
+    print(f"Reading markdown from {md_path}...")
+    with open(md_path, "r", encoding="utf-8") as f:
+        content = f.read()
+
+    doc = SimpleDocTemplate(
+        pdf_path,
+        pagesize=letter,
+        rightMargin=54,  # 0.75 inch
+        leftMargin=54,
+        topMargin=54,
+        bottomMargin=54
+    )
+
+    styles = getSampleStyleSheet()
+    
+    # Custom styles
+    title_style = ParagraphStyle(
+        name="CustomTitle",
+        fontName="Helvetica-Bold",
+        fontSize=20,
+        leading=24,
+        alignment=TA_CENTER,
+        textColor=colors.HexColor("#0f172a"),  # Dark slate
+        spaceAfter=15
+    )
+    
+    h2_style = ParagraphStyle(
+        name="CustomH2",
+        fontName="Helvetica-Bold",
+        fontSize=13,
+        leading=16,
+        textColor=colors.HexColor("#1e3a8a"),  # Deep blue
+        spaceBefore=12,
+        spaceAfter=6,
+        keepWithNext=True
+    )
+    
+    h3_style = ParagraphStyle(
+        name="CustomH3",
+        fontName="Helvetica-Bold",
+        fontSize=10.5,
+        leading=13,
+        textColor=colors.HexColor("#334155"),  # Medium dark slate
+        spaceBefore=8,
+        spaceAfter=4,
+        keepWithNext=True
+    )
+    
+    body_style = ParagraphStyle(
+        name="CustomBody",
+        fontName="Helvetica",
+        fontSize=9,
+        leading=12,
+        textColor=colors.HexColor("#0f172a"),
+        spaceAfter=4
+    )
+    
+    bullet_style = ParagraphStyle(
+        name="CustomBullet",
+        fontName="Helvetica",
+        fontSize=9,
+        leading=12,
+        textColor=colors.HexColor("#0f172a"),
+        leftIndent=15,
+        firstLineIndent=-10,
+        spaceAfter=3
+    )
+
+    code_style = ParagraphStyle(
+        name="CustomCode",
+        fontName="Courier",
+        fontSize=8,
+        leading=10,
+        textColor=colors.HexColor("#0f172a"),
+        leftIndent=10,
+        spaceAfter=4
+    )
+
+    alert_style = ParagraphStyle(
+        name="CustomAlert",
+        fontName="Helvetica-Oblique",
+        fontSize=8.5,
+        leading=11,
+        textColor=colors.HexColor("#b45309"),  # Amber/brown
+        leftIndent=15,
+        spaceAfter=5
+    )
+
+    story = []
+    lines = content.split("\n")
+    
+    in_code_block = False
+    code_block_lines = []
+    
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        
+        # Code block handling
+        if line.strip().startswith("```"):
+            if in_code_block:
+                # End of code block
+                in_code_block = False
+                code_text = "<br/>".join(code_block_lines)
+                
+                # Render as a table with a background color for nice formatting
+                t = Table([[Paragraph(code_text, code_style)]], colWidths=[500])
+                t.setStyle(TableStyle([
+                    ('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#f8fafc")),
+                    ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor("#cbd5e1")),
+                    ('PADDING', (0,0), (-1,-1), 6),
+                    ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+                ]))
+                story.append(t)
+                story.append(Spacer(1, 6))
+                code_block_lines = []
+            else:
+                in_code_block = True
+            i += 1
+            continue
+            
+        if in_code_block:
+            # Clean up XML tags to avoid ReportLab syntax issues
+            safe_line = line.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+            # Preserve indentation with non-breaking spaces
+            safe_line = safe_line.replace(" ", "&nbsp;")
+            code_block_lines.append(safe_line)
+            i += 1
+            continue
+
+        # Skip horizontal rules
+        if line.strip() in ("---", "***"):
+            story.append(Spacer(1, 4))
+            # Draw a line using a thin table
+            line_table = Table([[""]], colWidths=[500])
+            line_table.setStyle(TableStyle([
+                ('LINEABOVE', (0,0), (-1,-1), 0.5, colors.HexColor("#e2e8f0")),
+                ('BOTTOMPADDING', (0,0), (-1,-1), 0),
+                ('TOPPADDING', (0,0), (-1,-1), 0),
+            ]))
+            story.append(line_table)
+            story.append(Spacer(1, 4))
+            i += 1
+            continue
+            
+        # Parse standard line formatting
+        stripped = line.strip()
+        if not stripped:
+            i += 1
+            continue
+
+        # Replace markdown formatting with HTML tags
+        # Bold: **text** -> <b>text</b>
+        stripped = re.sub(r"\*\*(.*?)\*\*", r"<b>\1</b>", stripped)
+        # Italic: *text* -> <i>text</i>
+        stripped = re.sub(r"\*(.*?)\*", r"<i>\1</i>", stripped)
+        # Inline code: `code` -> <font name="Courier">code</font>
+        stripped = re.sub(r"`(.*?)`", r'<font face="Courier">\1</font>', stripped)
+        
+        # Headings
+        if stripped.startswith("# "):
+            title_text = stripped[2:]
+            story.append(Spacer(1, 10))
+            story.append(Paragraph(title_text, title_style))
+            story.append(Spacer(1, 10))
+        elif stripped.startswith("## "):
+            h2_text = stripped[3:]
+            story.append(Spacer(1, 8))
+            story.append(Paragraph(h2_text, h2_style))
+            story.append(Spacer(1, 4))
+        elif stripped.startswith("### "):
+            h3_text = stripped[4:]
+            story.append(Spacer(1, 6))
+            story.append(Paragraph(h3_text, h3_style))
+            story.append(Spacer(1, 3))
+        # Blockquotes/Alerts
+        elif stripped.startswith(">"):
+            alert_text = stripped[1:].strip()
+            # If it's a headers line like > [!IMPORTANT]
+            if alert_text.startswith("[!"):
+                header_match = re.match(r"\[!(.*?)\]", alert_text)
+                if header_match:
+                    tag = header_match.group(1)
+                    alert_text = f"<b>{tag}:</b> "
+                    # check if there's text after the block
+                    remaining_line = re.sub(r"\[!(.*?)\]", "", alert_text).strip()
+                    # if the next line also starts with >, append it
+                    while i + 1 < len(lines) and lines[i+1].strip().startswith(">"):
+                        i += 1
+                        next_part = lines[i].strip()[1:].strip()
+                        alert_text += " " + next_part
+                    alert_text = re.sub(r"\*\*(.*?)\*\*", r"<b>\1</b>", alert_text)
+                    alert_text = re.sub(r"`(.*?)`", r'<font face="Courier">\1</font>', alert_text)
+            
+            # Format blockquote box
+            t = Table([[Paragraph(alert_text, alert_style)]], colWidths=[480])
+            t.setStyle(TableStyle([
+                ('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#fffbeb")), # Light amber
+                ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor("#fef3c7")),
+                ('LINELEFT', (0,0), (-1,-1), 3.0, colors.HexColor("#d97706")), # Thick amber left border
+                ('PADDING', (0,0), (-1,-1), 5),
+            ]))
+            story.append(t)
+            story.append(Spacer(1, 6))
+        # Bullet list items
+        elif stripped.startswith("* ") or stripped.startswith("- "):
+            bullet_text = "&bull;&nbsp;&nbsp;" + stripped[2:]
+            story.append(Paragraph(bullet_text, bullet_style))
+        # Ordered list items
+        elif re.match(r"^\d+\.\s+", stripped):
+            match = re.match(r"^(\d+\.)\s+(.*)", stripped)
+            num_prefix = match.group(1)
+            item_text = match.group(2)
+            bullet_text = f"{num_prefix}&nbsp;&nbsp;{item_text}"
+            story.append(Paragraph(bullet_text, bullet_style))
+        # Ordinary Paragraph
+        else:
+            story.append(Paragraph(stripped, body_style))
+            story.append(Spacer(1, 2))
+            
+        i += 1
+
+    print(f"Building PDF at {pdf_path}...")
+    doc.build(story)
+    print("PDF build completed successfully!")
+
+if __name__ == "__main__":
+    md_file = "MANUAL_TESTING.md"
+    pdf_file = "MANUAL_TESTING.pdf"
+    convert_md_to_pdf(md_file, pdf_file)

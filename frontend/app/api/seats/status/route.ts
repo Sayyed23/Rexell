@@ -6,7 +6,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const eventId = searchParams.get("eventId");
 
-    if (!eventId) {
+    if (eventId === undefined || eventId === null || eventId === "") {
       return NextResponse.json(
         { error: "Event ID is required" },
         { status: 400 }

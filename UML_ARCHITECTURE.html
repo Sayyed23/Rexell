@@ -3,6 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Rexell System UML Deployment Architecture Diagram showing client and backend components.">
+    <meta property="og:title" content="Rexell UML Deployment Architecture">
+    <meta property="og:description" content="Rexell System UML Deployment Architecture Diagram showing client and backend components.">
+    <meta property="og:type" content="website">
     <title>Rexell UML Deployment Architecture</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -106,7 +110,7 @@ flowchart TB
 
     <!-- PART 2 -->
     <div class="max-w-6xl w-full bg-white shadow-md rounded-xl overflow-hidden border border-slate-200">
-        <div class="bg-purple-50 border-b border-slate-200 p-6">
+        <div class="bg-orange-50 border-b border-slate-200 p-6">
             <h2 class="text-2xl md:text-3xl font-bold text-slate-900 mb-2">
                 Part 2: Kubernetes Cluster & Backend Nodes
             </h2>
@@ -165,7 +169,7 @@ flowchart TB
     Grafana -->|PromQL HTTP| Prometheus
 
     %% Styles
-    classDef server fill:#f3e8ff,stroke:#7c3aed,stroke-width:2px,color:#6d28d9;
+    classDef server fill:#ffedd5,stroke:#ea580c,stroke-width:2px,color:#c2410c;
     classDef stateful fill:#fef3c7,stroke:#d97706,stroke-width:2px,color:#b45309;
     classDef monitor fill:#fee2e2,stroke:#dc2626,stroke-width:2px,color:#991b1b;
     classDef external fill:#f8fafc,stroke:#94a3b8,stroke-width:2px,stroke-dasharray: 5 5;

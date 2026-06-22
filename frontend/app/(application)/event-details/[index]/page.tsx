@@ -30,6 +30,7 @@ import { useGuardedPurchase } from "@/lib/bot-detection/useGuardedPurchase";
 import { BotChallengeModal } from "@/components/AI/BotChallengeModal";
 import { WarningModal } from "@/components/AI/WarningModal";
 import { SeatMap } from "@/components/SeatMap";
+import { logAppActivity } from "@/lib/activityLogger";
 
 interface EventComment {
   commenter: string;
@@ -250,7 +251,7 @@ export default function EventDetailsPage({
       quantity: finalQuantity,
     });
 
-    if (!free && cUSDBalance !== undefined && BigInt(cUSDBalance as any) < totalCost) {
+    if (totalCost > 0n && cUSDBalance !== undefined && BigInt(cUSDBalance as any) < totalCost) {
       toast.error(`Insufficient cUSD balance. You need ${Number(totalCost) / 10 ** 18} cUSD, but only have ${Number(cUSDBalance) / 10 ** 18} cUSD.`);
       return;
     }
@@ -299,7 +300,7 @@ export default function EventDetailsPage({
       // For paid tickets, we need to approve the contract to spend tokens.
       // We use walletClient.writeContract directly to send the approve tx
       // through MetaMask's own RPC, bypassing rate-limited public RPCs.
-      if (!free) {
+      if (totalCost > 0n) {
         try {
           // Check current allowance
           let currentAllowance = 0n;
@@ -353,6 +354,40 @@ export default function EventDetailsPage({
           setProcessing(false);
           setIsUploading(true);
 
+          // Fetch Anti-Sybil Attestation from Oracle
+          toast.info("Requesting Anti-Sybil verification from Oracle...");
+          let attestation;
+          try {
+            const attestResponse = await fetch("http://localhost:8000/api/identity/attest", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ user_address: address }),
+            });
+            if (!attestResponse.ok) {
+              throw new Error("Failed to retrieve attestation from Anti-Sybil Oracle.");
+            }
+            const data = await attestResponse.json();
+            
+            attestation = {
+              user: data.user as `0x${string}`,
+              score: BigInt(data.score),
+              expiresAt: BigInt(data.expiresAt),
+              nonce: BigInt(data.nonce),
+              signatures: data.signatures as `0x${string}`[]
+            };
+
+            if (attestation.score < 70n) {
+              toast.error(`Verification failed: Your Anti-Sybil score is ${data.score}/100. Score >= 70 required.`);
+              setIsUploading(false);
+              return;
+            }
+          } catch (err: any) {
+            console.error("Attestation error:", err);
+            toast.error(`Anti-Sybil Verification Error: ${err.message || String(err)}`);
+            setIsUploading(false);
+            return;
+          }
+
           if (usingSeatMap) {
             // Generate multiple ticket images with seat labels
             const nftUris = [];
@@ -371,7 +406,7 @@ export default function EventDetailsPage({
                 category: seat.category,
                 location: event?.[3],
                 organiser: event?.[1],
-                price: free ? "Free" : `${seat.price.toFixed(2)} cUSD`,
+                price: seat.price === 0 ? "Free" : `${seat.price.toFixed(2)} cUSD`,
                 walletAddress: address as string,
                 timestamp: Date.now(),
                 ticketNo: ticketNumber,
@@ -415,7 +450,7 @@ export default function EventDetailsPage({
               address: contractAddress,
               abi: rexellAbi,
               functionName: "buyTickets",
-              args: [BigInt(params.index), nftUris, seatLabels, categories],
+              args: [BigInt(params.index), nftUris, seatLabels, categories, attestation],
             });
 
             if (hash) {
@@ -435,6 +470,14 @@ export default function EventDetailsPage({
               });
 
               toast("Ticket NFTs minted! Redirecting...");
+              await logAppActivity(address || "", "BUY_TICKET", hash, {
+                eventId: Number(params.index),
+                eventName: event?.[2],
+                quantity: finalQuantity,
+                seats: seatLabels,
+                categories,
+                priceCusd: Number(totalCost) / 1e18
+              });
               setIsUploading(false);
               router.push(`/my-tickets`);
             }
@@ -493,7 +536,7 @@ export default function EventDetailsPage({
               address: contractAddress,
               abi: rexellAbi,
               functionName: "buyTickets",
-              args: [BigInt(params.index), nftUris, BigInt(ticketQuantity)],
+              args: [BigInt(params.index), nftUris, BigInt(ticketQuantity), attestation],
             });
 
             if (hash) {
@@ -501,6 +544,13 @@ export default function EventDetailsPage({
                 consumeBotToken(guard.verificationToken, hash).catch(() => undefined);
               }
               toast("Ticket NFTs minted! Redirecting...");
+              await logAppActivity(address || "", "BUY_TICKET", hash, {
+                eventId: Number(params.index),
+                eventName: event?.[2],
+                quantity: ticketQuantity,
+                type: "General Admission",
+                priceCusd: Number(totalCost) / 1e18
+              });
               setIsUploading(false);
               router.push(`/my-tickets`);
             }
@@ -556,7 +606,7 @@ export default function EventDetailsPage({
               address: contractAddress,
               abi: rexellAbi,
               functionName: "buyTickets",
-              args: [BigInt(params.index), [resData.IpfsHash], BigInt(1)],
+              args: [BigInt(params.index), [resData.IpfsHash], BigInt(1), attestation],
             });
 
             if (hash) {
@@ -569,6 +619,13 @@ export default function EventDetailsPage({
               }
 
               toast("Ticket NFT minted! Redirecting...");
+              await logAppActivity(address || "", "BUY_TICKET", hash, {
+                eventId: Number(params.index),
+                eventName: event?.[2],
+                quantity: 1,
+                type: "General Admission",
+                priceCusd: Number(totalCost) / 1e18
+              });
               setIsUploading(false);
               router.push(`/tickets/${event?.[0]}`);
             }
@@ -793,7 +850,7 @@ export default function EventDetailsPage({
                                   ? "Confirming Transaction..."
                                   : "Buy Selected Seats"}
                           </Button>
-                          
+
                           <Button
                             className="flex-1 border border-amber-500 bg-amber-50 hover:bg-amber-100 text-amber-700 font-semibold"
                             type="button"
@@ -839,7 +896,7 @@ export default function EventDetailsPage({
                 <div className="absolute inset-0 rounded-lg bg-gradient-to-b from-transparent to-black opacity-30"></div>
               </div>
             </div>
-            
+
             {/* Interactive Seat Map */}
             {!passed && !isTicketPurchased && !over && isConnected && (
               <div className="mt-8 space-y-4 pt-8 border-t border-gray-200">

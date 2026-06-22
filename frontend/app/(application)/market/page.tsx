@@ -17,6 +17,7 @@ import { waitForTransactionReceipt } from "wagmi/actions";
 import { useConfig } from "wagmi";
 import { useGuardedPurchase } from "@/lib/bot-detection/useGuardedPurchase";
 import { BotChallengeModal } from "@/components/AI/BotChallengeModal";
+import { logAppActivity } from "@/lib/activityLogger";
 
 interface ResaleTicket {
   tokenId: bigint;
@@ -108,6 +109,40 @@ export default function MarketPage() {
       toast.info("Waiting for approval confirmation...");
       await waitForTransactionReceipt(config, { hash: approveHash });
 
+      // Fetch Anti-Sybil Attestation from Oracle
+      toast.info("Requesting Anti-Sybil verification from Oracle...");
+      let attestation;
+      try {
+        const attestResponse = await fetch("http://localhost:8000/api/identity/attest", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ user_address: address }),
+        });
+        if (!attestResponse.ok) {
+          throw new Error("Failed to retrieve attestation from Anti-Sybil Oracle.");
+        }
+        const data = await attestResponse.json();
+        
+        attestation = {
+          user: data.user as `0x${string}`,
+          score: BigInt(data.score),
+          expiresAt: BigInt(data.expiresAt),
+          nonce: BigInt(data.nonce),
+          signatures: data.signatures as `0x${string}`[]
+        };
+
+        if (attestation.score < 70n) {
+          toast.error(`Verification failed: Your Anti-Sybil score is ${data.score}/100. Score >= 70 required.`);
+          setPurchasingTokenId(null);
+          return;
+        }
+      } catch (err: any) {
+        console.error("Attestation error:", err);
+        toast.error(`Anti-Sybil Verification Error: ${err.message || String(err)}`);
+        setPurchasingTokenId(null);
+        return;
+      }
+
       toast.info("Purchasing ticket...");
 
       // Call the buyResaleTicket function with the price as maxPrice
@@ -115,7 +150,7 @@ export default function MarketPage() {
         address: contractAddress,
         abi: rexellAbi,
         functionName: "buyResaleTicket",
-        args: [tokenId, price],
+        args: [tokenId, price, attestation],
       });
 
       if (hash) {
@@ -127,6 +162,7 @@ export default function MarketPage() {
           );
         }
         toast.success(`Ticket #${tokenId.toString()} purchased successfully!`);
+        await logAppActivity(address, "BUY_RESALE", hash, { tokenId: Number(tokenId), priceCusd: Number(price) / 1e18 });
 
         // Refresh the market after purchase
         setTimeout(() => {

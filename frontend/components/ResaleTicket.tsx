@@ -89,6 +89,40 @@ export default function ResaleTicket({ tokenId, onResaleComplete }: ResaleTicket
         console.log("No existing resale request to cancel");
       }
 
+      // Fetch Anti-Sybil Attestation from Oracle
+      toast.info("Requesting Anti-Sybil verification from Oracle...");
+      let attestation;
+      try {
+        const attestResponse = await fetch("http://localhost:8000/api/identity/attest", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ user_address: address }),
+        });
+        if (!attestResponse.ok) {
+          throw new Error("Failed to retrieve attestation from Anti-Sybil Oracle.");
+        }
+        const data = await attestResponse.json();
+        
+        attestation = {
+          user: data.user as `0x${string}`,
+          score: BigInt(data.score),
+          expiresAt: BigInt(data.expiresAt),
+          nonce: BigInt(data.nonce),
+          signatures: data.signatures as `0x${string}`[]
+        };
+
+        if (attestation.score < 70n) {
+          toast.error(`Verification failed: Your Anti-Sybil score is ${data.score}/100. Score >= 70 required to resell.`);
+          setIsReselling(false);
+          return;
+        }
+      } catch (err: any) {
+        console.error("Attestation error:", err);
+        toast.error(`Anti-Sybil Verification Error: ${err.message || String(err)}`);
+        setIsReselling(false);
+        return;
+      }
+
       // Create a new resale request with the updated price
       const hash = await writeContractAsync({
         address: contractAddress,
@@ -97,6 +131,7 @@ export default function ResaleTicket({ tokenId, onResaleComplete }: ResaleTicket
         args: [
           BigInt(tokenId),
           BigInt(Math.floor(parseFloat(resalePrice) * 1e18)), // Convert to wei
+          attestation
         ],
       });
 

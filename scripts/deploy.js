@@ -6,10 +6,10 @@ async function main() {
   const networkName = hre.network.name;
   console.log(`\nDeploying to network: ${networkName}\n`);
 
-  // 1. Deploy SoulboundIdentity
-  const SoulboundIdentity = await hre.ethers.deployContract('SoulboundIdentity', []);
-  await SoulboundIdentity.waitForDeployment();
-  console.log(`SoulboundIdentity deployed to ${SoulboundIdentity.target}`);
+  // 1. Get Deployer address for oracleMultisig constructor parameter
+  const [deployer] = await hre.ethers.getSigners();
+  const deployerAddress = deployer.address;
+  console.log(`Deployer address: ${deployerAddress}`);
 
   // 2. Determine cUSD Address based on network
   let cUSDAddress;
@@ -31,7 +31,17 @@ async function main() {
     console.log(`MockCUSD deployed to ${cUSDAddress}`);
   }
 
-  // 3. Deploy Rexell
+  // 3. Deploy SoulboundIdentity passing cUSD and deployerAddress
+  console.log("Deploying SoulboundIdentity...");
+  const SoulboundIdentity = await hre.ethers.deployContract('SoulboundIdentity', [
+    cUSDAddress,
+    deployerAddress
+  ]);
+  await SoulboundIdentity.waitForDeployment();
+  console.log(`SoulboundIdentity deployed to ${SoulboundIdentity.target}`);
+
+  // 4. Deploy Rexell
+  console.log("Deploying Rexell...");
   const rexell = await hre.ethers.deployContract('Rexell', [
     cUSDAddress,
     SoulboundIdentity.target
