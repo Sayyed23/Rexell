@@ -1,0 +1,16 @@
+{
+  "model_version": "v1.0.0",
+  "features": [
+    "mouse_velocity_mean",
+    "mouse_velocity_std",
+    "mouse_acceleration",
+    "mouse_curvature",
+    "click_frequency",
+    "flight_time_mean",
+    "flight_time_std",
+    "dwell_time_mean",
+    "navigation_entropy",
+    "page_dwell_time_dist"
+  ],
+  "passed_quality_gate": true
+}

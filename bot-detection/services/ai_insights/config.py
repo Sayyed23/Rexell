@@ -37,7 +37,7 @@ class Settings:
     DATASET_CSV: Path = Path(
         os.getenv(
             "AI_INSIGHTS_DATASET_CSV",
-            str(_REPO_ROOT / "bot-detection" / "dataset" / "blockchain_ticketing_master.csv"),
+            str(_REPO_ROOT / "bot-detection" / "dataset" / "behavioral_telemetry_dataset.csv"),
         )
     )
 

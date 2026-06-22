@@ -56,7 +56,7 @@ Or via Docker Compose (from `bot-detection/docker`): `docker compose up ai-insig
 | `AI_INSIGHTS_API_KEY` / `AI_INSIGHTS_API_KEYS` | — | Accepted `X-API-Key` value(s) |
 | `AI_INSIGHTS_DEV_MODE` | `true` | Enables the insecure `dev-ai-insights-key` when no keys configured |
 | `HUGGINGFACEHUB_API_TOKEN` | — | Enables LLM-synthesized RAG answers (Mistral-7B by default) |
-| `AI_INSIGHTS_DATASET_CSV` | `bot-detection/dataset/blockchain_ticketing_master.csv` | Training data |
+| `AI_INSIGHTS_DATASET_CSV` | `bot-detection/dataset/behavioral_telemetry_dataset.csv` | Training data |
 | `AI_INSIGHTS_MODEL_DIR` | `./models` | Model + stats artifacts |
 
 ## Frontend wiring

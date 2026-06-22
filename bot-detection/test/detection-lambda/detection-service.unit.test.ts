@@ -5,14 +5,14 @@ import { RiskScoreRepository } from '../../src/data-layer/repositories/risk-scor
 
 // Mocking dependencies
 const mockBehavioralRepo = {
-  saveEvent: jest.fn().mockResolvedValue(undefined),
+  saveEvent: (jest.fn() as any).mockResolvedValue(undefined),
 } as unknown as BehavioralDataRepository;
 
 const mockRiskRepo = {
-  saveRiskScore: jest.fn().mockResolvedValue(undefined),
+  saveRiskScore: (jest.fn() as any).mockResolvedValue(undefined),
 } as unknown as RiskScoreRepository;
 
-const mockSend = jest.fn();
+const mockSend = jest.fn() as any;
 jest.mock('@aws-sdk/client-sagemaker-runtime', () => ({
   SageMakerRuntimeClient: jest.fn(() => ({
     send: mockSend,
@@ -42,7 +42,7 @@ describe('DetectionService', () => {
 
     const result = await service.detect(request);
 
-    expect(result.decision).toBe('DENY');
+    expect(result.decision).toBe('BLOCK');
     expect(result.score).toBe(0.9);
     expect(mockBehavioralRepo.saveEvent).toHaveBeenCalled();
     expect(mockRiskRepo.saveRiskScore).toHaveBeenCalled();

@@ -11,7 +11,7 @@ export interface DetectionRequest {
 
 export interface DetectionResponse {
   score: number;
-  decision: 'ALLOW' | 'CHALLENGE' | 'DENY';
+  decision: 'ALLOW' | 'CHALLENGE' | 'BLOCK';
   reason: string[];
 }
 
@@ -89,8 +89,8 @@ export class DetectionService {
     }
   }
 
-  private resolveDecision(score: number): 'ALLOW' | 'CHALLENGE' | 'DENY' {
-    if (score >= 0.8) return 'DENY';
+  private resolveDecision(score: number): 'ALLOW' | 'CHALLENGE' | 'BLOCK' {
+    if (score >= 0.8) return 'BLOCK';
     if (score >= 0.4) return 'CHALLENGE';
     return 'ALLOW';
   }

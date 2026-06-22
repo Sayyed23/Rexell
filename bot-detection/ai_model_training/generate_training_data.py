@@ -28,7 +28,7 @@ import random
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_FILE = os.path.abspath(
-    os.path.join(SCRIPT_DIR, "..", "..", "frontend", "ml", "training_data.json")
+    os.path.join(SCRIPT_DIR, "training_data.json")
 )
 
 random.seed(42)

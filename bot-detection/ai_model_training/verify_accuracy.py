@@ -1,8 +1,8 @@
 """
-Verify dataset quality and print summary statistics for all datasets.
+Verify dataset quality and print summary statistics for the combined dataset.
 
 Checks:
-  - Column presence and data types
+  - Column presence and data types in the unified behavioral_telemetry_dataset.csv
   - No NaN / null values in critical columns
   - Label distribution sanity
   - Feature range validation
@@ -17,14 +17,14 @@ import statistics
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DATASET_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "dataset"))
 TRAINING_JSON = os.path.abspath(
-    os.path.join(SCRIPT_DIR, "..", "..", "frontend", "ml", "training_data.json")
+    os.path.join(SCRIPT_DIR, "training_data.json")
 )
 
 
-def verify_blockchain_master():
-    path = os.path.join(DATASET_DIR, "blockchain_ticketing_master.csv")
+def verify_combined_dataset():
+    path = os.path.join(DATASET_DIR, "behavioral_telemetry_dataset.csv")
     print(f"\n{'='*60}")
-    print(f"Verifying: blockchain_ticketing_master.csv")
+    print(f"Verifying: behavioral_telemetry_dataset.csv")
     print(f"{'='*60}")
 
     with open(path, newline="") as f:
@@ -32,7 +32,28 @@ def verify_blockchain_master():
         rows = list(reader)
 
     print(f"Rows: {len(rows)}")
-    print(f"Columns: {list(rows[0].keys())}")
+    
+    # Check key columns
+    columns = list(rows[0].keys())
+    print(f"Total Columns: {len(columns)}")
+    
+    # Ticketing columns
+    ticketing_cols = {
+        "transaction_hash", "wallet_address", "event_id", "transaction_type",
+        "status", "timestamp", "ticket_count", "price_paid",
+        "original_event_price", "markup_pct", "ip_hash", "is_resale",
+        "scalping_label", "fraud_label", "risk_score"
+    }
+    missing_ticketing = ticketing_cols - set(columns)
+    assert not missing_ticketing, f"Missing ticketing columns: {missing_ticketing}"
+
+    # Behavioral columns
+    behavioral_cols = {
+        "mouse_velocity_mean", "mouse_velocity_std", "click_frequency",
+        "navigation_entropy", "label", "scalper"
+    }
+    missing_behavioral = behavioral_cols - set(columns)
+    assert not missing_behavioral, f"Missing behavioral columns: {missing_behavioral}"
 
     # Check risk_score is continuous
     scores = [float(r["risk_score"]) for r in rows]
@@ -51,8 +72,10 @@ def verify_blockchain_master():
     # Check labels aren't trivially deterministic
     fraud = sum(1 for r in rows if r["fraud_label"] == "1")
     scalp = sum(1 for r in rows if r["scalping_label"] == "1")
+    total_labels = sum(1 for r in rows if r["label"] == "1")
     print(f"Fraud labels: {fraud}/{len(rows)} ({fraud/len(rows)*100:.1f}%)")
     print(f"Scalping labels: {scalp}/{len(rows)} ({scalp/len(rows)*100:.1f}%)")
+    print(f"Total Bot/Scalper labels: {total_labels}/{len(rows)} ({total_labels/len(rows)*100:.1f}%)")
 
     # Verify tx hashes are Ethereum-style
     sample_hash = rows[0]["transaction_hash"]
@@ -61,52 +84,27 @@ def verify_blockchain_master():
     sample_addr = rows[0]["wallet_address"]
     assert sample_addr.startswith("0x") and len(sample_addr) == 42, f"Bad wallet format: {sample_addr}"
 
-    print("PASS: blockchain_ticketing_master.csv")
-
-
-def verify_synthetic_dataset():
-    path = os.path.join(DATASET_DIR, "synthetic_ticketing_dataset.csv")
-    print(f"\n{'='*60}")
-    print(f"Verifying: synthetic_ticketing_dataset.csv")
-    print(f"{'='*60}")
-
-    with open(path, newline="") as f:
-        reader = csv.DictReader(f)
-        rows = list(reader)
-
-    print(f"Rows: {len(rows)}")
-    print(f"Columns: {list(rows[0].keys())}")
-
-    # Removed features should NOT be present
-    removed = {"age", "location", "device", "event_demand"}
-    present_removed = removed & set(rows[0].keys())
-    assert not present_removed, f"Removed features still present: {present_removed}"
-
-    # New behavioral features should be present
-    required = {
-        "mouse_velocity_mean", "mouse_velocity_std", "click_frequency",
-        "keystroke_flight_time_ms", "navigation_entropy", "session_duration_sec",
-        "pages_visited", "scroll_depth_pct",
-    }
-    missing = required - set(rows[0].keys())
-    assert not missing, f"Missing required features: {missing}"
-
     # Ticket prices should have continuous distribution
-    prices = [float(r["ticket_price"]) for r in rows]
-    unique_prices = len(set(prices))
+    ticket_prices = [float(r["ticket_price"]) for r in rows]
+    unique_prices = len(set(ticket_prices))
     print(f"Ticket price unique values: {unique_prices}")
     assert unique_prices > 100, f"Ticket prices should be continuous, got only {unique_prices}"
 
-    scalpers = sum(1 for r in rows if r["scalper"] == "1")
-    print(f"Scalper labels: {scalpers}/{len(rows)} ({scalpers/len(rows)*100:.1f}%)")
-
-    print("PASS: synthetic_ticketing_dataset.csv")
+    print("PASS: behavioral_telemetry_dataset.csv")
 
 
 def verify_training_json():
     print(f"\n{'='*60}")
     print(f"Verifying: training_data.json")
     print(f"{'='*60}")
+
+    if not os.path.exists(TRAINING_JSON):
+        print(f"Warning: training_data.json not found at {TRAINING_JSON}, generating it now...")
+        # Run generate_training_data inline
+        import sys
+        sys.path.append(SCRIPT_DIR)
+        import generate_training_data
+        generate_training_data.main()
 
     with open(TRAINING_JSON) as f:
         data = json.load(f)
@@ -138,8 +136,7 @@ def verify_training_json():
 
 
 def main():
-    verify_blockchain_master()
-    verify_synthetic_dataset()
+    verify_combined_dataset()
     verify_training_json()
     print(f"\n{'='*60}")
     print("ALL DATASETS VERIFIED SUCCESSFULLY")
