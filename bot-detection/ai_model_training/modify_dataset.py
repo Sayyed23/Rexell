@@ -1,95 +1,74 @@
+"""
+Post-process synthetic_ticketing_dataset.csv.
+
+Applies noise injection and minor label adjustments to simulate the gap
+between a perfect synthetic generator and messy real-world ground truth,
+producing synthetic_ticketing_dataset_modified.csv.
+
+Unlike the old version that artificially forced resale_flag == scalper to
+a target accuracy, this version introduces realistic noise:
+  - Randomly flips a small fraction of scalper labels (simulating labelling
+    errors / grey-area users who are hard to classify)
+  - Adds minor Gaussian noise to behavioral features
+"""
+
 import csv
+import os
 import random
 
-def calculate_accuracy(rows):
-    """Calculate the accuracy between resale_flag and scalper columns"""
-    matching = 0
-    total = len(rows)
-    
-    for row in rows:
-        if row[9] == row[10]:  # resale_flag and scalper columns
-            matching += 1
-    
-    return (matching / total) * 100 if total > 0 else 0
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+INPUT_FILE = os.path.abspath(
+    os.path.join(SCRIPT_DIR, "..", "dataset", "synthetic_ticketing_dataset.csv")
+)
+OUTPUT_FILE = os.path.abspath(
+    os.path.join(SCRIPT_DIR, "..", "dataset", "synthetic_ticketing_dataset_modified.csv")
+)
 
-def modify_dataset_for_accuracy(input_file, output_file, target_min=90, target_max=92):
-    """Modify the dataset to achieve the target accuracy range"""
-    
-    # Read the original dataset
-    with open(input_file, 'r', newline='', encoding='utf-8') as infile:
-        reader = csv.reader(infile)
-        header = next(reader)  # Read the header
+random.seed(42)
+
+LABEL_FLIP_RATE = 0.02  # 2% label noise
+FEATURE_NOISE_COLS = [
+    "mouse_velocity_mean",
+    "mouse_velocity_std",
+    "click_frequency",
+    "keystroke_flight_time_ms",
+    "navigation_entropy",
+    "session_duration_sec",
+    "scroll_depth_pct",
+]
+NOISE_SCALE = 0.05  # 5% relative noise
+
+
+def main():
+    with open(INPUT_FILE, "r", newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        fieldnames = reader.fieldnames
         rows = list(reader)
-    
-    print(f"Total rows: {len(rows)}")
-    
-    # Calculate current accuracy
-    current_accuracy = calculate_accuracy(rows)
-    print(f"Current accuracy: {current_accuracy:.2f}%")
-    
-    # Determine how many rows need to be modified
-    target_accuracy = (target_min + target_max) / 2  # Target middle of range
-    
-    if current_accuracy < target_min:
-        # Need to increase matching rows
-        needed_matches = int(len(rows) * target_accuracy / 100) - \
-                        len([row for row in rows if row[9] == row[10]])
-        direction = "increase"
-    elif current_accuracy > target_max:
-        # Need to decrease matching rows
-        needed_matches = len([row for row in rows if row[9] == row[10]]) - \
-                        int(len(rows) * target_accuracy / 100)
-        direction = "decrease"
-    else:
-        print(f"Accuracy is already within target range ({target_min}-{target_max}%)")
-        # Write the original data to output file
-        with open(output_file, 'w', newline='', encoding='utf-8') as outfile:
-            writer = csv.writer(outfile)
-            writer.writerow(header)
-            writer.writerows(rows)
-        return
-    
-    print(f"Need to {direction} matching rows by: {abs(needed_matches)}")
-    
-    # Get indices of rows where resale_flag != scalper (for increasing matches)
-    # or where resale_flag == scalper (for decreasing matches)
-    if direction == "increase":
-        modify_indices = [i for i, row in enumerate(rows) if row[9] != row[10]]
-    else:  # decrease
-        modify_indices = [i for i, row in enumerate(rows) if row[9] == row[10]]
-    
-    # Shuffle the indices to randomly select which rows to modify
-    random.shuffle(modify_indices)
-    
-    # Limit to the number of rows we need to modify
-    modify_indices = modify_indices[:abs(needed_matches)]
-    
-    # Modify the selected rows
-    for i in modify_indices:
-        if direction == "increase":
-            # Make scalper match resale_flag
-            rows[i][10] = rows[i][9]
-        else:  # decrease
-            # Make scalper different from resale_flag
-            rows[i][10] = '1' if rows[i][9] == '0' else '0'
-    
-    # Write the modified data to output file
-    with open(output_file, 'w', newline='', encoding='utf-8') as outfile:
-        writer = csv.writer(outfile)
-        writer.writerow(header)
+
+    print(f"Loaded {len(rows)} rows from {INPUT_FILE}")
+
+    flipped = 0
+    for row in rows:
+        # Label noise
+        if random.random() < LABEL_FLIP_RATE:
+            row["scalper"] = "0" if row["scalper"] == "1" else "1"
+            flipped += 1
+
+        # Feature noise
+        for col in FEATURE_NOISE_COLS:
+            val = float(row[col])
+            if val > 0:
+                noise = val * random.gauss(0, NOISE_SCALE)
+                row[col] = str(round(max(0, val + noise), 4))
+
+    with open(OUTPUT_FILE, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
         writer.writerows(rows)
-    
-    # Calculate and print final accuracy
-    final_accuracy = calculate_accuracy(rows)
-    print(f"Final accuracy: {final_accuracy:.2f}%")
+
+    print(f"Written {len(rows)} rows to {OUTPUT_FILE}")
+    print(f"  Label flips: {flipped}")
+
 
 if __name__ == "__main__":
-    import os
-    SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-    input_file = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "dataset", "synthetic_ticketing_dataset.csv"))
-    output_file = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "dataset", "synthetic_ticketing_dataset_modified.csv"))
-    
-    # Set seed for reproducibility
-    random.seed(42)
-    
-    modify_dataset_for_accuracy(input_file, output_file, 90, 92)
+    main()

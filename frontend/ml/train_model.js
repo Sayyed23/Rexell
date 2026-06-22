@@ -3,28 +3,38 @@ const fs = require('fs');
 const path = require('path');
 const data = require('./training_data.json');
 
+// Feature columns matching the FeatureVector used by the ML inference service.
+// All values are already normalized to [0, 1] by the data generator.
+const FEATURE_KEYS = [
+    'mouse_velocity_mean',
+    'mouse_velocity_std',
+    'mouse_acceleration',
+    'mouse_curvature',
+    'click_frequency',
+    'flight_time_mean',
+    'flight_time_std',
+    'dwell_time_mean',
+    'navigation_entropy',
+    'page_dwell_time_dist',
+];
+
 async function trainModel() {
     console.log('Loading data...');
 
-    // Preprocess
-    const inputs = data.map(d => [
-        d.time_since_last_buy / 3600.0, // Normalize
-        d.purchase_count_10s / 10.0,
-        d.event_diversity_24h / 20.0
-    ]);
+    const inputs = data.map(d => FEATURE_KEYS.map(k => d[k]));
     const labels = data.map(d => d.label);
 
-    const inputTensor = tf.tensor2d(inputs, [inputs.length, 3]);
+    const inputTensor = tf.tensor2d(inputs, [inputs.length, FEATURE_KEYS.length]);
     const labelTensor = tf.tensor2d(labels, [labels.length, 1]);
 
     // Build Model
     const model = tf.sequential();
-    model.add(tf.layers.dense({ inputShape: [3], units: 16, activation: 'relu' }));
-    model.add(tf.layers.dense({ units: 8, activation: 'relu' }));
+    model.add(tf.layers.dense({ inputShape: [FEATURE_KEYS.length], units: 32, activation: 'relu' }));
+    model.add(tf.layers.dense({ units: 16, activation: 'relu' }));
     model.add(tf.layers.dense({ units: 1, activation: 'sigmoid' }));
 
     model.compile({
-        optimizer: tf.train.adam(0.01),
+        optimizer: tf.train.adam(0.001),
         loss: 'binaryCrossentropy',
         metrics: ['accuracy']
     });
