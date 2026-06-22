@@ -1,180 +1,338 @@
-import pandas as pd
-import numpy as np
-import random
-import uuid
-import hashlib
-from datetime import datetime, timedelta
+"""
+Assemble the blockchain_ticketing_master.csv dataset for Rexell.
+
+Generates realistic on-chain ticketing transactions with:
+- Proper Ethereum-style addresses and hashes
+- Realistic price distributions (Celo cUSD, typically $5–$500)
+- Organic temporal patterns (event lifecycle, burst buying near events)
+- Nuanced bot/scalper labels derived from multi-signal behavioral patterns
+  rather than trivial single-threshold rules
+- Continuous risk scores with natural variance
+
+Output: bot-detection/dataset/blockchain_ticketing_master.csv
+"""
+
 import os
+import random
+import hashlib
+import math
+from datetime import datetime, timedelta
 
-# Configuration
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-OUTPUT_FILE = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "dataset", "blockchain_ticketing_master.csv"))
-SOURCE_DIR = os.path.join(SCRIPT_DIR, "source")
-N_ROWS = 12000  # Generate slightly more than 10k
-EVENTS_COUNT = 50
-FRAUD_RATE = 0.08  # 8% suspicious activity
-SCALPER_RATE = 0.15 # 15% resale activity
+OUTPUT_FILE = os.path.abspath(
+    os.path.join(SCRIPT_DIR, "..", "dataset", "blockchain_ticketing_master.csv")
+)
 
-def generate_hash():
-    """Generate a random 0x hash string."""
-    return '0x' + uuid.uuid4().hex + uuid.uuid4().hex[:8]
+random.seed(42)
 
-def generate_wallet():
-    """Generate a random 0x wallet address."""
-    return '0x' + uuid.uuid4().hex[:40]
+# --- Config ---
+N_ROWS = 12_000
+N_EVENTS = 50
+BOT_WALLET_COUNT = 25
+SCALPER_WALLET_COUNT = 60
+NORMAL_WALLET_COUNT = 4_000
 
-def generate_synthetic_data(n_rows):
-    """
-    Generates a synthetic dataframe simulating blockchain ticketing transactions.
-    """
-    print(f"Generating synthetic dataset with {n_rows} rows...")
-    
-    # 1. Generate core Events
+# --- Helpers ---
+
+
+def eth_hash(seed: str) -> str:
+    """Generate a deterministic Ethereum-style 0x-prefixed 64-char hex hash."""
+    return "0x" + hashlib.sha256(seed.encode()).hexdigest()
+
+
+def eth_address(seed: str) -> str:
+    """Generate a deterministic Ethereum-style 0x-prefixed 40-char hex address."""
+    return "0x" + hashlib.sha256(seed.encode()).hexdigest()[:40]
+
+
+def ip_hash(seed: str) -> str:
+    """Generate a deterministic hashed IP."""
+    return hashlib.sha256(seed.encode()).hexdigest()[:32]
+
+
+def clamp(value: float, lo: float = 0.0, hi: float = 100.0) -> float:
+    return max(lo, min(hi, value))
+
+
+# --- Event catalogue ---
+
+EVENT_CATEGORIES = [
+    ("concert", 15, 50, 300),
+    ("sports", 10, 30, 250),
+    ("theater", 8, 40, 200),
+    ("festival", 7, 80, 500),
+    ("conference", 5, 20, 150),
+    ("comedy", 5, 15, 80),
+]
+
+
+def build_events():
     events = []
-    for i in range(EVENTS_COUNT):
-        base_price = random.randint(50, 500)
-        events.append({
-            'event_id': f"EVT_{i:03d}",
-            'organizer_address': generate_wallet(),
-            'base_price': base_price,
-            'event_date': datetime.now() - timedelta(days=random.randint(0, 30))
-        })
-    
-    events_df = pd.DataFrame(events)
-    
-    # 2. Generate Transactions
-    data = []
-    
-    # Pre-generate some "scalper" and "bot" wallets for patterns
-    scalper_wallets = [generate_wallet() for _ in range(50)]
-    bot_wallets = [generate_wallet() for _ in range(20)]
-    normal_users = [generate_wallet() for _ in range(5000)]
-    
-    start_date = datetime.now() - timedelta(days=60)
-    
-    for _ in range(n_rows):
-        is_scalper = random.random() < SCALPER_RATE
-        is_bot = random.random() < FRAUD_RATE
-        
-        # Select Event
+    idx = 0
+    for category, count, price_lo, price_hi in EVENT_CATEGORIES:
+        for j in range(count):
+            base_price = round(random.uniform(price_lo, price_hi), 2)
+            capacity = random.choice([200, 500, 1000, 2000, 5000, 10000])
+            event_date = datetime(2025, 6, 1) + timedelta(days=random.randint(0, 90))
+            sale_opens = event_date - timedelta(days=random.randint(14, 60))
+            events.append(
+                {
+                    "event_id": f"EVT_{idx:03d}",
+                    "category": category,
+                    "base_price": base_price,
+                    "capacity": capacity,
+                    "event_date": event_date,
+                    "sale_opens": sale_opens,
+                }
+            )
+            idx += 1
+    return events
+
+
+# --- Wallet pools ---
+
+
+def build_wallets():
+    bots = [eth_address(f"bot-{i}") for i in range(BOT_WALLET_COUNT)]
+    scalpers = [eth_address(f"scalper-{i}") for i in range(SCALPER_WALLET_COUNT)]
+    normals = [eth_address(f"user-{i}") for i in range(NORMAL_WALLET_COUNT)]
+    return bots, scalpers, normals
+
+
+# --- Transaction generators ---
+
+
+def gen_normal_tx(wallet, event, idx):
+    """A typical human buyer: 1-4 tickets, no markup, succeeds."""
+    days_before = random.randint(1, 45)
+    ts = event["event_date"] - timedelta(
+        days=days_before,
+        hours=random.randint(0, 23),
+        minutes=random.randint(0, 59),
+        seconds=random.randint(0, 59),
+    )
+    count = random.choices([1, 2, 3, 4], weights=[50, 30, 15, 5])[0]
+    price = event["base_price"]
+    # Humans have slight price fluctuation from dynamic pricing
+    price_paid = round(price * random.uniform(0.95, 1.05), 2)
+
+    # Normal users occasionally fail (payment issues, timeout ~2%)
+    status = "SUCCESS" if random.random() > 0.02 else "FAILED"
+
+    noise = random.gauss(0, 3)
+    risk = clamp(5 + noise)
+
+    return {
+        "transaction_hash": eth_hash(f"tx-norm-{idx}-{wallet[:10]}"),
+        "wallet_address": wallet,
+        "event_id": event["event_id"],
+        "transaction_type": "PURCHASE",
+        "status": status,
+        "timestamp": ts.strftime("%Y-%m-%d %H:%M:%S.%f"),
+        "ticket_count": count,
+        "price_paid": round(price_paid * count, 2),
+        "original_event_price": price,
+        "markup_pct": 0.0,
+        "ip_hash": ip_hash(f"ip-norm-{wallet[:12]}"),
+        "is_resale": False,
+        "scalping_label": 0,
+        "fraud_label": 0,
+        "risk_score": round(risk, 1),
+    }
+
+
+def gen_scalper_tx(wallet, event, idx):
+    """Scalper: buys several tickets, sometimes resells at markup."""
+    is_resale = random.random() < 0.45
+
+    if is_resale:
+        txn_type = "RESALE_LISTING"
+        days_before = random.randint(1, 20)
+        count = random.choices([1, 2, 3], weights=[40, 40, 20])[0]
+        markup = random.uniform(0.15, 1.8)
+        price = round(event["base_price"] * (1 + markup), 2)
+    else:
+        txn_type = "PURCHASE"
+        days_before = random.randint(5, 50)
+        count = random.choices([2, 3, 4, 5, 6], weights=[15, 25, 30, 20, 10])[0]
+        markup = 0.0
+        price = event["base_price"]
+
+    ts = event["event_date"] - timedelta(
+        days=days_before,
+        hours=random.randint(0, 23),
+        minutes=random.randint(0, 59),
+        seconds=random.randint(0, 59),
+    )
+    status = "SUCCESS"
+
+    # Scalpers: moderate-to-high risk depending on markup & volume
+    base_risk = 25 + markup * 15 + count * 3
+    noise = random.gauss(0, 5)
+    risk = clamp(base_risk + noise)
+
+    # Scalping label: probabilistic (high markup or high volume = likely flagged)
+    scalping_score = markup * 0.4 + (count / 6) * 0.4 + random.uniform(0, 0.2)
+    scalping_label = 1 if scalping_score > 0.45 else 0
+
+    return {
+        "transaction_hash": eth_hash(f"tx-scalp-{idx}-{wallet[:10]}"),
+        "wallet_address": wallet,
+        "event_id": event["event_id"],
+        "transaction_type": txn_type,
+        "status": status,
+        "timestamp": ts.strftime("%Y-%m-%d %H:%M:%S.%f"),
+        "ticket_count": count,
+        "price_paid": round(price * count, 2),
+        "original_event_price": event["base_price"],
+        "markup_pct": round(markup * 100, 2),
+        "ip_hash": ip_hash(f"ip-scalp-{wallet[:12]}"),
+        "is_resale": is_resale,
+        "scalping_label": scalping_label,
+        "fraud_label": 0,
+        "risk_score": round(risk, 1),
+    }
+
+
+def gen_bot_tx(wallet, event, idx):
+    """Bot: rapid attempts, high ticket counts, many failures."""
+    txn_type = random.choices(
+        ["PURCHASE_ATTEMPT", "PURCHASE"], weights=[65, 35]
+    )[0]
+    status = random.choices(["FAILED", "SUCCESS", "PENDING"], weights=[50, 35, 15])[0]
+
+    # Bots target events that just opened or are about to sell out
+    days_before = random.randint(0, 10)
+    # Bots often operate in tight time windows (seconds apart)
+    ts = event["sale_opens"] + timedelta(
+        days=random.randint(0, 3),
+        hours=random.randint(0, 4),
+        minutes=random.randint(0, 10),
+        seconds=random.randint(0, 59),
+    )
+
+    count = random.choices(
+        [1, 5, 8, 10, 15, 20], weights=[5, 15, 25, 25, 20, 10]
+    )[0]
+    price = event["base_price"]
+
+    # Very high risk
+    base_risk = 65 + count * 1.5
+    if status == "FAILED":
+        base_risk += 10
+    if txn_type == "PURCHASE_ATTEMPT":
+        base_risk += 5
+    noise = random.gauss(0, 6)
+    risk = clamp(base_risk + noise)
+
+    # Fraud label: probabilistic
+    fraud_score = 0.6 + (count / 20) * 0.2 + (0.1 if status == "FAILED" else 0)
+    fraud_label = 1 if fraud_score + random.uniform(-0.15, 0.15) > 0.55 else 0
+
+    # Some bots also scalp
+    scalping_label = 1 if random.random() < 0.3 else 0
+
+    return {
+        "transaction_hash": eth_hash(f"tx-bot-{idx}-{wallet[:10]}"),
+        "wallet_address": wallet,
+        "event_id": event["event_id"],
+        "transaction_type": txn_type,
+        "status": status,
+        "timestamp": ts.strftime("%Y-%m-%d %H:%M:%S.%f"),
+        "ticket_count": count,
+        "price_paid": round(price * count, 2) if status == "SUCCESS" else 0.0,
+        "original_event_price": price,
+        "markup_pct": 0.0,
+        "ip_hash": ip_hash(f"ip-bot-{wallet[:12]}"),
+        "is_resale": False,
+        "scalping_label": scalping_label,
+        "fraud_label": fraud_label,
+        "risk_score": round(risk, 1),
+    }
+
+
+# --- Main assembly ---
+
+
+def generate_dataset():
+    events = build_events()
+    bots, scalpers, normals = build_wallets()
+
+    rows = []
+
+    # Distribution: ~77% normal, ~15% scalper, ~8% bot (matches real-world rates)
+    n_normal = int(N_ROWS * 0.77)
+    n_scalper = int(N_ROWS * 0.15)
+    n_bot = N_ROWS - n_normal - n_scalper
+
+    for i in range(n_normal):
+        wallet = random.choice(normals)
         event = random.choice(events)
-        
-        # Determine User
-        if is_bot:
-            wallet = random.choice(bot_wallets)
-            txn_type = "PURCHASE_ATTEMPT"  # Bots often spam attempts
-            success = random.random() > 0.3 # Bots fail often due to defenses
-        elif is_scalper:
-            wallet = random.choice(scalper_wallets)
-            txn_type = random.choice(["PURCHASE", "RESALE_LISTING"])
-            success = True
-        else:
-            wallet = random.choice(normal_users)
-            txn_type = "PURCHASE"
-            success = True
-            
-        # Time logic
-        # Purchases happen before event, resales happen closer to event
-        days_offset = random.randint(0, 30)
-        timestamp = event['event_date'] - timedelta(days=days_offset)
-        
-        # Add random seconds noise
-        timestamp += timedelta(seconds=random.randint(0, 86400))
-        
-        # Pricing
-        price = event['base_price']
-        original_price = price
-        markup_pct = 0.0
-        
-        if txn_type == "RESALE_LISTING":
-            # Scalpers add markup
-            markup_pct = random.uniform(0.1, 2.5) if is_scalper else random.uniform(0.0, 0.3)
-            price = price * (1 + markup_pct)
-        
-        # Transaction Hash
-        txn_hash = generate_hash()
-        
-        data.append({
-            'transaction_hash': txn_hash,
-            'wallet_address': wallet,
-            'event_id': event['event_id'],
-            'transaction_type': txn_type,
-            'status': 'SUCCESS' if success else 'FAILED',
-            'timestamp': timestamp,
-            'ticket_count': random.randint(1, 4) if not is_bot else random.randint(1, 20),
-            'price_paid': round(price, 2),
-            'original_event_price': original_price,
-            'markup_pct': round(markup_pct * 100, 2),
-            'ip_hash': hashlib.md5(f"192.168.{random.randint(0,255)}.{random.randint(0,255)}".encode()).hexdigest(),
-        })
+        rows.append(gen_normal_tx(wallet, event, i))
 
-    df = pd.DataFrame(data)
-    
-    return df
+    for i in range(n_scalper):
+        wallet = random.choice(scalpers)
+        event = random.choice(events)
+        rows.append(gen_scalper_tx(wallet, event, i))
 
-def feature_engineering(df):
-    """
-    Add derived features and labels (fraud, scalping).
-    """
-    print("Performing feature engineering...")
-    
-    # 1. Resale within minutes (simulating time since primary sale)
-    # We will simulate this by checking if it's a resale txn
-    df['is_resale'] = df['transaction_type'] == 'RESALE_LISTING'
-    
-    # 2. Scalping Label
-    # Logic: High markup (> 40%) OR High ticket count per wallet
-    df['scalping_label'] = 0
-    df.loc[(df['markup_pct'] > 40) | (df['ticket_count'] > 10), 'scalping_label'] = 1
-    
-    # 3. Bot/Fraud Label
-    # Logic: Failed transactions OR abnormally high ticket counts in bursts
-    # Simplified: If status is FAILED or ticket count > 8 -> likely bot
-    df['fraud_label'] = 0
-    df.loc[(df['status'] == 'FAILED') | (df['ticket_count'] > 8), 'fraud_label'] = 1
-    
-    # 4. Risk Score (0-100)
-    # Composite score
-    df['risk_score'] = 0
-    df.loc[df['scalping_label'] == 1, 'risk_score'] += 30
-    df.loc[df['fraud_label'] == 1, 'risk_score'] += 50
-    df.loc[df['transaction_type'] == 'PURCHASE_ATTEMPT', 'risk_score'] += 20
-    
-    # Cap at 100
-    df['risk_score'] = df['risk_score'].clip(upper=100)
-    
-    return df
+    for i in range(n_bot):
+        wallet = random.choice(bots)
+        event = random.choice(events)
+        rows.append(gen_bot_tx(wallet, event, i))
+
+    # Sort chronologically
+    rows.sort(key=lambda r: r["timestamp"])
+    return rows
+
+
+def write_csv(rows, path):
+    import csv
+
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    fieldnames = [
+        "transaction_hash",
+        "wallet_address",
+        "event_id",
+        "transaction_type",
+        "status",
+        "timestamp",
+        "ticket_count",
+        "price_paid",
+        "original_event_price",
+        "markup_pct",
+        "ip_hash",
+        "is_resale",
+        "scalping_label",
+        "fraud_label",
+        "risk_score",
+    ]
+    with open(path, "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+
 
 def main():
-    print("Starting Dataset Assembly...")
-    
-    # Check for real data
-    real_tx_path = os.path.join(SOURCE_DIR, "transactions.csv")
-    
-    if os.path.exists(real_tx_path):
-        print(f"Found real data at {real_tx_path}. Loading...")
-        # (Placeholder for real data loading logic - simplified for now as user likely needs synthetic first)
-        df = generate_synthetic_data(N_ROWS) # Fallback to synthetic for this implementation to guarantee result
-    else:
-        print("Real source data not found. Proceeding with SYNTHETIC data generation.")
-        df = generate_synthetic_data(N_ROWS)
-        
-    # Process
-    df = feature_engineering(df)
-    
-    # Sort by time
-    df = df.sort_values(by='timestamp')
-    
-    # Export
-    output_path = OUTPUT_FILE
-    df.to_csv(output_path, index=False)
-    
-    print(f"\nSUCCESS! Dataset generated at: {output_path}")
-    print("\nSample Data:")
-    print(df[['transaction_hash', 'event_id', 'transaction_type', 'price_paid', 'fraud_label']].head())
-    print(f"\nTotal Rows: {len(df)}")
-    print(f"Scalping Incidents: {df['scalping_label'].sum()}")
-    print(f"Fraud Incidents: {df['fraud_label'].sum()}")
+    print("Assembling blockchain_ticketing_master.csv ...")
+    rows = generate_dataset()
+    write_csv(rows, OUTPUT_FILE)
+
+    # Summary stats
+    total = len(rows)
+    fraud = sum(1 for r in rows if r["fraud_label"] == 1)
+    scalp = sum(1 for r in rows if r["scalping_label"] == 1)
+    resale = sum(1 for r in rows if r["is_resale"])
+    failed = sum(1 for r in rows if r["status"] == "FAILED")
+    scores = [r["risk_score"] for r in rows]
+
+    print(f"\nGenerated {total} transactions -> {OUTPUT_FILE}")
+    print(f"  Fraud-labelled:    {fraud} ({fraud/total*100:.1f}%)")
+    print(f"  Scalping-labelled: {scalp} ({scalp/total*100:.1f}%)")
+    print(f"  Resale txns:       {resale} ({resale/total*100:.1f}%)")
+    print(f"  Failed txns:       {failed} ({failed/total*100:.1f}%)")
+    print(f"  Risk score range:  {min(scores):.1f} – {max(scores):.1f}")
+    print(f"  Risk score mean:   {sum(scores)/len(scores):.1f}")
+
 
 if __name__ == "__main__":
     main()
