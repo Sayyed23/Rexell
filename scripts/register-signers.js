@@ -1,5 +1,5 @@
 const { ethers } = require("ethers");
-require("dotenv").config({ path: "d:/Rexell/.env" });
+require("dotenv").config();
 
 async function main() {
     const provider = new ethers.JsonRpcProvider("https://forno.celo-sepolia.celo-testnet.org");
@@ -11,8 +11,8 @@ async function main() {
     const wallet = new ethers.Wallet(pk.startsWith('0x') ? pk : `0x${pk}`, provider);
     console.log(`Wallet address: ${wallet.address}`);
 
-    const rexellAddress = "0xdD95E8Fd1A5F9cc6d0548CA42a52430Bb70F8C00";
-    const identityAddress = "0x61997582d44033485a0ab38504309c201f5c97B3";
+    const rexellAddress = "0xb12fF2d3F2De487DA76610A88aE650d754fB3502";
+    const identityAddress = "0x23f8414Ec9cE49aC8ad4E5388DDC3598631eBb9C";
 
     const abi = [
         "function owner() view returns (address)",

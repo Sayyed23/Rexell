@@ -230,10 +230,9 @@ contract Rexell is ERC721URIStorage, Ownable, ReentrancyGuard, EIP712 {
         // Anti-scalping 4-seat cap per user/wallet
         require(_event.userToNftUris[msg.sender].length + 1 <= 4, "Purchase exceeds 4 tickets limit per user");
         
-        // Anti-Sybil validation
+        // Anti-Sybil validation (normal buying only validates signature and nonce, score is not enforced)
         require(att.user == msg.sender, "Attestation user mismatch");
         require(att.expiresAt > block.timestamp, "Attestation expired");
-        require(att.score >= MIN_SCORE, "Score below threshold");
         require(_verifyOracleSignature(att), "Invalid attestation");
         require(!usedAttestationNonces[att.nonce], "Replay detected");
         usedAttestationNonces[att.nonce] = true;
@@ -260,10 +259,9 @@ contract Rexell is ERC721URIStorage, Ownable, ReentrancyGuard, EIP712 {
         // Anti-scalping 4-seat cap per user/wallet
         require(_event.userToNftUris[msg.sender].length + quantity <= 4, "Purchase exceeds 4 tickets limit per user");
         
-        // Anti-Sybil validation
+        // Anti-Sybil validation (normal buying only validates signature and nonce, score is not enforced)
         require(att.user == msg.sender, "Attestation user mismatch");
         require(att.expiresAt > block.timestamp, "Attestation expired");
-        require(att.score >= MIN_SCORE, "Score below threshold");
         require(_verifyOracleSignature(att), "Invalid attestation");
         require(!usedAttestationNonces[att.nonce], "Replay detected");
         usedAttestationNonces[att.nonce] = true;
@@ -303,10 +301,9 @@ contract Rexell is ERC721URIStorage, Ownable, ReentrancyGuard, EIP712 {
         // Anti-scalping 4-seat cap per user/wallet
         require(_event.userToNftUris[msg.sender].length + quantity <= 4, "Purchase exceeds 4 tickets limit per user");
 
-        // Anti-Sybil validation
+        // Anti-Sybil validation (normal buying only validates signature and nonce, score is not enforced)
         require(att.user == msg.sender, "Attestation user mismatch");
         require(att.expiresAt > block.timestamp, "Attestation expired");
-        require(att.score >= MIN_SCORE, "Score below threshold");
         require(_verifyOracleSignature(att), "Invalid attestation");
         require(!usedAttestationNonces[att.nonce], "Replay detected");
         usedAttestationNonces[att.nonce] = true;
@@ -427,7 +424,7 @@ contract Rexell is ERC721URIStorage, Ownable, ReentrancyGuard, EIP712 {
 
     function submitRating(uint eventId, uint8 rating) public {
         Event storage _event = events[eventId];
-        require(block.timestamp > _event.date/1000, "Rating can only be given after the event date");
+        require(block.timestamp > _event.date, "Rating can only be given after the event date");
         require(rating >= 1 && rating <= 5, "Rating should be between 1 and 5");
         require(_event.ratings[msg.sender] == 0, "You have already rated this event");
 
@@ -987,7 +984,7 @@ contract Rexell is ERC721URIStorage, Ownable, ReentrancyGuard, EIP712 {
                     for (uint j = 0; j < eventNftUris.length; j++) {
                         if (keccak256(bytes(eventNftUris[j])) == keccak256(bytes(uri))) {
                             // If event date is in the future, return true
-                            if (events[e].date / 1000 > block.timestamp) {
+                            if (events[e].date > block.timestamp) {
                                 return true;
                             }
                         }

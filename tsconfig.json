@@ -11,10 +11,10 @@
   "include": [
     "./scripts",
     "./deploy.ts",
-    "./typechain-types"
+    "./typechain-types",
+    "./test/**/*.ts"
   ],
   "exclude": [
-    "./frontend",
-    "./test"
+    "./frontend"
   ]
 }

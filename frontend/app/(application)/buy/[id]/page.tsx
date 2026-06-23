@@ -185,11 +185,8 @@ export default function BuyResaleTicketPage() {
           signatures: data.signatures as `0x${string}`[]
         };
 
-        if (attestation.score < 70n) {
-          toast.error(`Verification failed: Your Anti-Sybil score is ${data.score}/100. Score >= 70 required to purchase.`);
-          setIsPurchasing(false);
-          return;
-        }
+        // Anti-Sybil score check is bypassed for normal ticket buying.
+        // Signatures are still passed to the contract.
       } catch (err: any) {
         console.error("Attestation error:", err);
         toast.error(`Anti-Sybil Verification Error: ${err.message || String(err)}`);

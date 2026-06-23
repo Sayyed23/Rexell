@@ -104,7 +104,8 @@ export default function CreateEventPage() {
     const data = Object.fromEntries(formData.entries());
     console.log(data);
 
-    const selectedDate = new Date(`${data.date}T${data.time}`);
+    // Parse date and time in Coordinated Universal Time (UTC) / World Standard Time
+    const selectedDate = new Date(`${data.date}T${data.time}Z`);
     const currentDate = new Date();
     console.log(`${selectedDate}, ${currentDate}`);
 
@@ -137,19 +138,9 @@ export default function CreateEventPage() {
         toast.error("Image CID not generated. Please re-upload.");
         return;
       }
-      const dateObject = new Date(data.date as string);
-      const dateInMilliseconds = dateObject.getTime();
-
-      // Ensure date is valid (Solidity uses seconds for block.timestamp, but here we likely store ms or seconds?
-      // Contract stores uint256 date. In frontend we pass BigInt(dateInMilliseconds). 
-      // NOTE: Standard practice is seconds for solidity. 
-      // Let's divide by 1000 to be safe for Solidity comparison if contract uses block.timestamp (seconds).
-      // Checking contract usage: requires block.timestamp < _event.date. 
-      // If we pass ms, it will be huge and always true (for now), but correct logic is seconds.
-      // However, exiting code passes ms. Let's stick to ms unless it breaks something specific or if I verify contract.
-      // Actually, standard is seconds. Passing ms means it expires in 30,000 years.
-      // I will convert to seconds to be correct.
-      const dateInSeconds = Math.floor(dateInMilliseconds / 1000);
+      
+      // Calculate UTC timestamp in seconds including the selected time
+      const dateInSeconds = Math.floor(selectedDate.getTime() / 1000);
 
       const hash = await writeContractAsync({
         address: contractAddress,

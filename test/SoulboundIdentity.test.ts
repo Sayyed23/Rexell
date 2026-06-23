@@ -5,10 +5,19 @@ import "@nomicfoundation/hardhat-chai-matchers";
 describe("SoulboundIdentity", function () {
   async function deployIdentityFixture() {
     const [owner, user1, user2] = await hre.ethers.getSigners();
+    
+    // Deploy Mock cUSD
+    const MockCUSD = await hre.ethers.getContractFactory("MockCUSD");
+    const mockCUSD = await MockCUSD.deploy() as any;
+    await mockCUSD.waitForDeployment();
+
     const SoulboundIdentity = await hre.ethers.getContractFactory("SoulboundIdentity");
-    const identity = await SoulboundIdentity.deploy() as any;
+    const identity = await SoulboundIdentity.deploy(
+      await mockCUSD.getAddress(),
+      owner.address
+    ) as any;
     await identity.waitForDeployment();
-    return { identity, owner, user1, user2 };
+    return { identity, owner, user1, user2, mockCUSD };
   }
 
   describe("Minting", function () {

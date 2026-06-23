@@ -354,7 +354,7 @@ export function KYCFlow({ onVerified }: { onVerified?: () => void }) {
                                             <div>
                                                 <h4 className="font-bold text-sm">Issue Soulbound RID Identity</h4>
                                                 <p className="text-xs text-blue-700 mt-1">
-                                                    You don't have a Soulbound RID NFT yet. Issue one to unlock vouching and collateral staking.
+                                                    You don&apos;t have a Soulbound RID NFT yet. Issue one to unlock vouching and collateral staking.
                                                 </p>
                                             </div>
                                         </div>

@@ -42,15 +42,21 @@ def detect_project_type(project_path: Path) -> dict:
             scripts = pkg.get("scripts", {})
             deps = {**pkg.get("dependencies", {}), **pkg.get("devDependencies", {})}
             
+            # Check if pnpm is used
+            is_pnpm = (project_path / "pnpm-lock.yaml").exists() or (project_path.parent / "pnpm-lock.yaml").exists()
+            
             # Check for lint script
             if "lint" in scripts:
-                result["linters"].append({"name": "npm lint", "cmd": ["npm", "run", "lint"]})
+                cmd = ["pnpm", "run", "lint"] if is_pnpm else ["npm", "run", "lint"]
+                result["linters"].append({"name": "npm lint" if not is_pnpm else "pnpm lint", "cmd": cmd})
             elif "eslint" in deps:
-                result["linters"].append({"name": "eslint", "cmd": ["npx", "eslint", "."]})
+                cmd = ["pnpm", "exec", "eslint", "."] if is_pnpm else ["npx", "eslint", "."]
+                result["linters"].append({"name": "eslint", "cmd": cmd})
             
             # Check for TypeScript
             if "typescript" in deps or (project_path / "tsconfig.json").exists():
-                result["linters"].append({"name": "tsc", "cmd": ["npx", "tsc", "--noEmit"]})
+                cmd = ["pnpm", "exec", "tsc", "--noEmit"] if is_pnpm else ["npx", "tsc", "--noEmit"]
+                result["linters"].append({"name": "tsc", "cmd": cmd})
                 
         except:
             pass
@@ -81,9 +87,9 @@ def run_linter(linter: dict, cwd: Path) -> dict:
     try:
         cmd = linter["cmd"]
         
-        # Windows compatibility for npm/npx
+        # Windows compatibility for npm/npx/pnpm
         if platform.system() == "Windows":
-            if cmd[0] in ["npm", "npx"]:
+            if cmd[0] in ["npm", "npx", "pnpm"]:
                 # Force .cmd extension on Windows
                 if not cmd[0].lower().endswith(".cmd"):
                     cmd[0] = f"{cmd[0]}.cmd"

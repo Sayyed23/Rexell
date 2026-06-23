@@ -11,10 +11,22 @@ from eth_account import Account
 from eth_account.messages import encode_typed_data
 from dotenv import load_dotenv
 
+# Load configuration from multiple dotenv files to ensure synchronization
+load_dotenv()
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+
+# Load root .env
+root_env = os.path.join(project_root, ".env")
+if os.path.exists(root_env):
+    load_dotenv(root_env, override=True)
+
+# Load frontend .env
+frontend_env = os.path.join(project_root, "frontend", ".env")
+if os.path.exists(frontend_env):
+    load_dotenv(frontend_env, override=True)
+
 from database import engine, get_db, Base
 import models
-
-load_dotenv()
 
 # Create tables in MSSQL if they don't exist
 Base.metadata.create_all(bind=engine)

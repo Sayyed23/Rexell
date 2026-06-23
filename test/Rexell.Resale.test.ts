@@ -13,7 +13,10 @@ describe("Rexell Resale Marketplace Module", function () {
 
     // Deploy SoulboundIdentity
     const SoulboundIdentity = await hre.ethers.getContractFactory("SoulboundIdentity");
-    const identity = await SoulboundIdentity.deploy() as any;
+    const identity = await SoulboundIdentity.deploy(
+      await mockCUSD.getAddress(),
+      owner.address
+    ) as any;
     await identity.waitForDeployment();
 
     // Deploy Rexell

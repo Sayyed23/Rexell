@@ -1,5 +1,7 @@
 import { expect } from "chai";
 import hre from "hardhat";
+import "@nomicfoundation/hardhat-ethers";
+import "@nomicfoundation/hardhat-chai-matchers";
 
 describe("Rexell Seat Map and Locking", function () {
   async function deployContractsFixture() {

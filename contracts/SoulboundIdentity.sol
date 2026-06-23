@@ -35,6 +35,8 @@ contract SoulboundIdentity is ERC721, Ownable, EIP712 {
         bool isFrozen;
         uint256 activeVouchesCount;
         uint256 totalVouchLocked;
+        uint256 score;
+        uint256 timestamp;
     }
 
     struct VouchRecord {
@@ -141,7 +143,9 @@ contract SoulboundIdentity is ERC721, Ownable, EIP712 {
             unbondRequestTime: 0,
             isFrozen: false,
             activeVouchesCount: 0,
-            totalVouchLocked: 0
+            totalVouchLocked: 0,
+            score: 100,
+            timestamp: block.timestamp
         });
 
         emit IdentityRequested(msg.sender, requiredStake, block.timestamp + ACTIVATION_DELAY);
@@ -312,7 +316,58 @@ contract SoulboundIdentity is ERC721, Ownable, EIP712 {
         if (id.isFrozen) return false;
         if (id.unbondRequestTime != 0) return false;
         if (block.timestamp < id.activationTime) return false; // Not activated yet
+        if (id.score > 0 && id.score < 70) return false; // Score threshold gate
         return true;
+    }
+
+    struct IdentityDetails {
+        uint256 tokenId;
+        uint256 score;
+        uint256 timestamp;
+    }
+
+    function mintIdentity(address user, uint256 score) external onlyOwner {
+        require(identities[user].tokenId == 0, "User already has an identity");
+        require(score <= 100, "Score must be between 0 and 100");
+
+        _tokenIds.increment();
+        uint256 newItemId = _tokenIds.current();
+        _mint(user, newItemId);
+
+        identities[user] = Identity({
+            tokenId: newItemId,
+            stakeAmount: BASE_STAKE,
+            activationTime: block.timestamp,
+            unbondRequestTime: 0,
+            isFrozen: false,
+            activeVouchesCount: 0,
+            totalVouchLocked: 0,
+            score: score,
+            timestamp: block.timestamp
+        });
+    }
+
+    function updateScore(address user, uint256 score) external onlyOwner {
+        require(identities[user].tokenId != 0, "User has no identity");
+        require(score <= 100, "Score must be between 0 and 100");
+        identities[user].score = score;
+    }
+
+    function burnIdentity(address user) external onlyOwner {
+        Identity memory id = identities[user];
+        require(id.tokenId != 0, "Identity does not exist");
+        uint256 tokenId = id.tokenId;
+        delete identities[user];
+        _burn(tokenId);
+    }
+
+    function getIdentityDetails(address user) external view returns (IdentityDetails memory) {
+        Identity memory id = identities[user];
+        return IdentityDetails({
+            tokenId: id.tokenId,
+            score: id.score,
+            timestamp: id.timestamp
+        });
     }
 
     // Override transfer functions to make it Soulbound
