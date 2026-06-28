@@ -215,6 +215,16 @@ class DetectionHandler:
         score = risk_score_result.score
         decision = risk_score_result.decision
         factors_list = [f.model_dump() for f in risk_score_result.factors]
+        scalper_prob = getattr(risk_score_result, "scalper_probability", 0.0) or 0.0
+
+        # Option B Policy: Upgrade allow to challenge for high scalper probability (> 0.6)
+        if decision == DetectionResponseDecision.allow and scalper_prob > 0.6:
+            decision = DetectionResponseDecision.challenge
+            factors_list.append({
+                "factor": "scalper_intent_challenge_upgrade",
+                "contribution": 0.0,
+                "description": f"Allow decision upgraded to Challenge due to high scalper probability ({scalper_prob:.4f})"
+            })
 
         # Step 4: Persist risk score to PostgreSQL
         await self.risk_score_repo.create(
@@ -235,6 +245,7 @@ class DetectionHandler:
             session_id=session_id,
             context=context,
             cid=cid,
+            scalper_probability=scalper_prob,
         )
 
         # Step 6: Log detection event (Requirement 1.5, 8.1)
@@ -262,6 +273,7 @@ class DetectionHandler:
         session_id: str,
         context: RiskContext,
         cid: str,
+        scalper_probability: float = 0.0,
     ) -> DetectionResponse:
         """
         Build the DetectionResponse based on the risk decision.
@@ -301,6 +313,7 @@ class DetectionHandler:
                 decision=DetectionResponseDecision.allow,
                 riskScore=score,
                 verificationToken=token,
+                scalperProbability=scalper_probability,
             )
 
         elif decision == DetectionResponseDecision.challenge:
@@ -352,6 +365,7 @@ class DetectionHandler:
                 return DetectionResponse(
                     decision=DetectionResponseDecision.block,
                     riskScore=score,
+                    scalperProbability=scalper_probability,
                 )
 
             logger.warning(
@@ -369,6 +383,7 @@ class DetectionHandler:
                 riskScore=score,
                 challengeId=challenge_id,
                 challengeType=challenge_type,
+                scalperProbability=scalper_probability,
             )
 
         else:  # block
@@ -383,4 +398,5 @@ class DetectionHandler:
             return DetectionResponse(
                 decision=DetectionResponseDecision.block,
                 riskScore=score,
+                scalperProbability=scalper_probability,
             )

@@ -91,20 +91,28 @@ class RiskScorer:
                                  context: Optional[RiskContext] = None) -> RiskScore:
         factors: List[RiskFactor] = []
         
-        # 1. Behavioral ML Probe with Fallback
-        ml_prob = await self.ml_client.get_prediction_with_fallback(user_hash, features)
+        # 1. Dual-head ML Probe (bot + scalper) with Fallback
+        ml_prob, scalper_prob = await self.ml_client.get_dual_prediction_with_fallback(
+            user_hash, features
+        )
         ml_score = ml_prob * 100
         
         factors.append(RiskFactor(
             factor="behavioral_ml_inference",
             contribution=ml_score,
-            description=f"ML Prob: {ml_prob:.4f} (from service or historical fallback)"
+            description=f"ML Bot Prob: {ml_prob:.4f} | Scalper Prob: {scalper_prob:.4f}"
         ))
 
-        # 2. Reputation Adjustment (Weighted)
+        # 2. Scalper Intent Factor (weighted contribution)
+        scalper_contribution = scalper_prob * 30  # up to 30 points from scalper head
+        factors.append(RiskFactor(
+            factor="scalper_intent_ml",
+            contribution=scalper_contribution,
+            description=f"Scalper ML Prob: {scalper_prob:.4f} (x30 weight)"
+        ))
+
+        # 3. Reputation Adjustment (Weighted)
         reputation = await self.reputation_service.get_reputation_score(user_hash)
-        # Reputation of 100 (Human) reduces score by up to 20 points
-        # Reputation of 0 (Bot) adds up to 20 points
         rep_contribution = (50 - reputation) * 0.4 
         
         factors.append(RiskFactor(
@@ -113,16 +121,26 @@ class RiskScorer:
             description=f"Reputation: {reputation:.1f} (Aggregated 30-day consistency)"
         ))
 
-        final_score = ml_score + rep_contribution
+        final_score = ml_score + scalper_contribution + rep_contribution
 
-        # 3. Policy-based Multipliers (Bulk Purchase)
+        # 4. Policy-based Multipliers (Bulk Purchase)
         if context and context.isBulkPurchase:
             pre_multiplier_score = final_score
-            final_score *= 1.5 # 1.5x bulk purchase risk
+            final_score *= 1.5
             factors.append(RiskFactor(
                 factor="bulk_purchase_policy",
                 contribution=final_score - pre_multiplier_score,
                 description=f"Multi-ticket purchase risk (Requested: {context.requestedQuantity})"
+            ))
+
+        # 5. Scalper + Resale Amplifier
+        if context and context.isResale and scalper_prob > 0.6:
+            pre_resale = final_score
+            final_score *= 1.3
+            factors.append(RiskFactor(
+                factor="scalper_resale_amplifier",
+                contribution=final_score - pre_resale,
+                description=f"Resale action with high scalper probability ({scalper_prob:.2f})"
             ))
 
         # Clamping
@@ -135,16 +153,17 @@ class RiskScorer:
         elif final_score >= settings.RISK_THRESHOLD_CHALLENGE:
             decision = DetectionResponseDecision.challenge
 
-        # Log for Production Analytics (Requirement 4.4)
         logger.info(
             f"Risk Scoring - User: {user_hash[:8]}... "
             f"Result: {decision.value} "
             f"Score: {final_score:.2f} "
+            f"ScalperProb: {scalper_prob:.4f} "
             f"Factors: {[f.factor for f in factors]}"
         )
 
         return RiskScore(
             score=final_score,
             factors=factors,
-            decision=decision
+            decision=decision,
+            scalper_probability=scalper_prob,
         )

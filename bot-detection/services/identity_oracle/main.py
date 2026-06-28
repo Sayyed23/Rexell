@@ -2,6 +2,7 @@ import os
 import time
 import json
 import urllib.request
+from typing import Optional
 from datetime import datetime, timedelta
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
@@ -67,6 +68,8 @@ IDENTITY_CONTRACT_ADDRESS = os.getenv("IDENTITY_CONTRACT_ADDRESS", os.getenv("NE
 
 class IdentityRequestPayload(BaseModel):
     user_address: str
+    scalper_probability: Optional[float] = None
+    high_risk: Optional[bool] = None
 
 def get_onchain_identity(user_address: str) -> dict:
     """
@@ -253,6 +256,8 @@ def get_identity_status(user_address: str, db: Session = Depends(get_db)):
 @app.post("/api/identity/attest")
 def generate_attestation(payload: IdentityRequestPayload, db: Session = Depends(get_db)):
     user_address = payload.user_address
+    scalper_probability = payload.scalper_probability
+    high_risk = payload.high_risk or (scalper_probability is not None and scalper_probability > 0.6)
     
     # 1. Calculate Composite Score
     status = calculate_composite_score(db, user_address)
@@ -314,12 +319,31 @@ def generate_attestation(payload: IdentityRequestPayload, db: Session = Depends(
         
         sorted_signatures = ["0x" + s["signature"] if not s["signature"].startswith("0x") else s["signature"] for s in signatures_with_signers]
         
+        # Log AppActivity in database with high risk metadata tags
+        try:
+            db_activity = models.AppActivity(
+                user_address=user_address.lower(),
+                action="ATTESTATION_REQUESTED",
+                details=json.dumps({
+                    "scalper_probability": scalper_probability,
+                    "high_risk": high_risk,
+                    "score": score
+                })
+            )
+            db.add(db_activity)
+            db.commit()
+        except Exception as log_exc:
+            db.rollback()
+            print(f"Error logging attestation activity: {log_exc}")
+
         return {
             "user": user_address,
             "score": score,
             "expiresAt": expires_at,
-            "nonce": nonce,
-            "signatures": sorted_signatures
+            "nonce": str(nonce),
+            "signatures": sorted_signatures,
+            "high_risk": bool(high_risk),
+            "scalper_probability": scalper_probability
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -460,4 +484,4 @@ def get_activity_history(db: Session = Depends(get_db)):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=5000)

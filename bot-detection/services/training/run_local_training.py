@@ -23,13 +23,23 @@ def main():
     df = pd.read_parquet(DATASET_PARQUET)
     print(f"Original shape: {df.shape}")
     
-    # 10 Behavioral biometrics + label
-    features = [
+    # 10 pre-purchase behavioral biometrics ONLY
+    # markup_pct, ticket_count, accountAgeDays, pages_visited are EXCLUDED:
+    # they leak target information and give unrealistic 100% accuracy.
+    # Real-world scalper detection must rely on motor-control telemetry
+    # captured BEFORE the purchase decision is made.
+    desired_features = [
         "mouse_velocity_mean", "mouse_velocity_std", "mouse_acceleration",
         "mouse_curvature", "click_frequency", "flight_time_mean",
         "flight_time_std", "dwell_time_mean", "navigation_entropy",
-        "page_dwell_time_dist", "label"
+        "page_dwell_time_dist",
+        "scalper", "label"
     ]
+    # Only keep columns that actually exist in the dataset
+    features = [c for c in desired_features if c in df.columns]
+    missing = set(desired_features) - set(features)
+    if missing:
+        print(f"  Note: {len(missing)} columns not in dataset, skipping: {sorted(missing)}")
     
     df_features = df[features].copy()
     
@@ -71,13 +81,25 @@ def main():
         model_type=args.model_type
     )
     
-    print("\nTraining Metrics:")
-    print(f"  Accuracy: {metrics.accuracy:.4f} (Min Required: {train_model.QUALITY_MIN_ACCURACY})")
+    print("\n" + "=" * 55)
+    print("   BOT DETECTION HEAD -- QUALITY GATE")
+    print("=" * 55)
+    print(f"  Accuracy:  {metrics.accuracy:.4f}  (Min: {train_model.QUALITY_MIN_ACCURACY})")
     print(f"  Precision: {metrics.precision:.4f}")
-    print(f"  Recall: {metrics.recall:.4f}")
-    print(f"  F1 Score: {metrics.f1:.4f}")
-    print(f"  False Positive Rate: {metrics.false_positive_rate:.4f} (Max Allowed: {train_model.QUALITY_MAX_FPR})")
-    print(f"  Passed Quality Gate: {metrics.passed_quality_gate}")
+    print(f"  Recall:    {metrics.recall:.4f}")
+    print(f"  F1 Score:  {metrics.f1:.4f}")
+    print(f"  FPR:       {metrics.false_positive_rate:.4f}  (Max: {train_model.QUALITY_MAX_FPR})")
+    print(f"  PASSED:    {metrics.passed_quality_gate}")
+    print("=" * 55)
+    print("   SCALPER INTENT HEAD -- QUALITY GATE")
+    print("=" * 55)
+    print(f"  Accuracy:  {metrics.scalper_accuracy:.4f}  (Min: {train_model.SCALPER_MIN_ACCURACY})")
+    print(f"  Precision: {metrics.scalper_precision:.4f}")
+    print(f"  Recall:    {metrics.scalper_recall:.4f}")
+    print(f"  F1 Score:  {metrics.scalper_f1:.4f}")
+    print(f"  FPR:       {metrics.scalper_false_positive_rate:.4f}  (Max: {train_model.SCALPER_MAX_FPR})")
+    print(f"  PASSED:    {metrics.scalper_passed_quality_gate}")
+    print("=" * 55)
     
     # Clean up temp splits
     for p in [train_path, val_path, test_path]:

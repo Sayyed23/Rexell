@@ -123,6 +123,7 @@ class DetectionResponseDecision(str, Enum):
 class DetectionResponse(BaseModel):
     decision: DetectionResponseDecision
     riskScore: float
+    scalperProbability: Optional[float] = None
     verificationToken: Optional[str] = None
     challengeId: Optional[str] = None
     challengeType: Optional[ChallengeType] = None
@@ -146,6 +147,7 @@ class RiskScore(BaseModel):
     score: float
     factors: List[RiskFactor]
     decision: DetectionResponseDecision
+    scalper_probability: float = 0.0
 
 class ReputationScore(BaseModel):
     score: float

@@ -719,5 +719,145 @@
       "quantity": 1,
       "price": "30000000000000000"
     }
+  },
+  {
+    "eventType": "purchase_attempt",
+    "wallet": "0x7027F4B8e3809F809A87C3d90F9De510742B5aCA",
+    "eventId": 1,
+    "timestamp": 1782498770983,
+    "metadata": {
+      "quantity": 1,
+      "price": "15000000000000000"
+    }
+  },
+  {
+    "eventType": "purchase_attempt",
+    "wallet": "0x7027F4B8e3809F809A87C3d90F9De510742B5aCA",
+    "eventId": 1,
+    "timestamp": 1782499008026,
+    "metadata": {
+      "quantity": 1,
+      "price": "10000000000000000"
+    }
+  },
+  {
+    "eventType": "purchase_attempt",
+    "wallet": "0x7027F4B8e3809F809A87C3d90F9De510742B5aCA",
+    "eventId": 1,
+    "timestamp": 1782499175362,
+    "metadata": {
+      "quantity": 1,
+      "price": "10000000000000000"
+    }
+  },
+  {
+    "eventType": "purchase_attempt",
+    "wallet": "0x7027F4B8e3809F809A87C3d90F9De510742B5aCA",
+    "eventId": 1,
+    "timestamp": 1782499498152,
+    "metadata": {
+      "quantity": 1,
+      "price": "10000000000000000"
+    }
+  },
+  {
+    "eventType": "purchase_attempt",
+    "wallet": "0x7027F4B8e3809F809A87C3d90F9De510742B5aCA",
+    "eventId": 1,
+    "timestamp": 1782499539154,
+    "metadata": {
+      "quantity": 1,
+      "price": "20000000000000000"
+    }
+  },
+  {
+    "eventType": "purchase_attempt",
+    "wallet": "0x7027F4B8e3809F809A87C3d90F9De510742B5aCA",
+    "eventId": 1,
+    "timestamp": 1782499554431,
+    "metadata": {
+      "quantity": 1,
+      "price": "20000000000000000"
+    }
+  },
+  {
+    "eventType": "purchase_attempt",
+    "wallet": "0x7027F4B8e3809F809A87C3d90F9De510742B5aCA",
+    "eventId": 1,
+    "timestamp": 1782499746811,
+    "metadata": {
+      "quantity": 1,
+      "price": "20000000000000000"
+    }
+  },
+  {
+    "eventType": "purchase_attempt",
+    "wallet": "0x7027F4B8e3809F809A87C3d90F9De510742B5aCA",
+    "eventId": 1,
+    "timestamp": 1782499990325,
+    "metadata": {
+      "quantity": 1,
+      "price": "20000000000000000"
+    }
+  },
+  {
+    "eventType": "purchase_attempt",
+    "wallet": "0x7027F4B8e3809F809A87C3d90F9De510742B5aCA",
+    "eventId": 0,
+    "timestamp": 1782614410459,
+    "metadata": {
+      "quantity": 1,
+      "price": "10000000000000000"
+    }
+  },
+  {
+    "eventType": "purchase_attempt",
+    "wallet": "0x7027F4B8e3809F809A87C3d90F9De510742B5aCA",
+    "eventId": 0,
+    "timestamp": 1782614484212,
+    "metadata": {
+      "quantity": 1,
+      "price": "15000000000000000"
+    }
+  },
+  {
+    "eventType": "purchase_attempt",
+    "wallet": "0x7027F4B8e3809F809A87C3d90F9De510742B5aCA",
+    "eventId": 0,
+    "timestamp": 1782614713550,
+    "metadata": {
+      "quantity": 1,
+      "price": "15000000000000000"
+    }
+  },
+  {
+    "eventType": "purchase_attempt",
+    "wallet": "0x7027F4B8e3809F809A87C3d90F9De510742B5aCA",
+    "eventId": 0,
+    "timestamp": 1782615079717,
+    "metadata": {
+      "quantity": 1,
+      "price": "15000000000000000"
+    }
+  },
+  {
+    "eventType": "purchase_attempt",
+    "wallet": "0x7027F4B8e3809F809A87C3d90F9De510742B5aCA",
+    "eventId": 0,
+    "timestamp": 1782615583133,
+    "metadata": {
+      "quantity": 1,
+      "price": "15000000000000000"
+    }
+  },
+  {
+    "eventType": "purchase_attempt",
+    "wallet": "0x7027F4B8e3809F809A87C3d90F9De510742B5aCA",
+    "eventId": 2,
+    "timestamp": 1782617455783,
+    "metadata": {
+      "quantity": 1,
+      "price": "40000000000000000"
+    }
   }
 ]

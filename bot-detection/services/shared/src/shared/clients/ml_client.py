@@ -1,7 +1,7 @@
 import httpx
 import logging
 import time
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Tuple
 from tenacity import (
     retry,
     stop_after_attempt,
@@ -54,7 +54,7 @@ class MLInferenceClient:
         reraise=True
     )
     async def get_prediction(self, features: FeatureVector) -> float:
-        """Calls ML service with pooling and retries."""
+        """Calls ML service with pooling and retries. Returns bot probability."""
         if self._is_circuit_open():
             raise httpx.RequestError("Circuit breaker open")
 
@@ -71,11 +71,44 @@ class MLInferenceClient:
             
             self._record_success()
             data = response.json()
-            return float(data.get("probability", 0.0))
+            return float(data.get("bot_probability", data.get("probability", 0.0)))
         
         except (httpx.RequestError, httpx.HTTPStatusError) as e:
             self._record_failure()
             logger.error(f"ML Inference call failed: {str(e)}")
+            raise
+
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=0.1, max=1),
+        retry=retry_if_exception_type(httpx.RequestError),
+        reraise=True
+    )
+    async def get_dual_prediction(self, features: FeatureVector) -> Tuple[float, float]:
+        """Returns (bot_probability, scalper_probability) from the dual-head model."""
+        if self._is_circuit_open():
+            raise httpx.RequestError("Circuit breaker open")
+
+        try:
+            response = await self.client.post(
+                "/predictions",
+                json={"features": features.model_dump()},
+                timeout=settings.ML_CLIENT_TIMEOUT_SECONDS
+            )
+            
+            if response.status_code != 200:
+                self._record_failure()
+                response.raise_for_status()
+            
+            self._record_success()
+            data = response.json()
+            bot_prob = float(data.get("bot_probability", data.get("probability", 0.0)))
+            scalper_prob = float(data.get("scalper_probability", 0.0))
+            return bot_prob, scalper_prob
+        
+        except (httpx.RequestError, httpx.HTTPStatusError) as e:
+            self._record_failure()
+            logger.error(f"ML dual inference failed: {str(e)}")
             raise
 
     async def get_prediction_with_fallback(self, 
@@ -90,13 +123,24 @@ class MLInferenceClient:
             logger.warning(f"ML Inference Service unavailable ({str(e)}). Attempting historical fallback...")
             
             if self.repo:
-                # Get the latest score from the database for this user
                 history = await self.repo.get_latest_by_user_hash(user_hash, limit=1)
                 if history:
                     last_score = history[0].score
                     logger.info(f"Fallback to last known risk score: {last_score:.2f}")
-                    return last_score / 100.0 # Convert back to probability 0-1
+                    return last_score / 100.0
             
-            # Absolute fallback if no history exists either
             logger.info(f"No history found. Using default fallback: {settings.ML_FALLBACK_DEFAULT_SCORE/100.0}")
             return settings.ML_FALLBACK_DEFAULT_SCORE / 100.0
+
+    async def get_dual_prediction_with_fallback(
+        self, user_hash: str, features: FeatureVector
+    ) -> Tuple[float, float]:
+        """
+        Returns (bot_probability, scalper_probability) with historical fallback.
+        """
+        try:
+            return await self.get_dual_prediction(features)
+        except Exception as e:
+            logger.warning(f"ML dual inference unavailable ({str(e)}). Falling back...")
+            bot_fallback = await self.get_prediction_with_fallback(user_hash, features)
+            return bot_fallback, 0.0

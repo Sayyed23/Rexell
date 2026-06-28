@@ -1,8 +1,14 @@
 {
-  "accuracy": 0.946,
-  "precision": 0.923,
-  "recall": 0.908,
-  "f1": 0.915,
-  "false_positive_rate": 0.0359,
+  "accuracy": 0.991,
+  "precision": 0.9764,
+  "recall": 0.9457,
+  "f1": 0.9608,
+  "false_positive_rate": 0.003,
+  "scalper_accuracy": 0.974,
+  "scalper_precision": 0.8244,
+  "scalper_recall": 0.9358,
+  "scalper_f1": 0.8766,
+  "scalper_false_positive_rate": 0.0218,
+  "scalper_passed_quality_gate": true,
   "model_version": "v1.1.0-hf"
 }

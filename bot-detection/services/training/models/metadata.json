@@ -12,5 +12,6 @@
     "navigation_entropy",
     "page_dwell_time_dist"
   ],
-  "passed_quality_gate": true
+  "passed_quality_gate": true,
+  "scalper_passed_quality_gate": true
 }

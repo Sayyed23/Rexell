@@ -42,7 +42,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Fetch Anti-Sybil Attestation from Oracle
     let attestation;
     try {
-      const attestResponse = await fetch("http://localhost:8000/api/identity/attest", {
+      const attestResponse = await fetch("http://localhost:5000/api/identity/attest", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ user_address: account.address }),

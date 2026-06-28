@@ -105,7 +105,7 @@ def _make_detection_request(
     return DetectionRequest(behavioralData=bd, context=ctx)
 
 
-def _make_risk_score(score: float) -> RiskScore:
+def _make_risk_score(score: float, scalper_probability: float = 0.0) -> RiskScore:
     """Build a RiskScore with the given score and appropriate decision."""
     if score >= RISK_THRESHOLD_BLOCK:
         decision = DetectionResponseDecision.block
@@ -124,6 +124,7 @@ def _make_risk_score(score: float) -> RiskScore:
             )
         ],
         decision=decision,
+        scalper_probability=scalper_probability,
     )
 
 
@@ -198,8 +199,12 @@ class TestSlidingWindowRateLimiter:
 
     @pytest.fixture
     def mock_redis(self):
-        """Mock Redis client with pipeline support."""
+        """Mock Redis client with pipeline and script support."""
         redis = MagicMock()
+        mock_script = AsyncMock()
+        mock_script.return_value = [1, 50]
+        redis.register_script = MagicMock(return_value=mock_script)
+
         pipe = MagicMock()
         redis.pipeline.return_value = pipe
         pipe.zremrangebyscore = MagicMock()
@@ -215,14 +220,13 @@ class TestSlidingWindowRateLimiter:
         from detection.rate_limiter import SlidingWindowRateLimiter
 
         redis, pipe = mock_redis
-        # Simulate 50 existing requests (under 200 burst limit)
-        pipe.execute = AsyncMock(return_value=[None, 50, None, None])
+        redis.register_script.return_value.return_value = [1, 50]
 
         limiter = SlidingWindowRateLimiter(redis, limit=100, burst=200)
         allowed, count, retry_after = await limiter.check_rate_limit("test-key")
 
         assert allowed is True
-        assert count == 51
+        assert count == 50
         assert retry_after == 0
 
     @pytest.mark.asyncio
@@ -231,8 +235,7 @@ class TestSlidingWindowRateLimiter:
         from detection.rate_limiter import SlidingWindowRateLimiter
 
         redis, pipe = mock_redis
-        # Simulate 200 existing requests (at burst limit)
-        pipe.execute = AsyncMock(return_value=[None, 200, None, None])
+        redis.register_script.return_value.return_value = [0, 0]
 
         limiter = SlidingWindowRateLimiter(redis, limit=100, burst=200)
         allowed, count, retry_after = await limiter.check_rate_limit("test-key")
@@ -305,6 +308,7 @@ class TestDetectionHandler:
         self,
         risk_score_value: float,
         redis_client: Optional[AsyncMock] = None,
+        scalper_probability: float = 0.0,
     ):
         """Build a DetectionHandler with mocked dependencies."""
         from detection.handler import DetectionHandler
@@ -316,7 +320,7 @@ class TestDetectionHandler:
 
         risk_scorer = AsyncMock()
         risk_scorer.calculate_risk_score = AsyncMock(
-            return_value=_make_risk_score(risk_score_value)
+            return_value=_make_risk_score(risk_score_value, scalper_probability=scalper_probability)
         )
 
         behavioral_repo = AsyncMock()
@@ -494,6 +498,36 @@ class TestDetectionHandler:
 
         call_kwargs = handler.risk_scorer.calculate_risk_score.call_args.kwargs
         assert call_kwargs["context"].isBulkPurchase is True
+
+    @pytest.mark.asyncio
+    async def test_scalper_probability_passed_in_response(self):
+        """The scalper probability should be returned in the DetectionResponse payload."""
+        handler = self._build_handler(risk_score_value=20.0, scalper_probability=0.45)
+        request = _make_detection_request()
+
+        response = await handler.handle(request)
+
+        assert response.decision == DetectionResponseDecision.allow
+        assert response.scalperProbability == pytest.approx(0.45)
+
+    @pytest.mark.asyncio
+    async def test_high_scalper_probability_upgrades_allow_to_challenge(self):
+        """A high scalper probability (> 0.6) should upgrade an allow decision to challenge."""
+        handler = self._build_handler(risk_score_value=20.0, scalper_probability=0.75)
+        request = _make_detection_request()
+
+        response = await handler.handle(request)
+
+        # Decision is allow based on risk score (20.0 < 50), but upgraded due to scalper_probability=0.75
+        assert response.decision == DetectionResponseDecision.challenge
+        assert response.scalperProbability == pytest.approx(0.75)
+        
+        # Verify the upgrade factor is appended to factors persisted to the database
+        handler.risk_score_repo.create.assert_called_once()
+        call_kwargs = handler.risk_score_repo.create.call_args.kwargs
+        assert call_kwargs["decision"] == "challenge"
+        factors = call_kwargs["factors"]
+        assert any(f["factor"] == "scalper_intent_challenge_upgrade" for f in factors)
 
 
 # ---------------------------------------------------------------------------

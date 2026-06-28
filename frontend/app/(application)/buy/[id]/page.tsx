@@ -167,10 +167,14 @@ export default function BuyResaleTicketPage() {
       toast.info("Requesting Anti-Sybil verification from Oracle...");
       let attestation;
       try {
-        const attestResponse = await fetch("http://localhost:8000/api/identity/attest", {
+        const attestResponse = await fetch("http://localhost:5000/api/identity/attest", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ user_address: address }),
+          body: JSON.stringify({
+            user_address: address,
+            scalper_probability: guard.scalperProbability,
+            high_risk: guard.scalperProbability ? guard.scalperProbability > 0.6 : false,
+          }),
         });
         if (!attestResponse.ok) {
           throw new Error("Failed to retrieve attestation from Anti-Sybil Oracle.");

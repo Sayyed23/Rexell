@@ -48,7 +48,7 @@ def _load_valid_api_keys() -> set:
             dev_key = "dev-api-key-insecure"
             logger.warning(
                 "No API keys configured. Using insecure development key.",
-                event="auth_config_warning",
+                event_name="auth_config_warning",
             )
             keys.add(dev_key)
         else:
@@ -93,7 +93,7 @@ async def require_api_key(request: Request) -> str:
     if api_key not in _VALID_API_KEYS:
         logger.warning(
             "Invalid API key attempt",
-            event="auth_failure",
+            event_name="auth_failure",
             key_prefix=api_key[:8] if len(api_key) >= 8 else "***",
         )
         raise HTTPException(

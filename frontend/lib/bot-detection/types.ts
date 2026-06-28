@@ -13,6 +13,7 @@ export interface ClientDetectionResponse {
   challengeId?: string;
   challengeType?: 'image_selection' | 'behavioral_confirmation' | 'multi_step';
   verificationToken?: string;
+  scalperProbability?: number;
 }
 
 export interface GuardContext {
@@ -43,4 +44,5 @@ export interface GuardResult {
   challengeType?: ClientDetectionResponse['challengeType'];
   verificationToken?: string;
   degraded?: boolean;
+  scalperProbability?: number;
 }

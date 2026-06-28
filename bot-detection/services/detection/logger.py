@@ -189,7 +189,6 @@ def log_detection_event(
 
     severity = _decision_to_severity(decision)
     fields = {
-        "event": "detection_result",
         "session_id": session_id,
         "user_hash": user_hash,
         "risk_score": round(risk_score, 2),
@@ -198,14 +197,27 @@ def log_detection_event(
         **(extra or {}),
     }
 
+    # Wrap raw stdlib Logger in our adapter to handle extra keyword arguments
+    if isinstance(logger, logging.Logger):
+        logger = _StdlibLoggerAdapter(logger)
+
+    is_structlog = False
     if _STRUCTLOG_AVAILABLE:
+        try:
+            import structlog
+            is_structlog = isinstance(logger, structlog.BoundLogger)
+        except Exception:
+            pass
+
+    if is_structlog:
         log_fn = getattr(logger, severity, logger.info)
         log_fn("detection_result", **fields)
     else:
+        fallback_fields = {"event": "detection_result", **fields}
         log_fn = getattr(logger, severity, logger.info)
         # Format as message with extra fields for JSON formatter compatibility
         import json
-        log_fn(json.dumps(fields))
+        log_fn(json.dumps(fallback_fields))
 
 def _decision_to_severity(decision: str) -> str:
     """Map a detection decision to a log severity level."""

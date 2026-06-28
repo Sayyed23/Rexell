@@ -152,14 +152,15 @@ export class BotDetectionIntegration {
         riskScore: payload.riskScore,
         challengeId: payload.challengeId,
         challengeType: payload.challengeType,
-        verificationToken: payload.verificationToken
+        verificationToken: payload.verificationToken,
+        scalperProbability: payload.scalperProbability
       };
     } catch (err) {
       // Graceful degradation: allow the purchase but record that detection failed
       if (typeof console !== 'undefined') {
         console.warn('bot-detection guard failed, allowing request', err);
       }
-      return { decision: 'allow', riskScore: 0, degraded: true };
+      return { decision: 'allow', riskScore: 0, degraded: true, scalperProbability: 0 };
     }
   }
 

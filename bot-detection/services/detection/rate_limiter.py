@@ -139,7 +139,7 @@ class SlidingWindowRateLimiter:
             retry_after = max(1, int(1.0 / self.limit))
             logger.warning(
                 "Rate limit exceeded",
-                event="rate_limit_exceeded",
+                event_name="rate_limit_exceeded",
                 api_key_prefix=api_key[:8],
                 tokens_remaining=tokens_remaining,
                 refill_rate=self.limit,
@@ -197,7 +197,7 @@ async def rate_limit_dependency(
     except Exception as exc:
         logger.error(
             "Rate limiter Redis error",
-            event="rate_limiter_error",
+            event_name="rate_limiter_error",
             error=str(exc),
         )
         # Fail open: allow request if Redis is unavailable

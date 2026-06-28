@@ -132,7 +132,7 @@ export default function ResaleBrowsePage() {
       toast.info("Requesting Anti-Sybil verification from Oracle...");
       let attestation;
       try {
-        const attestResponse = await fetch("http://localhost:8000/api/identity/attest", {
+        const attestResponse = await fetch("http://localhost:5000/api/identity/attest", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ user_address: address }),
