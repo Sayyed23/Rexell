@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useAccount, useReadContract, useWriteContract, useReadContracts } from "wagmi";
+import { useAccount, useReadContract, useWriteContract, useReadContracts, usePublicClient } from "wagmi";
 import { rexellAbi, contractAddress } from "@/blockchain/abi/rexell-abi";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,7 @@ interface UserTicket {
 export default function ListResalePage() {
     const { address, isConnected } = useAccount();
     const { writeContractAsync } = useWriteContract();
+    const publicClient = usePublicClient();
     const router = useRouter();
     const [userTickets, setUserTickets] = useState<UserTicket[]>([]);
     const [loading, setLoading] = useState(true);
@@ -101,6 +102,15 @@ export default function ListResalePage() {
         }
     }, [isConnected, userTicketsData, tokenIdsData]);
 
+    // Get all events to match ticket face price
+    const { data: allEventsRaw } = useReadContract({
+        address: contractAddress as `0x${string}`,
+        abi: rexellAbi,
+        functionName: "getAllEvents",
+        chainId: celoSepolia.id,
+    });
+    const allEvents = allEventsRaw as any[] | undefined;
+
     const handleListTicket = async () => {
         if (!selectedTicket) {
             toast.error("Please select a ticket to list");
@@ -116,6 +126,42 @@ export default function ListResalePage() {
             setIsListing(true);
 
             const priceInWei = parseEther(resalePrice);
+
+            // Determine face price of selected ticket
+            const ticketObj = userTickets.find(t => t.tokenId === selectedTicket);
+            const ticketUri = ticketObj?.nftUri;
+            const event = allEvents?.find(e => e.nftUris && e.nftUris.includes(ticketUri));
+            const facePrice = event ? BigInt(event.price) : 0n;
+
+            // Check if user is listing at markup or has other active listings
+            const isMarkup = priceInWei > facePrice;
+            let activeListings = 0;
+
+            if (address && publicClient) {
+                try {
+                    const userRequests = await publicClient.readContract({
+                        address: contractAddress as `0x${string}`,
+                        abi: rexellAbi,
+                        functionName: "getUserResaleRequests",
+                        args: [address as `0x${string}`],
+                    }) as bigint[];
+                    
+                    for (const reqTokenId of userRequests) {
+                        const req = await publicClient.readContract({
+                            address: contractAddress as `0x${string}`,
+                            abi: rexellAbi,
+                            functionName: "resaleRequests",
+                            args: [reqTokenId],
+                        }) as [bigint, string, bigint, boolean, boolean];
+                        if (req[1].toLowerCase() === address.toLowerCase()) {
+                            activeListings++;
+                        }
+                    }
+                } catch (readErr) {
+                    console.error("Failed to fetch active listings:", readErr);
+                }
+            }
+            const isBulkLister = activeListings > 0;
 
             // Fetch Anti-Sybil Attestation from Oracle
             toast.info("Requesting Anti-Sybil verification from Oracle...");
@@ -140,8 +186,8 @@ export default function ListResalePage() {
                     signatures: data.signatures as `0x${string}`[]
                 };
 
-                if (attestation.score < 70n) {
-                    toast.error(`Verification failed: Your Anti-Sybil score is ${data.score}/100. Score >= 70 required to resell.`);
+                if ((isMarkup || isBulkLister) && attestation.score < 70n) {
+                    toast.error(`Verification failed: Your Anti-Sybil score is ${data.score}/100. Score >= 70 required to resell at a markup or list multiple tickets.`);
                     setIsListing(false);
                     return;
                 }

@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useAccount, useWriteContract, useReadContract } from "wagmi";
+import { useAccount, useWriteContract, useReadContract, usePublicClient } from "wagmi";
 import { rexellAbi, contractAddress } from "@/blockchain/abi/rexell-abi";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { celoSepolia } from "@/lib/celoSepolia";
 
 // Client-side only wrapper to prevent hydration issues
 function ClientOnly({ children }: { children: React.ReactNode }) {
@@ -69,6 +70,18 @@ export default function ResaleVerificationNew({ tokenId, onVerificationComplete,
     }
   });
 
+  // Get token URI
+  const { data: tokenURI } = useReadContract({
+    address: contractAddress as `0x${string}`,
+    abi: rexellAbi,
+    functionName: "tokenURI",
+    args: [BigInt(effectiveTokenId)],
+    chainId: celoSepolia.id,
+    query: {
+      enabled: effectiveTokenId !== undefined && effectiveTokenId !== null && effectiveTokenId >= 0,
+    }
+  });
+
   // Update status based on contract data
   useEffect(() => {
     const reqData = resaleRequestData as any;
@@ -98,6 +111,17 @@ export default function ResaleVerificationNew({ tokenId, onVerificationComplete,
     return () => clearInterval(interval);
   }, [effectiveTokenId, refetchResaleRequest]);
 
+  const publicClient = usePublicClient();
+  
+  // Read all events
+  const { data: allEventsRaw } = useReadContract({
+    address: contractAddress as `0x${string}`,
+    abi: rexellAbi,
+    functionName: "getAllEvents",
+    chainId: celoSepolia.id,
+  });
+  const allEvents = allEventsRaw as any[] | undefined;
+
   const requestResaleVerification = async () => {
     if (!isConnected) {
       toast.error("Please connect your wallet");
@@ -125,6 +149,40 @@ export default function ResaleVerificationNew({ tokenId, onVerificationComplete,
     try {
       setIsRequesting(true);
 
+      // Determine face price of selected ticket
+      const event = allEvents?.find(e => e.nftUris && e.nftUris.includes(tokenURI as string));
+      const facePrice = event ? BigInt(event.price) : 0n;
+
+      // Check if user is listing at markup or has other active listings
+      const isMarkup = BigInt(Math.floor(priceValue * 1e18)) > facePrice;
+      let activeListings = 0;
+
+      if (address && publicClient) {
+        try {
+          const userRequests = await publicClient.readContract({
+            address: contractAddress as `0x${string}`,
+            abi: rexellAbi,
+            functionName: "getUserResaleRequests",
+            args: [address as `0x${string}`],
+          }) as bigint[];
+          
+          for (const reqTokenId of userRequests) {
+            const req = await publicClient.readContract({
+              address: contractAddress as `0x${string}`,
+              abi: rexellAbi,
+              functionName: "resaleRequests",
+              args: [reqTokenId],
+            }) as [bigint, string, bigint, boolean, boolean];
+            if (req[1].toLowerCase() === address.toLowerCase()) {
+              activeListings++;
+            }
+          }
+        } catch (readErr) {
+          console.error("Failed to fetch active listings:", readErr);
+        }
+      }
+      const isBulkLister = activeListings > 0;
+
       // Fetch Anti-Sybil Attestation from Oracle
       toast.info("Requesting Anti-Sybil verification from Oracle...");
       let attestation;
@@ -148,8 +206,8 @@ export default function ResaleVerificationNew({ tokenId, onVerificationComplete,
           signatures: data.signatures as `0x${string}`[]
         };
 
-        if (attestation.score < 70n) {
-          toast.error(`Verification failed: Your Anti-Sybil score is ${data.score}/100. Score >= 70 required to resell.`);
+        if ((isMarkup || isBulkLister) && attestation.score < 70n) {
+          toast.error(`Verification failed: Your Anti-Sybil score is ${data.score}/100. Score >= 70 required to resell at a markup or list multiple tickets.`);
           setIsRequesting(false);
           return;
         }

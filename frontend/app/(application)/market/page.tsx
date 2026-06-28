@@ -131,12 +131,6 @@ export default function MarketPage() {
           nonce: BigInt(data.nonce),
           signatures: data.signatures as `0x${string}`[]
         };
-
-        if (attestation.score < 70n) {
-          toast.error(`Verification failed: Your Anti-Sybil score is ${data.score}/100. Score >= 70 required.`);
-          setPurchasingTokenId(null);
-          return;
-        }
       } catch (err: any) {
         console.error("Attestation error:", err);
         toast.error(`Anti-Sybil Verification Error: ${err.message || String(err)}`);

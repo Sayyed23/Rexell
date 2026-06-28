@@ -658,17 +658,10 @@ contract Rexell is ERC721URIStorage, Ownable, ReentrancyGuard, EIP712 {
         require(price > 0, "Price must be greater than 0");
         require(resaleRequests[tokenId].owner == address(0), "Resale request already exists for this ticket");
         require(!ticketCancelled[tokenId], "Ticket has been cancelled");
-        
-        // Anti-Sybil validation
-        require(att.user == msg.sender, "Attestation user mismatch");
-        require(att.expiresAt > block.timestamp, "Attestation expired");
-        require(att.score >= MIN_SCORE, "Score below threshold");
-        require(_verifyOracleSignature(att), "Invalid attestation");
-        require(!usedAttestationNonces[att.nonce], "Replay detected");
-        usedAttestationNonces[att.nonce] = true;
 
         // Find associated event to check rules
         bool eventFound = false;
+        uint256 eventPrice = 0;
         for (uint i = 0; i < events.length; i++) {
              string[] memory eventNftUris = events[i].nftUris;
              for (uint j = 0; j < eventNftUris.length; j++) {
@@ -676,6 +669,7 @@ contract Rexell is ERC721URIStorage, Ownable, ReentrancyGuard, EIP712 {
                  // Note: Loop is inefficient but works for this structure.
                  if (keccak256(bytes(eventNftUris[j])) == keccak256(bytes(tokenURI(tokenId)))) {
                      Event storage _event = events[i];
+                     eventPrice = _event.price;
                      require(block.timestamp < _event.date - (resaleCutoffHours * 1 hours), "Resale period has ended");
                      
                      // Check max price
@@ -690,9 +684,35 @@ contract Rexell is ERC721URIStorage, Ownable, ReentrancyGuard, EIP712 {
              }
              if (eventFound) break;
         }
-
         require(eventFound, "Event for ticket not found");
+
+        // Check if user is listing at markup or is bulk listing
+        bool isMarkup = price > eventPrice;
+        uint256 activeListingCount = 0;
+        uint256[] memory userRequests = userResaleRequests[msg.sender];
+        for (uint i = 0; i < userRequests.length; i++) {
+            if (resaleRequests[userRequests[i]].owner == msg.sender) {
+                activeListingCount++;
+            }
+        }
+        bool isBulkLister = activeListingCount > 0;
         
+        // Anti-Sybil validation
+        require(att.user == msg.sender, "Attestation user mismatch");
+        require(att.expiresAt > block.timestamp, "Attestation expired");
+        require(_verifyOracleSignature(att), "Invalid attestation");
+        require(!usedAttestationNonces[att.nonce], "Replay detected");
+        usedAttestationNonces[att.nonce] = true;
+
+        if (isMarkup || isBulkLister) {
+            require(att.score >= MIN_SCORE, "Score below threshold");
+            if (address(identityContract) != address(0)) {
+                (uint256 idTokenId, , uint256 activationTime, , , , , , ) = identityContract.identities(msg.sender);
+                require(idTokenId != 0, "Soulbound identity required");
+                require(block.timestamp >= activationTime + 14 days, "Identity must be at least 14 days old");
+            }
+        }
+
         resaleRequests[tokenId] = ResaleRequest({
             tokenId: tokenId,
             owner: msg.sender,
@@ -873,7 +893,6 @@ contract Rexell is ERC721URIStorage, Ownable, ReentrancyGuard, EIP712 {
         // Anti-Sybil validation for resale buyer
         require(att.user == msg.sender, "Attestation user mismatch");
         require(att.expiresAt > block.timestamp, "Attestation expired");
-        require(att.score >= MIN_SCORE, "Score below threshold");
         require(_verifyOracleSignature(att), "Invalid attestation");
         require(!usedAttestationNonces[att.nonce], "Replay detected");
         usedAttestationNonces[att.nonce] = true;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useAccount, useWriteContract, useReadContract } from "wagmi";
+import { useAccount, useWriteContract, useReadContract, usePublicClient } from "wagmi";
 import { rexellAbi, contractAddress } from "@/blockchain/abi/rexell-abi";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { celoSepolia } from "@/lib/celoSepolia";
+import { parseEther, formatEther } from "viem";
 
 interface ResaleTicketProps {
   tokenId: number;
@@ -18,9 +20,19 @@ interface ResaleTicketProps {
 export default function ResaleTicket({ tokenId, onResaleComplete }: ResaleTicketProps) {
   const { address, isConnected } = useAccount();
   const { writeContractAsync } = useWriteContract();
+  const publicClient = usePublicClient();
   const [isReselling, setIsReselling] = useState(false);
   const [resalePrice, setResalePrice] = useState("");
   const [isListed, setIsListed] = useState(false);
+
+  // Read all events
+  const { data: allEventsRaw } = useReadContract({
+    address: contractAddress as `0x${string}`,
+    abi: rexellAbi,
+    functionName: "getAllEvents",
+    chainId: celoSepolia.id,
+  });
+  const allEvents = allEventsRaw as any[] | undefined;
 
   // Get resale request details
   const {
@@ -89,6 +101,44 @@ export default function ResaleTicket({ tokenId, onResaleComplete }: ResaleTicket
         console.log("No existing resale request to cancel");
       }
 
+
+
+      const priceInWei = parseEther(resalePrice);
+      
+      // Determine face price of selected ticket
+      const event = allEvents?.find(e => e.nftUris && e.nftUris.includes(tokenURI as string));
+      const facePrice = event ? BigInt(event.price) : 0n;
+
+      // Check if user is listing at markup or has other active listings
+      const isMarkup = priceInWei > facePrice;
+      let activeListings = 0;
+
+      if (address && publicClient) {
+        try {
+          const userRequests = await publicClient.readContract({
+            address: contractAddress as `0x${string}`,
+            abi: rexellAbi,
+            functionName: "getUserResaleRequests",
+            args: [address as `0x${string}`],
+          }) as bigint[];
+          
+          for (const reqTokenId of userRequests) {
+            const req = await publicClient.readContract({
+              address: contractAddress as `0x${string}`,
+              abi: rexellAbi,
+              functionName: "resaleRequests",
+              args: [reqTokenId],
+            }) as [bigint, string, bigint, boolean, boolean];
+            if (req[1].toLowerCase() === address.toLowerCase()) {
+              activeListings++;
+            }
+          }
+        } catch (readErr) {
+          console.error("Failed to fetch active listings:", readErr);
+        }
+      }
+      const isBulkLister = activeListings > 0;
+
       // Fetch Anti-Sybil Attestation from Oracle
       toast.info("Requesting Anti-Sybil verification from Oracle...");
       let attestation;
@@ -112,8 +162,8 @@ export default function ResaleTicket({ tokenId, onResaleComplete }: ResaleTicket
           signatures: data.signatures as `0x${string}`[]
         };
 
-        if (attestation.score < 70n) {
-          toast.error(`Verification failed: Your Anti-Sybil score is ${data.score}/100. Score >= 70 required to resell.`);
+        if ((isMarkup || isBulkLister) && attestation.score < 70n) {
+          toast.error(`Verification failed: Your Anti-Sybil score is ${data.score}/100. Score >= 70 required to resell at a markup or list multiple tickets.`);
           setIsReselling(false);
           return;
         }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useAccount, useReadContract, useWriteContract } from "wagmi";
+import { useAccount, useReadContract, useWriteContract, usePublicClient } from "wagmi";
 import { rexellAbi, contractAddress } from "@/blockchain/abi/rexell-abi";
 import { soulboundIdentityAbi, soulboundIdentityAddress } from "@/blockchain/abi/soulbound-abi";
 import { KYCFlow } from "@/components/AI/KYCFlow";
@@ -21,6 +21,7 @@ import { logAppActivity } from "@/lib/activityLogger";
 export default function ResellTicketPage({ params, searchParams }: { params: { tokenId: string }, searchParams?: { eventId?: string } }) {
     const { address, isConnected } = useAccount();
     const { writeContractAsync } = useWriteContract();
+    const publicClient = usePublicClient();
     const router = useRouter();
     const tokenId = BigInt(params.tokenId);
     const eventIdParam = searchParams?.eventId ? BigInt(searchParams.eventId) : null;
@@ -202,6 +203,36 @@ export default function ResellTicketPage({ params, searchParams }: { params: { t
         try {
             setSubmitting(true);
 
+            // Check if user is listing at markup or has other active listings
+            const isMarkup = priceWei > (eventData?.price || 0n);
+            let activeListings = 0;
+            
+            if (address && publicClient) {
+                try {
+                    const userRequests = await publicClient.readContract({
+                        address: contractAddress as `0x${string}`,
+                        abi: rexellAbi,
+                        functionName: "getUserResaleRequests",
+                        args: [address as `0x${string}`],
+                    }) as bigint[];
+                    
+                    for (const reqTokenId of userRequests) {
+                        const req = await publicClient.readContract({
+                            address: contractAddress as `0x${string}`,
+                            abi: rexellAbi,
+                            functionName: "resaleRequests",
+                            args: [reqTokenId],
+                        }) as [bigint, string, bigint, boolean, boolean];
+                        if (req[1].toLowerCase() === address.toLowerCase()) {
+                            activeListings++;
+                        }
+                    }
+                } catch (readErr) {
+                    console.error("Failed to fetch active listings:", readErr);
+                }
+            }
+            const isBulkLister = activeListings > 0;
+
             // Fetch Anti-Sybil Attestation from Oracle
             toast.info("Requesting Anti-Sybil verification from Oracle...");
             let attestation;
@@ -225,8 +256,8 @@ export default function ResellTicketPage({ params, searchParams }: { params: { t
                     signatures: data.signatures as `0x${string}`[]
                 };
 
-                if (attestation.score < 70n) {
-                    toast.error(`Verification failed: Your Anti-Sybil score is ${data.score}/100. Score >= 70 required to resell.`);
+                if ((isMarkup || isBulkLister) && attestation.score < 70n) {
+                    toast.error(`Verification failed: Your Anti-Sybil score is ${data.score}/100. Score >= 70 required to resell at a markup or list multiple tickets.`);
                     setSubmitting(false);
                     return;
                 }
