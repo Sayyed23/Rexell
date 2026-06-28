@@ -63,6 +63,7 @@ export default function EventsPage() {
     ticketHolders: string[];
     nftUris: string[];
     averageRating: bigint;
+    isCancelled: boolean;
   }
 
   const events = useMemo(() => (data as unknown as Event[]) || [], [data]);
@@ -95,6 +96,11 @@ export default function EventsPage() {
   // Multiple Dynamic Filter logic
   const filteredEvents = useMemo(() => {
     return events.filter((event) => {
+      // Hide deleted events (cancelled with 0 attendees)
+      if (event.isCancelled && (!event.ticketHolders || event.ticketHolders.length === 0)) {
+        return false;
+      }
+
       const matchSearch = searchQuery
         ? event.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
           event.venue.toLowerCase().includes(searchQuery.toLowerCase())
@@ -303,12 +309,16 @@ export default function EventsPage() {
                       {filteredEvents.map((event: Event) => (
                         <Link href={`/event-details/${event.id.toString()}`} key={event.id.toString()}>
                           <div className="event-card overflow-hidden rounded-lg bg-white shadow-lg transition-shadow duration-300 hover:shadow-2xl relative">
-                            {/* Display "Ended" only when the event date has passed */}
-                            {Date.now() > Number(event.date) * 1000 && (
+                            {/* Display Cancelled or Ended overlays */}
+                            {event.isCancelled ? (
+                              <div className="absolute top-0 left-0 right-0 bottom-0 flex items-center justify-center bg-red-600 bg-opacity-75 text-white text-xl font-bold z-10 uppercase tracking-widest">
+                                Cancelled
+                              </div>
+                            ) : Date.now() > Number(event.date) * 1000 ? (
                               <div className="absolute top-0 left-0 right-0 bottom-0 flex items-center justify-center bg-black bg-opacity-50 text-white text-xl font-semibold z-10">
                                 Ended
                               </div>
-                            )}
+                            ) : null}
 
                             <Image
                               alt="Event"

@@ -1,8 +1,10 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { CalendarRange, MapPin, User, Ticket } from "lucide-react";
-import { useAccount, useReadContract, useReadContracts } from "wagmi";
+import { useAccount, useReadContract, useReadContracts, useWriteContract } from "wagmi";
 import { celoSepolia } from "@/lib/celoSepolia";
+import { toast } from "sonner";
 
 import {
   rexellAbi,
@@ -14,7 +16,6 @@ import { convertDateFromMilliseconds } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Header } from "@/components/header";
-import { useEffect } from "react";
 import { AIDemandForecast } from "@/components/AI/AIDemandForecast";
 
 export default function EventDetailsPage({
@@ -24,11 +25,14 @@ export default function EventDetailsPage({
 }) {
   const router = useRouter();
   const { address, isConnected } = useAccount();
+  const { writeContractAsync } = useWriteContract();
+  const [actionLoading, setActionLoading] = useState(false);
 
   const {
     data: eventRaw,
     isPending,
     error,
+    refetch,
   } = useReadContract({
     address: contractAddress,
     abi: rexellAbi,
@@ -36,6 +40,15 @@ export default function EventDetailsPage({
     args: [BigInt(params.id)],
   });
   const event = eventRaw as any;
+
+  // Read escrow balance
+  const { data: escrowBalance, refetch: refetchEscrow } = useReadContract({
+    address: contractAddress,
+    abi: rexellAbi,
+    functionName: "eventEscrow",
+    args: [BigInt(params.id)],
+    chainId: celoSepolia.id,
+  });
 
   const buyers = (event?.[11] || []) as string[];
   const nftUris = (event?.[12] || []) as string[];
@@ -141,21 +154,139 @@ export default function EventDetailsPage({
             </div>
             <div className="prose max-w-none">{event?.[9]}</div>
           </div>
-          <div className="space-y-6">
-            <AIDemandForecast eventId={`EVT_${String(params.id).padStart(3, "0")}`} />
 
-            <div className="rounded-lg bg-gray-100 p-6 ">
-              <h2 className="mb-4 text-xl font-bold">Ticket Sales</h2>
-              {/* <div className="flex items-start justify-between"> */}
-              <div className="flex items-center gap-2 ">
-                <p className="text-4xl font-semibold">{activeSalesCount}</p>
-                <p className="text-gray-500 ">
-                  {activeSalesCount === 1 ? "Ticket Sold" : "Tickets Sold"}
-                </p>
-              </div>
-              {/* <Button variant="outline">View Tickets</Button> */}
-              {/* </div> */}
-            </div>
+          <div className="space-y-6">
+            {(() => {
+              // Action functions
+              const handleDeleteEvent = async () => {
+                try {
+                  setActionLoading(true);
+                  const hash = await writeContractAsync({
+                    address: contractAddress,
+                    abi: rexellAbi,
+                    functionName: "deleteEvent",
+                    args: [BigInt(params.id)],
+                  });
+                  if (hash) {
+                    toast.success("Event deleted successfully!");
+                    router.push("/my-events");
+                  }
+                } catch (e: any) {
+                  console.error(e);
+                  toast.error(e.message || "Failed to delete event");
+                } finally {
+                  setActionLoading(false);
+                }
+              };
+
+              const handleCancelEvent = async () => {
+                try {
+                  setActionLoading(true);
+                  const hash = await writeContractAsync({
+                    address: contractAddress,
+                    abi: rexellAbi,
+                    functionName: "cancelEvent",
+                    args: [BigInt(params.id)],
+                  });
+                  if (hash) {
+                    toast.success("Event cancelled successfully!");
+                    refetch();
+                  }
+                } catch (e: any) {
+                  console.error(e);
+                  toast.error(e.message || "Failed to cancel event");
+                } finally {
+                  setActionLoading(false);
+                }
+              };
+
+              const handleWithdrawFunds = async () => {
+                try {
+                  setActionLoading(true);
+                  const hash = await writeContractAsync({
+                    address: contractAddress,
+                    abi: rexellAbi,
+                    functionName: "withdrawEventFunds",
+                    args: [BigInt(params.id)],
+                  });
+                  if (hash) {
+                    toast.success("Funds withdrawn successfully!");
+                    refetchEscrow();
+                  }
+                } catch (e: any) {
+                  console.error(e);
+                  toast.error(e.message || "Failed to withdraw funds");
+                } finally {
+                  setActionLoading(false);
+                }
+              };
+
+              return (
+                <div className="space-y-6">
+                  <AIDemandForecast eventId={`EVT_${String(params.id).padStart(3, "0")}`} />
+
+                  {/* Actions Panel */}
+                  <div className="rounded-lg bg-gray-100 p-6 space-y-4">
+                    <h2 className="text-xl font-bold">Organizer Actions</h2>
+                    
+                    {event?.[16] ? (
+                      <div className="bg-red-50 text-red-800 p-3 rounded-lg border border-red-200 text-sm font-semibold text-center">
+                        ⚠️ This event has been cancelled.
+                      </div>
+                    ) : (
+                      <div className="flex flex-col gap-2">
+                        {activeSalesCount === 0 ? (
+                          <Button 
+                            className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 rounded"
+                            onClick={handleDeleteEvent}
+                            disabled={actionLoading}
+                          >
+                            Delete Event
+                          </Button>
+                        ) : (
+                          <Button 
+                            className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-2 rounded"
+                            onClick={handleCancelEvent}
+                            disabled={actionLoading}
+                          >
+                            Cancel Event
+                          </Button>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Escrow & Withdrawal */}
+                    {escrowBalance !== undefined && (
+                      <div className="pt-4 border-t border-gray-200 mt-4 space-y-2">
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="text-gray-600 font-medium">Escrow Balance:</span>
+                          <span className="font-bold text-slate-800">{Number(escrowBalance) / 1e18} cUSD</span>
+                        </div>
+                        {!event?.[16] && Date.now() >= Number(event?.[5]) * 1000 && Number(escrowBalance) > 0 && (
+                          <Button 
+                            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded"
+                            onClick={handleWithdrawFunds}
+                            disabled={actionLoading}
+                          >
+                            Withdraw Ticket Sales
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="rounded-lg bg-gray-100 p-6 ">
+                    <h2 className="mb-4 text-xl font-bold">Ticket Sales</h2>
+                    <div className="flex items-center gap-2 ">
+                      <p className="text-4xl font-semibold">{activeSalesCount}</p>
+                      <p className="text-gray-500 ">
+                        {activeSalesCount === 1 ? "Ticket Sold" : "Tickets Sold"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
             <div className="rounded-lg bg-gray-100 p-6 ">
               <h2 className="mb-4 text-xl font-bold">Attendees</h2>
               <ul className="space-y-4">

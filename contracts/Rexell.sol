@@ -106,6 +106,7 @@ contract Rexell is ERC721URIStorage, Ownable, ReentrancyGuard, EIP712 {
         Comment[] comments; // Array to store all comments for this event
         uint totalRating;
         uint ratingCount;
+        bool isCancelled;
     }
 
     struct Comment {
@@ -129,6 +130,7 @@ contract Rexell is ERC721URIStorage, Ownable, ReentrancyGuard, EIP712 {
         address[] ticketHolders;
         string[] nftUris;
         uint averageRating;
+        bool isCancelled;
     }
 
     // Add structs for resale functionality with royalty and history tracking
@@ -158,6 +160,9 @@ contract Rexell is ERC721URIStorage, Ownable, ReentrancyGuard, EIP712 {
     // Security mappings
     mapping(address => uint256) public nonces; // Protection against replay attacks
     mapping(uint256 => bool) public ticketCancelled; // Track cancelled tickets
+    mapping(uint256 => uint256) public eventEscrow; // eventId => balance in escrow
+    mapping(uint256 => uint256) public ticketPricePaid; // tokenId => price paid in cUSD
+    mapping(uint256 => bool) public ticketRefunded; // tokenId => whether ticket has been refunded
 
     struct SeatLock {
         address lockedBy;
@@ -189,6 +194,10 @@ contract Rexell is ERC721URIStorage, Ownable, ReentrancyGuard, EIP712 {
     event RoyaltyPaid(uint256 indexed tokenId, address indexed organizer, uint256 amount);
     event PlatformFeePaid(uint256 indexed tokenId, uint256 amount);
     event TicketCancelled(uint256 indexed tokenId, address indexed owner);
+    event EventCancelled(uint256 indexed eventId);
+    event EventDeleted(uint256 indexed eventId);
+    event EventFundsWithdrawn(uint256 indexed eventId, address indexed organizer, uint256 amount);
+    event TicketRefundClaimed(uint256 indexed tokenId, address indexed buyer, uint256 amount);
 
     function createEvent(
         string memory name,
@@ -222,6 +231,7 @@ contract Rexell is ERC721URIStorage, Ownable, ReentrancyGuard, EIP712 {
 
     function buyTicket(uint eventId, string memory nftUri, IdentityAttestation calldata att) public payable nonReentrant {
         Event storage _event = events[eventId];       
+        require(!_event.isCancelled, "Event has been cancelled");
         require(_event.ticketsAvailable > 0, "No tickets available");
         
         // Prevent organizer from buying tickets for their own event
@@ -237,11 +247,13 @@ contract Rexell is ERC721URIStorage, Ownable, ReentrancyGuard, EIP712 {
         require(!usedAttestationNonces[att.nonce], "Replay detected");
         usedAttestationNonces[att.nonce] = true;
 
-        // Transfer payment from buyer to organizer
+        // Transfer payment from buyer to contract escrow
         if (_event.price > 0) {
-            require(cUSDToken.transferFrom(msg.sender, _event.organizer, _event.price), "Payment failed");
+            require(cUSDToken.transferFrom(msg.sender, address(this), _event.price), "Payment failed");
+            eventEscrow[eventId] += _event.price;
         }
         
+        ticketPricePaid[nextTicketId] = _event.price;
         mintTicketNft(eventId, nftUri);
         _event.ticketsAvailable--;
         _event.ticketHolders.push(msg.sender);
@@ -250,6 +262,7 @@ contract Rexell is ERC721URIStorage, Ownable, ReentrancyGuard, EIP712 {
     // Add new function to buy multiple tickets
     function buyTickets(uint eventId, string[] memory nftUris, uint quantity, IdentityAttestation calldata att) public payable nonReentrant {
         Event storage _event = events[eventId];
+        require(!_event.isCancelled, "Event has been cancelled");
         require(quantity > 0, "Quantity must be greater than 0");
         require(_event.ticketsAvailable >= quantity, "Not enough tickets available");
         
@@ -266,13 +279,15 @@ contract Rexell is ERC721URIStorage, Ownable, ReentrancyGuard, EIP712 {
         require(!usedAttestationNonces[att.nonce], "Replay detected");
         usedAttestationNonces[att.nonce] = true;
 
-        // Transfer payment from buyer to organizer
+        // Transfer payment from buyer to contract escrow
         uint totalCost = _event.price * quantity;
         if (totalCost > 0) {
-            require(cUSDToken.transferFrom(msg.sender, _event.organizer, totalCost), "Payment failed");
+            require(cUSDToken.transferFrom(msg.sender, address(this), totalCost), "Payment failed");
+            eventEscrow[eventId] += totalCost;
         }
         
         for (uint i = 0; i < quantity; i++) {
+            ticketPricePaid[nextTicketId] = _event.price;
             mintTicketNft(eventId, nftUris[i]);
             _event.ticketHolders.push(msg.sender);
         }
@@ -289,6 +304,7 @@ contract Rexell is ERC721URIStorage, Ownable, ReentrancyGuard, EIP712 {
         IdentityAttestation calldata att
     ) public payable nonReentrant {
         Event storage _event = events[eventId];
+        require(!_event.isCancelled, "Event has been cancelled");
         uint quantity = nftUris.length;
         require(quantity > 0, "Quantity must be greater than 0");
         require(seatLabels.length == quantity, "Seat labels length mismatch");
@@ -346,12 +362,27 @@ contract Rexell is ERC721URIStorage, Ownable, ReentrancyGuard, EIP712 {
             emit SeatPurchased(eventId, seatLabel, msg.sender, category);
         }
 
-        // Transfer payment from buyer to organizer
+        // Transfer payment from buyer to contract escrow
         if (totalCost > 0) {
-            require(cUSDToken.transferFrom(msg.sender, _event.organizer, totalCost), "Payment failed");
+            require(cUSDToken.transferFrom(msg.sender, address(this), totalCost), "Payment failed");
+            eventEscrow[eventId] += totalCost;
         }
 
         for (uint i = 0; i < quantity; i++) {
+            string memory category = categories[i];
+            uint256 seatPrice = seatCategoryPrices[eventId][category];
+            if (seatPrice == 0) {
+                if (keccak256(bytes(category)) == keccak256(bytes("VIP"))) {
+                    seatPrice = _event.price * 2;
+                } else if (keccak256(bytes(category)) == keccak256(bytes("Premium"))) {
+                    seatPrice = _event.price;
+                } else if (keccak256(bytes(category)) == keccak256(bytes("Executive"))) {
+                    seatPrice = (_event.price * 8) / 10;
+                } else {
+                    seatPrice = _event.price;
+                }
+            }
+            ticketPricePaid[nextTicketId] = seatPrice;
             mintTicketNft(eventId, nftUris[i]);
             _event.ticketHolders.push(msg.sender);
         }
@@ -477,7 +508,8 @@ contract Rexell is ERC721URIStorage, Ownable, ReentrancyGuard, EIP712 {
         string[] memory,
         Comment[] memory,
         uint,
-        uint
+        uint,
+        bool
     ) {
         Event storage _event = events[eventId];
         return (
@@ -496,7 +528,8 @@ contract Rexell is ERC721URIStorage, Ownable, ReentrancyGuard, EIP712 {
             _event.nftUris,
             _event.comments,            
             _event.totalRating,
-            _event.ratingCount
+            _event.ratingCount,
+            _event.isCancelled
         );
     }
 
@@ -519,7 +552,8 @@ contract Rexell is ERC721URIStorage, Ownable, ReentrancyGuard, EIP712 {
                 _event.ipfs,
                 _event.ticketHolders,
                 _event.nftUris,
-                averageRating
+                averageRating,
+                _event.isCancelled
             );
         }
         return result;
@@ -580,7 +614,8 @@ contract Rexell is ERC721URIStorage, Ownable, ReentrancyGuard, EIP712 {
                         _event.ipfs,
                         _event.ticketHolders,
                         _event.nftUris,
-                        _event.totalRating
+                        _event.totalRating,
+                        _event.isCancelled
                     );
                     index++;
                     break;
@@ -618,7 +653,8 @@ contract Rexell is ERC721URIStorage, Ownable, ReentrancyGuard, EIP712 {
                     _event.ipfs,
                     _event.ticketHolders,
                     _event.nftUris,
-                    _event.totalRating
+                    _event.totalRating,
+                    _event.isCancelled
                 );
                 index++;
             }
@@ -1012,6 +1048,87 @@ contract Rexell is ERC721URIStorage, Ownable, ReentrancyGuard, EIP712 {
             }
         }
         return false;
+    }
+
+    // Function to delete an event (only if zero tickets sold)
+    function deleteEvent(uint256 eventId) public {
+        require(eventId < events.length, "Event does not exist");
+        Event storage _event = events[eventId];
+        require(msg.sender == _event.organizer || msg.sender == mine || msg.sender == ADMIN_WALLET, "Only organizer can delete");
+        require(_event.ticketHolders.length == 0, "Cannot delete event with sold tickets");
+        require(!_event.isCancelled, "Event already cancelled");
+
+        _event.isCancelled = true;
+        emit EventDeleted(eventId);
+    }
+
+    // Function to cancel an event (any time after tickets are sold)
+    function cancelEvent(uint256 eventId) public {
+        require(eventId < events.length, "Event does not exist");
+        Event storage _event = events[eventId];
+        require(msg.sender == _event.organizer || msg.sender == mine || msg.sender == ADMIN_WALLET, "Only organizer can cancel");
+        require(!_event.isCancelled, "Event already cancelled");
+
+        _event.isCancelled = true;
+        emit EventCancelled(eventId);
+    }
+
+    // Function for organizer to withdraw ticket sales funds after event has passed
+    function withdrawEventFunds(uint256 eventId) public nonReentrant {
+        require(eventId < events.length, "Event does not exist");
+        Event storage _event = events[eventId];
+        require(msg.sender == _event.organizer || msg.sender == mine || msg.sender == ADMIN_WALLET, "Only organizer can withdraw");
+        require(block.timestamp >= _event.date, "Event has not occurred yet");
+        require(!_event.isCancelled, "Event was cancelled");
+        
+        uint256 amount = eventEscrow[eventId];
+        require(amount > 0, "No funds to withdraw");
+        
+        eventEscrow[eventId] = 0;
+        require(cUSDToken.transfer(_event.organizer, amount), "Withdrawal transfer failed");
+        
+        emit EventFundsWithdrawn(eventId, _event.organizer, amount);
+    }
+
+    // Function for buyer to claim refund if event was cancelled
+    function claimRefund(uint256 tokenId) public nonReentrant {
+        require(_exists(tokenId), "Ticket does not exist");
+        require(ownerOf(tokenId) == msg.sender, "You are not the owner of this ticket");
+        require(!ticketRefunded[tokenId], "Refund already claimed");
+        
+        uint256 eventId = getEventIdForToken(tokenId);
+        require(events[eventId].isCancelled, "Event is not cancelled");
+        
+        uint256 refundAmount = ticketPricePaid[tokenId];
+        require(refundAmount > 0, "No payment recorded or already refunded");
+        
+        ticketRefunded[tokenId] = true;
+        ticketCancelled[tokenId] = true;
+        
+        if (eventEscrow[eventId] >= refundAmount) {
+            eventEscrow[eventId] -= refundAmount;
+        }
+        
+        require(cUSDToken.transfer(msg.sender, refundAmount), "Refund transfer failed");
+        
+        _burn(tokenId);
+        
+        emit TicketRefundClaimed(tokenId, msg.sender, refundAmount);
+    }
+
+    // Helper function to get eventId for a token
+    function getEventIdForToken(uint256 tokenId) public view returns (uint256) {
+        require(_exists(tokenId), "Ticket does not exist");
+        string memory uri = tokenURI(tokenId);
+        for (uint i = 0; i < events.length; i++) {
+            string[] memory eventNftUris = events[i].nftUris;
+            for (uint j = 0; j < eventNftUris.length; j++) {
+                if (keccak256(bytes(eventNftUris[j])) == keccak256(bytes(uri))) {
+                    return i;
+                }
+            }
+        }
+        revert("Event not found for ticket");
     }
 
     //function to withdraw from the contract

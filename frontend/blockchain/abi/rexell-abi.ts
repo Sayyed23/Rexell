@@ -111,6 +111,57 @@ export const rexellAbi = [
     "anonymous": false,
     "inputs": [
       {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "eventId",
+        "type": "uint256"
+      }
+    ],
+    "name": "EventCancelled",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "eventId",
+        "type": "uint256"
+      }
+    ],
+    "name": "EventDeleted",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "eventId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "organizer",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      }
+    ],
+    "name": "EventFundsWithdrawn",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
         "indexed": false,
         "internalType": "uint256",
         "name": "_tokenId",
@@ -394,6 +445,31 @@ export const rexellAbi = [
       }
     ],
     "name": "TicketCancelled",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "tokenId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "buyer",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      }
+    ],
+    "name": "TicketRefundClaimed",
     "type": "event"
   },
   {
@@ -760,6 +836,19 @@ export const rexellAbi = [
     "inputs": [
       {
         "internalType": "uint256",
+        "name": "eventId",
+        "type": "uint256"
+      }
+    ],
+    "name": "cancelEvent",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
         "name": "tokenId",
         "type": "uint256"
       }
@@ -778,6 +867,19 @@ export const rexellAbi = [
       }
     ],
     "name": "cancelTicket",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "tokenId",
+        "type": "uint256"
+      }
+    ],
+    "name": "claimRefund",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -836,6 +938,19 @@ export const rexellAbi = [
     "type": "function"
   },
   {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "eventId",
+        "type": "uint256"
+      }
+    ],
+    "name": "deleteEvent",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
     "inputs": [],
     "name": "eip712Domain",
     "outputs": [
@@ -873,6 +988,25 @@ export const rexellAbi = [
         "internalType": "uint256[]",
         "name": "extensions",
         "type": "uint256[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "eventEscrow",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
       }
     ],
     "stateMutability": "view",
@@ -952,6 +1086,11 @@ export const rexellAbi = [
         "internalType": "uint256",
         "name": "ratingCount",
         "type": "uint256"
+      },
+      {
+        "internalType": "bool",
+        "name": "isCancelled",
+        "type": "bool"
       }
     ],
     "stateMutability": "view",
@@ -1108,6 +1247,11 @@ export const rexellAbi = [
             "internalType": "uint256",
             "name": "averageRating",
             "type": "uint256"
+          },
+          {
+            "internalType": "bool",
+            "name": "isCancelled",
+            "type": "bool"
           }
         ],
         "internalType": "struct Rexell.EventView[]",
@@ -1262,6 +1406,30 @@ export const rexellAbi = [
         "internalType": "uint256",
         "name": "",
         "type": "uint256"
+      },
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "tokenId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getEventIdForToken",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
       }
     ],
     "stateMutability": "view",
@@ -1367,6 +1535,11 @@ export const rexellAbi = [
             "internalType": "uint256",
             "name": "averageRating",
             "type": "uint256"
+          },
+          {
+            "internalType": "bool",
+            "name": "isCancelled",
+            "type": "bool"
           }
         ],
         "internalType": "struct Rexell.EventView[]",
@@ -1612,6 +1785,11 @@ export const rexellAbi = [
             "internalType": "uint256",
             "name": "averageRating",
             "type": "uint256"
+          },
+          {
+            "internalType": "bool",
+            "name": "isCancelled",
+            "type": "bool"
           }
         ],
         "internalType": "struct Rexell.EventView[]",
@@ -2524,6 +2702,44 @@ export const rexellAbi = [
     "inputs": [
       {
         "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "ticketPricePaid",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "ticketRefunded",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
         "name": "tokenId",
         "type": "uint256"
       }
@@ -2706,6 +2922,19 @@ export const rexellAbi = [
       }
     ],
     "name": "withdraw",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "eventId",
+        "type": "uint256"
+      }
+    ],
+    "name": "withdrawEventFunds",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"

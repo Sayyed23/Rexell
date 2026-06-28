@@ -160,6 +160,7 @@ const EventTicketGroup = ({ event, address }: { event: any, address: `0x${string
             total={userUris.length}
             seatLabel={userSeats && userSeats[index] ? userSeats[index] : undefined}
             eventPrice={event.price}
+            eventCancelled={event.isCancelled}
           />
         ))}
       </div>
@@ -174,7 +175,8 @@ const TicketItem = ({
   index, 
   total,
   seatLabel,
-  eventPrice
+  eventPrice,
+  eventCancelled
 }: { 
   eventId: bigint;
   uri: string;
@@ -183,6 +185,7 @@ const TicketItem = ({
   total: number;
   seatLabel?: string;
   eventPrice?: bigint;
+  eventCancelled?: boolean;
 }) => {
   const { writeContractAsync } = useWriteContract();
   const [isFinalizing, setIsFinalizing] = useState(false);
@@ -219,6 +222,29 @@ const TicketItem = ({
       enabled: tokenId !== undefined && tokenId !== null
     }
   }) as { data: boolean | undefined, refetch: () => void };
+
+  const [isRefunding, setIsRefunding] = useState(false);
+
+  const handleClaimRefund = async () => {
+    if (tokenId === undefined || tokenId === null) return;
+    try {
+      setIsRefunding(true);
+      await writeContractAsync({
+        address: contractAddress as `0x${string}`,
+        abi: rexellAbi,
+        functionName: "claimRefund",
+        args: [tokenId],
+        chainId: celoSepolia.id,
+      });
+      toast.success("Refund claimed successfully! Your ticket has been refunded.");
+      window.location.reload();
+    } catch (e: any) {
+      console.error(e);
+      toast.error("Failed to claim refund: " + (e.message || "Unknown error"));
+    } finally {
+      setIsRefunding(false);
+    }
+  };
 
   const handleFinalizeListing = async () => {
     if (tokenId === undefined || tokenId === null || !resaleRequest) return;
@@ -302,7 +328,7 @@ const TicketItem = ({
       <div className="flex flex-col lg:flex-row gap-8 items-stretch justify-between">
         
         {/* Left: Ticket Image Section */}
-        <div className={`flex-shrink-0 w-full lg:w-80 flex items-center justify-center bg-gray-50 rounded-xl overflow-hidden border border-gray-100 shadow-sm relative group min-h-[160px] ${isCancelled ? "opacity-40 grayscale" : ""}`}>
+        <div className={`flex-shrink-0 w-full lg:w-80 flex items-center justify-center bg-gray-50 rounded-xl overflow-hidden border border-gray-100 shadow-sm relative group min-h-[160px] ${isCancelled || eventCancelled ? "opacity-40 grayscale" : ""}`}>
           <img
             src={`https://ipfs.io/ipfs/${uri}`}
             alt={`Ticket NFT #${tokenId?.toString() || ""}`}
@@ -363,12 +389,17 @@ const TicketItem = ({
                   CANCELLED
                 </span>
               )}
-              {isPendingApproval && !isCancelled && (
+              {eventCancelled && (
+                <span className="bg-red-100 text-red-700 text-xs font-bold px-2 py-1 rounded border border-red-300">
+                  EVENT CANCELLED
+                </span>
+              )}
+              {isPendingApproval && !isCancelled && !eventCancelled && (
                 <span className="bg-amber-50 text-amber-600 text-xs font-semibold px-2 py-1 rounded border border-amber-200">
                   PENDING APPROVAL
                 </span>
               )}
-              {isApproved && !isCancelled && (
+              {isApproved && !isCancelled && !eventCancelled && (
                 <span className="bg-green-50 text-green-600 text-xs font-semibold px-2 py-1 rounded border border-green-200">
                   APPROVED FOR LISTING
                 </span>
@@ -400,7 +431,15 @@ const TicketItem = ({
           </div>
 
           <div className="flex gap-3 flex-wrap">
-            {isCancelled ? (
+            {eventCancelled ? (
+              <Button 
+                onClick={handleClaimRefund}
+                disabled={isRefunding}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+              >
+                {isRefunding ? <Loader2 className="animate-spin w-4 h-4 mr-2" /> : "Claim Escrow Refund"}
+              </Button>
+            ) : isCancelled ? (
               <span className="text-sm font-semibold text-red-600">This ticket has been cancelled.</span>
             ) : hasTokenId ? (
               <>
@@ -472,10 +511,10 @@ const TicketItem = ({
 
         {/* Right: QR Code Section */}
         <div className="flex-shrink-0 flex flex-col items-center justify-center bg-white p-4 rounded-xl border border-dashed border-gray-300 shadow-sm self-center min-h-[150px] min-w-[142px]">
-          {isCancelled ? (
+          {isCancelled || eventCancelled ? (
             <div className="text-center space-y-1">
               <span className="text-3xl">🚫</span>
-              <p className="text-[10px] font-bold text-red-600 tracking-wider">CANCELLED</p>
+              <p className="text-[10px] font-bold text-red-600 tracking-wider">EVENT CANCELLED</p>
               <p className="text-[8px] text-gray-400 uppercase">Invalid Entry</p>
             </div>
           ) : hasTokenId ? (

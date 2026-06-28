@@ -59,6 +59,7 @@ export default function EventDetailsPage({
   const [rating, setRating] = useState<number | undefined>(undefined);// Selected rating value
   const [passed, setPassed] = useState(false);
   const [showStar, setShowStar] = useState(false);
+  const [isCancelled, setIsCancelled] = useState(false);
   // Add state for ticket quantity
   const [ticketQuantity, setTicketQuantity] = useState(1);
   const [selectedSeats, setSelectedSeats] = useState<{ label: string; category: string; price: number }[]>([]);
@@ -175,6 +176,9 @@ export default function EventDetailsPage({
       if (Date.now() > Number(event?.[5]) * 1000) {
         setPassed(true);
       }
+    }
+    if (event?.[16] !== undefined) {
+      setIsCancelled(Boolean(event[16]));
     }
   }, [event]);
 
@@ -778,7 +782,11 @@ export default function EventDetailsPage({
                     </Link>
                   </div>
                 )}
-                {passed ? null : hasReachedLimit ? (
+                {isCancelled ? (
+                  <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-800 text-sm font-semibold mb-4">
+                    🚫 This event has been cancelled by the organizer. Ticket sales are disabled.
+                  </div>
+                ) : passed ? null : hasReachedLimit ? (
                   <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-sm font-semibold">
                     ⚠️ You have reached the purchase limit of 4 tickets for this event.
                   </div>
@@ -915,7 +923,7 @@ export default function EventDetailsPage({
             </div>
 
             {/* Interactive Seat Map */}
-            {!passed && !hasReachedLimit && !over && isConnected && (
+            {!passed && !hasReachedLimit && !over && isConnected && !isCancelled && (
               <div className="mt-8 space-y-4 pt-8 border-t border-gray-200">
                 <h2 className="text-2xl font-bold text-slate-800">Select Seats on Layout Map</h2>
                 <p className="text-gray-500 text-sm">
