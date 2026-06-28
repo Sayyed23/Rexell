@@ -244,7 +244,7 @@ export function SeatMap({
     let baseStyle =
       "w-7 h-7 flex items-center justify-center rounded text-xs font-semibold transition-all cursor-pointer select-none";
     if (status === "sold") {
-      baseStyle += " bg-gray-200 text-gray-400 cursor-not-allowed border border-gray-300";
+      baseStyle += " bg-slate-850 text-slate-600 border border-slate-800 cursor-not-allowed opacity-40 line-through";
     } else if (status === "selected") {
       baseStyle += " bg-emerald-600 text-white border border-emerald-700 shadow-md shadow-emerald-600/30 scale-105";
     } else if (status === "locked") {
@@ -261,7 +261,7 @@ export function SeatMap({
         onClick={() => status !== "sold" && status !== "locked" && toggleSeat(label, category)}
         disabled={status === "sold" || status === "locked"}
         className={baseStyle}
-        title={`Seat ${label} (${category}: ${getSeatPrice(category).toFixed(2)} cUSD)`}
+        title={status === "sold" ? `Seat ${label} (${category}) - SOLD` : `Seat ${label} (${category}: ${getSeatPrice(category).toFixed(2)} cUSD)`}
       >
         {num}
       </button>
