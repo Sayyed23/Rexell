@@ -44,9 +44,15 @@ app.add_middleware(
 )
 
 # Load Oracle Private Keys for 3-of-5 multisig
-ORACLE_KEY_1 = os.getenv("ORACLE_PRIVATE_KEY_1", os.getenv("ORACLE_PRIVATE_KEY", "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"))
-ORACLE_KEY_2 = os.getenv("ORACLE_PRIVATE_KEY_2", "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d")
-ORACLE_KEY_3 = os.getenv("ORACLE_PRIVATE_KEY_3", "0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a")
+ORACLE_KEY_1 = os.getenv("ORACLE_PRIVATE_KEY_1", os.getenv("ORACLE_PRIVATE_KEY"))
+ORACLE_KEY_2 = os.getenv("ORACLE_PRIVATE_KEY_2")
+ORACLE_KEY_3 = os.getenv("ORACLE_PRIVATE_KEY_3")
+
+if not ORACLE_KEY_1 or not ORACLE_KEY_2 or not ORACLE_KEY_3:
+    raise ValueError(
+        "Oracle Private Keys must be configured in environment variables "
+        "(ORACLE_PRIVATE_KEY_1, ORACLE_PRIVATE_KEY_2, ORACLE_PRIVATE_KEY_3)."
+    )
 
 oracle_accounts = [
     Account.from_key(ORACLE_KEY_1),

@@ -10,7 +10,8 @@ export async function logAppActivity(
   if (!userAddress) return false;
 
   try {
-    const response = await fetch("http://localhost:5000/api/activity/log", {
+    const oracleUrl = process.env.NEXT_PUBLIC_IDENTITY_ORACLE_URL || "http://localhost:5000";
+    const response = await fetch(`${oracleUrl}/api/activity/log`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

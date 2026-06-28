@@ -167,7 +167,8 @@ export default function BuyResaleTicketPage() {
       toast.info("Requesting Anti-Sybil verification from Oracle...");
       let attestation;
       try {
-        const attestResponse = await fetch("http://localhost:5000/api/identity/attest", {
+        const oracleUrl = process.env.NEXT_PUBLIC_IDENTITY_ORACLE_URL || "http://localhost:5000";
+        const attestResponse = await fetch(`${oracleUrl}/api/identity/attest`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

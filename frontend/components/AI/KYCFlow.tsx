@@ -52,7 +52,8 @@ export function KYCFlow({ onVerified }: { onVerified?: () => void }) {
         if (!address) return;
         setLoading(true);
         try {
-            const res = await fetch(`http://localhost:5000/api/identity/status?user_address=${address}`);
+            const oracleUrl = process.env.NEXT_PUBLIC_IDENTITY_ORACLE_URL || "http://localhost:5000";
+            const res = await fetch(`${oracleUrl}/api/identity/status?user_address=${address}`);
             if (res.ok) {
                 const data = await res.json();
                 setStatusData(data);
@@ -82,7 +83,8 @@ export function KYCFlow({ onVerified }: { onVerified?: () => void }) {
         try {
             // 1. Fetch EIP-712 signatures from oracle
             toast.info("Requesting verification signatures from oracle...");
-            const res = await fetch("http://localhost:5000/api/identity/request-signatures", {
+            const oracleUrl = process.env.NEXT_PUBLIC_IDENTITY_ORACLE_URL || "http://localhost:5000";
+            const res = await fetch(`${oracleUrl}/api/identity/request-signatures`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ user_address: address }),

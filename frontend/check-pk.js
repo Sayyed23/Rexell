@@ -1,6 +1,7 @@
 
 const { privateKeyToAddress } = require('viem/accounts');
-require("dotenv").config({ path: "c:/Users/BFLCOMP01/Desktop/Rexell-1/.env" });
+const path = require("path");
+require("dotenv").config({ path: path.join(__dirname, "..", ".env") });
 
 async function main() {
     const pk = process.env.PRIVATE_KEY;
