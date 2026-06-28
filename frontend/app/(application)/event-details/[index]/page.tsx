@@ -113,6 +113,20 @@ export default function EventDetailsPage({
 
   const event = eventData as any;
 
+  const { data: userTicketsData } = useReadContract({
+    address: contractAddress,
+    abi: rexellAbi,
+    functionName: "getUserPurchasedTickets",
+    args: address ? [BigInt(params.index), address] : undefined,
+    chainId: celoSepolia.id,
+    query: {
+      enabled: !!address,
+    },
+  });
+
+  const purchasedTicketsCount = userTicketsData ? (userTicketsData as string[]).length : 0;
+  const hasReachedLimit = purchasedTicketsCount >= 4;
+
   const { data: cUSDBalance } = useReadContract({
     address: tokencUSDContractAddress,
     abi: tokencUSDAbi,
@@ -237,6 +251,11 @@ export default function EventDetailsPage({
     const price = event?.[7] ? BigInt(event[7]) : 0n;
     const usingSeatMap = selectedSeats.length > 0;
     const finalQuantity = usingSeatMap ? selectedSeats.length : ticketQuantity;
+
+    if (purchasedTicketsCount + finalQuantity > 4) {
+      toast.error(`Purchase exceeds limit. You can only buy up to ${4 - purchasedTicketsCount} tickets (you already have ${purchasedTicketsCount}).`);
+      return;
+    }
 
     // Calculate totalCost dynamically based on selected seats prices or GA price
     const totalCost = usingSeatMap
@@ -625,7 +644,7 @@ export default function EventDetailsPage({
                 priceCusd: Number(totalCost) / 1e18
               });
               setIsUploading(false);
-              router.push(`/tickets/${event?.[0]}`);
+              router.push("/my-tickets");
             }
           }
         } catch (error: any) {
@@ -749,21 +768,21 @@ export default function EventDetailsPage({
                   </div>
                 )}
                 {/* Ticket purchase form */}
-                {isTicketPurchased ? (
-                  <Link href={`/tickets/${event?.[0]}`} prefetch={false}>
-                    <Button className="mt-4 w-full hover:bg-blue-600 sm:w-auto">
-                      <Ticket className="mr-2 h-5 w-5" />
-                      Unveil your NFT ticket
-                    </Button>
-                  </Link>
-                ) : passed && isTicketPurchased ? (
-                  <Link href={`/tickets/${event?.[0]}`} prefetch={false}>
-                    <Button className="mt-4 w-full hover:bg-blue-600 sm:w-auto">
-                      <Ticket className="mr-2 h-5 w-5" />
-                      Unveil your NFT ticket
-                    </Button>
-                  </Link>
-                ) : passed && !isTicketPurchased ? null : (
+                {purchasedTicketsCount > 0 && (
+                  <div className="mb-4">
+                    <Link href="/my-tickets" prefetch={false}>
+                      <Button className="w-full hover:bg-blue-600 sm:w-auto bg-blue-500 text-white">
+                        <Ticket className="mr-2 h-5 w-5" />
+                        View your ticket{purchasedTicketsCount > 1 ? 's' : ''} ({purchasedTicketsCount}) in My Tickets
+                      </Button>
+                    </Link>
+                  </div>
+                )}
+                {passed ? null : hasReachedLimit ? (
+                  <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-sm font-semibold">
+                    ⚠️ You have reached the purchase limit of 4 tickets for this event.
+                  </div>
+                ) : (
                   <form onSubmit={buyTicket} className="space-y-4">
                     {selectedSeats.length === 0 ? (
                       <>
@@ -776,9 +795,9 @@ export default function EventDetailsPage({
                             value={ticketQuantity}
                             onChange={(e) => setTicketQuantity(parseInt(e.target.value))}
                             className="block w-full rounded-md border border-gray-300 bg-white py-2 px-3 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
-                            disabled={buyTicketPending || isTicketPurchased || isUploading || processing || over}
+                            disabled={buyTicketPending || hasReachedLimit || isUploading || processing || over}
                           >
-                            {Array.from({ length: Math.min(10, Number(event?.[8]) || 10) }, (_, i) => (
+                            {Array.from({ length: Math.min(4 - purchasedTicketsCount, Number(event?.[8]) || 4) }, (_, i) => (
                               <option key={i + 1} value={i + 1}>
                                 {i + 1}
                               </option>
@@ -791,7 +810,7 @@ export default function EventDetailsPage({
                           type="submit"
                           disabled={
                             buyTicketPending ||
-                            isTicketPurchased ||
+                            hasReachedLimit ||
                             isUploading ||
                             processing ||
                             over
@@ -833,7 +852,7 @@ export default function EventDetailsPage({
                             type="submit"
                             disabled={
                               buyTicketPending ||
-                              isTicketPurchased ||
+                              hasReachedLimit ||
                               isUploading ||
                               processing ||
                               over
@@ -855,7 +874,7 @@ export default function EventDetailsPage({
                             onClick={handleOnChainLock}
                             disabled={
                               buyTicketPending ||
-                              isTicketPurchased ||
+                              hasReachedLimit ||
                               isUploading ||
                               processing ||
                               isReservingOnChain ||
@@ -896,7 +915,7 @@ export default function EventDetailsPage({
             </div>
 
             {/* Interactive Seat Map */}
-            {!passed && !isTicketPurchased && !over && isConnected && (
+            {!passed && !hasReachedLimit && !over && isConnected && (
               <div className="mt-8 space-y-4 pt-8 border-t border-gray-200">
                 <h2 className="text-2xl font-bold text-slate-800">Select Seats on Layout Map</h2>
                 <p className="text-gray-500 text-sm">
