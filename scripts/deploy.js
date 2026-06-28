@@ -31,20 +31,32 @@ async function main() {
     console.log(`MockCUSD deployed to ${cUSDAddress}`);
   }
 
-  // 3. Deploy SoulboundIdentity passing cUSD and deployerAddress
-  console.log("Deploying SoulboundIdentity...");
-  const SoulboundIdentity = await hre.ethers.deployContract('SoulboundIdentity', [
-    cUSDAddress,
-    deployerAddress
-  ]);
-  await SoulboundIdentity.waitForDeployment();
-  console.log(`SoulboundIdentity deployed to ${SoulboundIdentity.target}`);
+  // 3. Determine SoulboundIdentity Address based on network
+  let soulboundAddress;
+
+  if (networkName === "Sepolia") {
+    soulboundAddress = "0x87873325D01bD501c98A27fd7B091f6609ee8f71";
+    console.log(`Using existing SoulboundIdentity at ${soulboundAddress}`);
+  } else if (networkName === "celo") {
+    soulboundAddress = "0x87873325D01bD501c98A27fd7B091f6609ee8f71"; // Update if mainnet is different
+    console.log(`Using existing SoulboundIdentity at ${soulboundAddress}`);
+  } else {
+    // Deploy SoulboundIdentity for local/hardhat testing
+    console.log("Deploying SoulboundIdentity for local testing...");
+    const SoulboundIdentity = await hre.ethers.deployContract('SoulboundIdentity', [
+      cUSDAddress,
+      deployerAddress
+    ]);
+    await SoulboundIdentity.waitForDeployment();
+    soulboundAddress = SoulboundIdentity.target;
+    console.log(`SoulboundIdentity deployed to ${soulboundAddress}`);
+  }
 
   // 4. Deploy Rexell
   console.log("Deploying Rexell...");
   const rexell = await hre.ethers.deployContract('Rexell', [
     cUSDAddress,
-    SoulboundIdentity.target
+    soulboundAddress
   ]);
   await rexell.waitForDeployment();
   console.log(`Rexell deployed to ${rexell.target}`);
@@ -55,7 +67,7 @@ async function main() {
   console.log(`========================================`);
   console.log(`NEXT_PUBLIC_REXELL_ADDRESS="${rexell.target}"`);
   console.log(`NEXT_PUBLIC_CUSD_ADDRESS="${cUSDAddress}"`);
-  console.log(`NEXT_PUBLIC_SOULBOUND_ADDRESS="${SoulboundIdentity.target}"`);
+  console.log(`NEXT_PUBLIC_SOULBOUND_ADDRESS="${soulboundAddress}"`);
   console.log(`========================================\n`);
 }
 
