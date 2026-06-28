@@ -5,6 +5,7 @@ export type AIEventType =
     | 'purchase_failed'
     | 'resale_attempt'
     | 'resale_success'
+    | 'ticket_cancelled'
     | 'page_view';
 
 export interface AIEvent {

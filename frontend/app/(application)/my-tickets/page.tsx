@@ -186,6 +186,7 @@ const TicketItem = ({
 }) => {
   const { writeContractAsync } = useWriteContract();
   const [isFinalizing, setIsFinalizing] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
 
   const { data: tokenId } = useReadContract({
     address: contractAddress as `0x${string}`,
@@ -206,6 +207,18 @@ const TicketItem = ({
       enabled: tokenId !== undefined && tokenId !== null
     }
   }) as { data: any, refetch: () => void };
+
+  // Check if ticket is cancelled
+  const { data: isCancelled, refetch: refetchCancelled } = useReadContract({
+    address: contractAddress as `0x${string}`,
+    abi: rexellAbi,
+    functionName: "isTicketCancelled",
+    args: tokenId !== undefined && tokenId !== null ? [tokenId] : undefined,
+    chainId: celoSepolia.id,
+    query: {
+      enabled: tokenId !== undefined && tokenId !== null
+    }
+  }) as { data: boolean | undefined, refetch: () => void };
 
   const handleFinalizeListing = async () => {
     if (tokenId === undefined || tokenId === null || !resaleRequest) return;
@@ -237,6 +250,36 @@ const TicketItem = ({
     }
   };
 
+  const handleCancelTicket = async () => {
+    if (tokenId === undefined || tokenId === null) return;
+    if (!window.confirm("Are you sure you want to cancel (delete) this ticket? This action is permanent and cannot be undone.")) return;
+    try {
+      setIsCancelling(true);
+      await writeContractAsync({
+        address: contractAddress as `0x${string}`,
+        abi: rexellAbi,
+        functionName: "cancelTicket",
+        args: [tokenId],
+        chainId: celoSepolia.id,
+      });
+
+      // AI Logging
+      import("@/lib/ai/logger").then(({ aiLogger }) => {
+        aiLogger.log('ticket_cancelled', address, Number(eventId), {
+          ticketId: Number(tokenId)
+        });
+      });
+
+      toast.success("Ticket cancelled successfully!");
+      refetchCancelled();
+    } catch (e: any) {
+      console.error(e);
+      toast.error("Failed to cancel ticket: " + (e.message || "Unknown error"));
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
   // Safe check for valid token ID (including 0)
   const hasTokenId = tokenId !== undefined && tokenId !== null;
 
@@ -259,7 +302,7 @@ const TicketItem = ({
       <div className="flex flex-col lg:flex-row gap-8 items-stretch justify-between">
         
         {/* Left: Ticket Image Section */}
-        <div className="flex-shrink-0 w-full lg:w-80 flex items-center justify-center bg-gray-50 rounded-xl overflow-hidden border border-gray-100 shadow-sm relative group min-h-[160px]">
+        <div className={`flex-shrink-0 w-full lg:w-80 flex items-center justify-center bg-gray-50 rounded-xl overflow-hidden border border-gray-100 shadow-sm relative group min-h-[160px] ${isCancelled ? "opacity-40 grayscale" : ""}`}>
           <img
             src={`https://ipfs.io/ipfs/${uri}`}
             alt={`Ticket NFT #${tokenId?.toString() || ""}`}
@@ -315,12 +358,17 @@ const TicketItem = ({
                   ID: #{tokenId.toString()}
                 </span>
               )}
-              {isPendingApproval && (
+              {isCancelled && (
+                <span className="bg-red-50 text-red-600 text-xs font-bold px-2 py-1 rounded border border-red-200">
+                  CANCELLED
+                </span>
+              )}
+              {isPendingApproval && !isCancelled && (
                 <span className="bg-amber-50 text-amber-600 text-xs font-semibold px-2 py-1 rounded border border-amber-200">
                   PENDING APPROVAL
                 </span>
               )}
-              {isApproved && (
+              {isApproved && !isCancelled && (
                 <span className="bg-green-50 text-green-600 text-xs font-semibold px-2 py-1 rounded border border-green-200">
                   APPROVED FOR LISTING
                 </span>
@@ -330,11 +378,11 @@ const TicketItem = ({
             <div className="grid grid-cols-2 gap-x-4 gap-y-2 mt-4 text-sm bg-gray-50/50 p-4 rounded-xl border border-gray-100 max-w-md">
               <div>
                 <span className="text-gray-400 block text-xs">Seat Number</span>
-                <span className="font-semibold text-gray-800">{seatLabel || "GA (No assigned seat)"}</span>
+                <span className={`font-semibold ${isCancelled ? "line-through text-gray-400" : "text-gray-800"}`}>{seatLabel || "GA (No assigned seat)"}</span>
               </div>
               <div>
                 <span className="text-gray-400 block text-xs">Ticket Class</span>
-                <span className="font-semibold text-gray-800">{getSeatCategory(seatLabel)}</span>
+                <span className={`font-semibold ${isCancelled ? "text-gray-400" : "text-gray-800"}`}>{getSeatCategory(seatLabel)}</span>
               </div>
               <div className="mt-2">
                 <span className="text-gray-400 block text-xs">Contract Address</span>
@@ -351,31 +399,63 @@ const TicketItem = ({
             </div>
           </div>
 
-          <div className="flex gap-3">
-            {hasTokenId ? (
+          <div className="flex gap-3 flex-wrap">
+            {isCancelled ? (
+              <span className="text-sm font-semibold text-red-600">This ticket has been cancelled.</span>
+            ) : hasTokenId ? (
               <>
                 {!hasActiveRequest && (
-                  <Link href={`/resell/${tokenId}?eventId=${eventId}`}>
-                    <Button variant="outline" className="border-gray-300 hover:bg-white hover:border-gray-400">
-                      Sell Ticket
+                  <>
+                    <Link href={`/resell/${tokenId}?eventId=${eventId}`}>
+                      <Button variant="outline" className="border-gray-300 hover:bg-white hover:border-gray-400">
+                        Sell Ticket
+                      </Button>
+                    </Link>
+                    <Button 
+                      variant="outline" 
+                      onClick={handleCancelTicket}
+                      disabled={isCancelling}
+                      className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 bg-white"
+                    >
+                      {isCancelling ? <Loader2 className="animate-spin w-4 h-4 mr-2" /> : "Cancel Ticket"}
                     </Button>
-                  </Link>
+                  </>
                 )}
 
                 {isPendingApproval && (
-                  <Button variant="secondary" disabled className="bg-gray-100 text-gray-500">
-                    Waiting for Review...
-                  </Button>
+                  <>
+                    <Button variant="secondary" disabled className="bg-gray-100 text-gray-500">
+                      Waiting for Review...
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      onClick={handleCancelTicket}
+                      disabled={isCancelling}
+                      className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 bg-white"
+                    >
+                      {isCancelling ? <Loader2 className="animate-spin w-4 h-4 mr-2" /> : "Cancel Ticket"}
+                    </Button>
+                  </>
                 )}
 
                 {isApproved && (
-                  <Button
-                    onClick={handleFinalizeListing}
-                    disabled={isFinalizing}
-                    className="bg-green-600 hover:bg-green-700 text-white"
-                  >
-                    {isFinalizing ? <Loader2 className="animate-spin w-4 h-4 mr-2" /> : "Finalize Listing"}
-                  </Button>
+                  <>
+                    <Button
+                      onClick={handleFinalizeListing}
+                      disabled={isFinalizing}
+                      className="bg-green-600 hover:bg-green-700 text-white"
+                    >
+                      {isFinalizing ? <Loader2 className="animate-spin w-4 h-4 mr-2" /> : "Finalize Listing"}
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      onClick={handleCancelTicket}
+                      disabled={isCancelling}
+                      className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 bg-white"
+                    >
+                      {isCancelling ? <Loader2 className="animate-spin w-4 h-4 mr-2" /> : "Cancel Ticket"}
+                    </Button>
+                  </>
                 )}
 
                 {isRejected && (
@@ -391,8 +471,14 @@ const TicketItem = ({
         </div>
 
         {/* Right: QR Code Section */}
-        <div className="flex-shrink-0 flex flex-col items-center justify-center bg-white p-4 rounded-xl border border-dashed border-gray-300 shadow-sm self-center">
-          {hasTokenId ? (
+        <div className="flex-shrink-0 flex flex-col items-center justify-center bg-white p-4 rounded-xl border border-dashed border-gray-300 shadow-sm self-center min-h-[150px] min-w-[142px]">
+          {isCancelled ? (
+            <div className="text-center space-y-1">
+              <span className="text-3xl">🚫</span>
+              <p className="text-[10px] font-bold text-red-600 tracking-wider">CANCELLED</p>
+              <p className="text-[8px] text-gray-400 uppercase">Invalid Entry</p>
+            </div>
+          ) : hasTokenId ? (
             <div className="space-y-2 text-center">
               <QRCode
                 value={tokenId.toString()}
