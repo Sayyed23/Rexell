@@ -22,3 +22,5 @@ ignition/deployments/chain-31337
 *.h5
 *.gcr
 
+.vercel
+.env*.local
