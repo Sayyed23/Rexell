@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useAccount, useReadContract } from "wagmi";
+import { useAccount, useReadContract, useWriteContract } from "wagmi";
+import { toast } from "sonner";
 
 import { rexellAbi, contractAddress } from "@/blockchain/abi/rexell-abi";
 import { Button } from "@/components/ui/button";
@@ -22,11 +23,14 @@ import { hardhat } from "wagmi/chains";
 
 export default function MyEventsPage() {
   const { address, isConnected } = useAccount();
+  const { writeContractAsync } = useWriteContract();
+  const [actionLoading, setActionLoading] = useState(false);
 
   const {
     data: eventsRaw,
     isPending,
     error,
+    refetch,
   } = useReadContract({
     address: contractAddress,
     abi: rexellAbi,
@@ -108,11 +112,77 @@ export default function MyEventsPage() {
                             : "attendees"}
                         </span>
                       </div>
-                      <Link href={`/my-events/${event.id}`}>
-                        <Button variant="outline" size="sm">
-                          View Event
-                        </Button>
-                      </Link>
+                      <div className="flex items-center gap-2">
+                        {event.isCancelled ? (
+                          <span className="text-xs font-bold text-red-600 bg-red-50 border border-red-200 px-2 py-1 rounded">
+                            Cancelled
+                          </span>
+                        ) : event.ticketHolders.length === 0 ? (
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={async (e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              if (window.confirm("Are you sure you want to delete this event?")) {
+                                try {
+                                  setActionLoading(true);
+                                  await writeContractAsync({
+                                    address: contractAddress,
+                                    abi: rexellAbi,
+                                    functionName: "deleteEvent",
+                                    args: [BigInt(event.id)],
+                                  });
+                                  toast.success("Event deleted successfully!");
+                                  refetch();
+                                } catch (err: any) {
+                                  toast.error(err.message || "Failed to delete event");
+                                } finally {
+                                  setActionLoading(false);
+                                }
+                              }
+                            }}
+                            disabled={actionLoading}
+                          >
+                            Delete
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-orange-600 border-orange-200 hover:bg-orange-50 hover:text-orange-700 bg-white"
+                            onClick={async (e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              if (window.confirm("Are you sure you want to cancel this event? This will invalidate all tickets.")) {
+                                try {
+                                  setActionLoading(true);
+                                  await writeContractAsync({
+                                    address: contractAddress,
+                                    abi: rexellAbi,
+                                    functionName: "cancelEvent",
+                                    args: [BigInt(event.id)],
+                                  });
+                                  toast.success("Event cancelled successfully!");
+                                  refetch();
+                                } catch (err: any) {
+                                  toast.error(err.message || "Failed to cancel event");
+                                } finally {
+                                  setActionLoading(false);
+                                }
+                              }
+                            }}
+                            disabled={actionLoading}
+                          >
+                            Cancel
+                          </Button>
+                        )}
+                        <Link href={`/my-events/${event.id}`}>
+                          <Button variant="outline" size="sm">
+                            View Event
+                          </Button>
+                        </Link>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
