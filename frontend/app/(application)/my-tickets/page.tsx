@@ -98,7 +98,7 @@ const Page = () => {
 
 // Component to handle a group of tickets for a specific event
 const EventTicketGroup = ({ event, address }: { event: any, address: `0x${string}` }) => {
-  const { data: userUris, isPending } = useReadContract({
+  const { data: userUris, isPending: isUrisPending } = useReadContract({
     address: contractAddress as `0x${string}`,
     abi: rexellAbi,
     functionName: "getUserPurchasedTickets",
@@ -106,7 +106,15 @@ const EventTicketGroup = ({ event, address }: { event: any, address: `0x${string
     chainId: celoSepolia.id,
   }) as { data: string[], isPending: boolean };
 
-  if (isPending) return <Skeleton className="h-48 w-full rounded-xl" />;
+  const { data: userSeats, isPending: isSeatsPending } = useReadContract({
+    address: contractAddress as `0x${string}`,
+    abi: rexellAbi,
+    functionName: "getUserSeats",
+    args: [event.id, address],
+    chainId: celoSepolia.id,
+  }) as { data: string[], isPending: boolean };
+
+  if (isUrisPending || isSeatsPending) return <Skeleton className="h-48 w-full rounded-xl" />;
   if (!userUris || userUris.length === 0) return null;
 
   return (
@@ -150,6 +158,8 @@ const EventTicketGroup = ({ event, address }: { event: any, address: `0x${string
             address={address}
             index={index}
             total={userUris.length}
+            seatLabel={userSeats && userSeats[index] ? userSeats[index] : undefined}
+            eventPrice={event.price}
           />
         ))}
       </div>
@@ -157,7 +167,23 @@ const EventTicketGroup = ({ event, address }: { event: any, address: `0x${string
   );
 };
 
-const TicketItem = ({ eventId, uri, address, index, total }: { eventId: bigint, uri: string, address: `0x${string}`, index: number, total: number }) => {
+const TicketItem = ({ 
+  eventId, 
+  uri, 
+  address, 
+  index, 
+  total,
+  seatLabel,
+  eventPrice
+}: { 
+  eventId: bigint;
+  uri: string;
+  address: `0x${string}`;
+  index: number;
+  total: number;
+  seatLabel?: string;
+  eventPrice?: bigint;
+}) => {
   const { writeContractAsync } = useWriteContract();
   const [isFinalizing, setIsFinalizing] = useState(false);
 
@@ -219,14 +245,68 @@ const TicketItem = ({ eventId, uri, address, index, total }: { eventId: bigint, 
   const isPendingApproval = hasActiveRequest && !resaleRequest.approved && !resaleRequest.rejected;
   const isRejected = hasActiveRequest && resaleRequest.rejected; // Could mean rejected OR completed via resellTicket
 
+  const getSeatCategory = (label?: string) => {
+    if (!label) return "General Admission";
+    const row = label.split("-")[0];
+    if (row === "L") return "VIP Seat";
+    if (["K", "J", "I", "H", "G", "F", "E"].includes(row)) return "Premium Seat";
+    if (["D", "C", "B"].includes(row)) return "Executive Seat";
+    return "Standard Seat";
+  };
+
   return (
     <div className="p-6 transition-colors hover:bg-gray-50/50">
-      <div className="flex flex-col md:flex-row gap-8 items-start md:items-center">
+      <div className="flex flex-col lg:flex-row gap-8 items-stretch justify-between">
+        
+        {/* Left: Ticket Image Section */}
+        <div className="flex-shrink-0 w-full lg:w-80 flex items-center justify-center bg-gray-50 rounded-xl overflow-hidden border border-gray-100 shadow-sm relative group min-h-[160px]">
+          <img
+            src={`https://ipfs.io/ipfs/${uri}`}
+            alt={`Ticket NFT #${tokenId?.toString() || ""}`}
+            className="w-full h-auto object-contain max-h-[180px] rounded-lg transition-transform duration-300 group-hover:scale-[1.02]"
+            loading="lazy"
+            onError={(e) => {
+              // Hide image and show a premium fallback card if IPFS fails
+              e.currentTarget.style.display = "none";
+              const fallback = document.getElementById(`ticket-fallback-${eventId}-${index}`);
+              if (fallback) fallback.style.display = "flex";
+            }}
+          />
+          <div
+            id={`ticket-fallback-${eventId}-${index}`}
+            style={{ display: "none" }}
+            className="w-full h-full flex-col justify-between p-4 bg-gradient-to-br from-emerald-600 to-teal-800 text-white min-h-[160px] rounded-lg"
+          >
+            <div>
+              <div className="flex justify-between items-start">
+                <span className="text-[10px] font-bold tracking-widest uppercase opacity-75">{getSeatCategory(seatLabel)}</span>
+                <span className="text-[10px] font-mono opacity-75">#{tokenId?.toString() || "..."}</span>
+              </div>
+              <h4 className="font-bold text-lg mt-2 truncate">Rexell Ticket</h4>
+            </div>
+            <div className="flex justify-between items-end mt-4">
+              <div>
+                <p className="text-[10px] opacity-75">SEAT</p>
+                <p className="font-mono text-sm font-bold">{seatLabel || "GA"}</p>
+              </div>
+              <div>
+                <p className="text-[10px] opacity-75">PRICE</p>
+                <p className="font-bold text-sm">
+                  {eventPrice !== undefined
+                    ? Number(eventPrice) === 0
+                      ? "Free"
+                      : `${Number(eventPrice) / 10 ** 18} cUSD`
+                    : "cUSD"}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
 
-        {/* Ticket Info Section */}
-        <div className="flex-1 space-y-4">
+        {/* Center: Ticket Info Section */}
+        <div className="flex-1 flex flex-col justify-between space-y-4">
           <div>
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex flex-wrap items-center gap-2 mb-3">
               <span className="bg-black/5 text-black/60 text-xs font-semibold px-2 py-1 rounded">
                 TICKET {index + 1} OF {total}
               </span>
@@ -246,8 +326,28 @@ const TicketItem = ({ eventId, uri, address, index, total }: { eventId: bigint, 
                 </span>
               )}
             </div>
-            <div className="text-sm text-gray-500 max-w-lg">
-              This ticket verifies your entry. Present the QR code at the venue.
+
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2 mt-4 text-sm bg-gray-50/50 p-4 rounded-xl border border-gray-100 max-w-md">
+              <div>
+                <span className="text-gray-400 block text-xs">Seat Number</span>
+                <span className="font-semibold text-gray-800">{seatLabel || "GA (No assigned seat)"}</span>
+              </div>
+              <div>
+                <span className="text-gray-400 block text-xs">Ticket Class</span>
+                <span className="font-semibold text-gray-800">{getSeatCategory(seatLabel)}</span>
+              </div>
+              <div className="mt-2">
+                <span className="text-gray-400 block text-xs">Contract Address</span>
+                <span className="font-mono text-xs text-gray-800">
+                  {contractAddress.slice(0, 6)}...{contractAddress.slice(-4)}
+                </span>
+              </div>
+              <div className="mt-2">
+                <span className="text-gray-400 block text-xs">Owner Address</span>
+                <span className="font-mono text-xs text-gray-800">
+                  {address.slice(0, 6)}...{address.slice(-4)}
+                </span>
+              </div>
             </div>
           </div>
 
@@ -290,20 +390,20 @@ const TicketItem = ({ eventId, uri, address, index, total }: { eventId: bigint, 
           </div>
         </div>
 
-        {/* QR Code Section - Right/Bottom */}
-        <div className="flex-shrink-0 bg-white p-3 rounded-xl border border-dashed border-gray-300 shadow-sm mx-auto md:mx-0">
+        {/* Right: QR Code Section */}
+        <div className="flex-shrink-0 flex flex-col items-center justify-center bg-white p-4 rounded-xl border border-dashed border-gray-300 shadow-sm self-center">
           {hasTokenId ? (
             <div className="space-y-2 text-center">
               <QRCode
                 value={tokenId.toString()}
-                size={120}
+                size={110}
                 style={{ height: "auto", maxWidth: "100%", width: "100%" }}
                 viewBox={`0 0 256 256`}
               />
-              <p className="text-[10px] font-mono text-gray-400">SCAN TO VERIFY</p>
+              <p className="text-[10px] font-mono text-gray-400 mt-2">SCAN TO VERIFY</p>
             </div>
           ) : (
-            <div className="h-[120px] w-[120px] bg-gray-100 animate-pulse rounded flex items-center justify-center text-xs text-gray-400">
+            <div className="h-[110px] w-[110px] bg-gray-100 animate-pulse rounded flex items-center justify-center text-xs text-gray-400">
               Generating...
             </div>
           )}

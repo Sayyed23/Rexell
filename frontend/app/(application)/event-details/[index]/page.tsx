@@ -391,7 +391,7 @@ export default function EventDetailsPage({
             const nftUris = [];
             for (let i = 0; i < finalQuantity; i++) {
               const seat = selectedSeats[i];
-              const ticketNumber = event?.[10]?.length + i + 1;
+              const ticketNumber = (event?.[12]?.length || 0) + i + 1;
 
               const nftImage = await generateTicketImage({
                 eventName: event?.[2],
@@ -483,7 +483,7 @@ export default function EventDetailsPage({
             // General Admission multiple tickets
             const nftUris = [];
             for (let i = 0; i < ticketQuantity; i++) {
-              const ticketNumber = event?.[10]?.length + i + 1;
+              const ticketNumber = (event?.[12]?.length || 0) + i + 1;
               const nftImage = await generateTicketImage({
                 eventName: event?.[2],
                 date: new Date(Number(event?.[5]) * 1000).toLocaleDateString("en-US", {
@@ -554,7 +554,7 @@ export default function EventDetailsPage({
             }
           } else {
             // General Admission single ticket
-            const ticketNumber = event?.[10]?.length + 1;
+            const ticketNumber = (event?.[12]?.length || 0) + 1;
             const nftImage = await generateTicketImage({
               eventName: event?.[2],
               date: new Date(Number(event?.[5]) * 1000).toLocaleDateString("en-US", {
