@@ -1,7 +1,8 @@
 "use client";
 
 import { CalendarRange, MapPin, User, Ticket } from "lucide-react";
-import { useAccount, useReadContract } from "wagmi";
+import { useAccount, useReadContract, useReadContracts } from "wagmi";
+import { celoSepolia } from "@/lib/celoSepolia";
 
 import {
   rexellAbi,
@@ -35,6 +36,57 @@ export default function EventDetailsPage({
     args: [BigInt(params.id)],
   });
   const event = eventRaw as any;
+
+  const buyers = (event?.[11] || []) as string[];
+  const nftUris = (event?.[12] || []) as string[];
+
+  // 1. Get token IDs for all sold tickets
+  const tokenIdCalls = buyers.map((buyer, idx) => ({
+    address: contractAddress,
+    abi: rexellAbi,
+    functionName: "getTokenIdByUserAndUri",
+    args: [buyer, nftUris[idx]],
+    chainId: celoSepolia.id,
+  }));
+
+  const { data: tokenIdsResult, isPending: isTokenIdsPending } = useReadContracts({
+    contracts: tokenIdCalls,
+    query: {
+      enabled: buyers.length > 0,
+    }
+  }) as any;
+
+  const tokenIds = tokenIdsResult 
+    ? tokenIdsResult.map((res: any) => res.result ? BigInt(res.result) : 0n) 
+    : [];
+
+  // 2. Check if those token IDs are cancelled
+  const cancelledCalls = tokenIds.map((tokenId: any) => ({
+    address: contractAddress,
+    abi: rexellAbi,
+    functionName: "isTicketCancelled",
+    args: [tokenId],
+    chainId: celoSepolia.id,
+  }));
+
+  const { data: cancelledResult, isPending: isCancelledPending } = useReadContracts({
+    contracts: cancelledCalls,
+    query: {
+      enabled: tokenIds.length > 0,
+    }
+  }) as any;
+
+  const cancelledStatuses = cancelledResult 
+    ? cancelledResult.map((res: any) => !!res.result) 
+    : [];
+
+  const activeAttendees = cancelledStatuses.length === buyers.length 
+    ? buyers.filter((_: any, idx: number) => !cancelledStatuses[idx]) 
+    : buyers;
+
+  const activeSalesCount = cancelledStatuses.length === buyers.length 
+    ? tokenIds.filter((_: any, idx: number) => !cancelledStatuses[idx]).length 
+    : buyers.length;
 
   useEffect(() => {
     if (event) {
@@ -96,9 +148,9 @@ export default function EventDetailsPage({
               <h2 className="mb-4 text-xl font-bold">Ticket Sales</h2>
               {/* <div className="flex items-start justify-between"> */}
               <div className="flex items-center gap-2 ">
-                <p className="text-4xl font-semibold">{event?.[11].length}</p>
+                <p className="text-4xl font-semibold">{activeSalesCount}</p>
                 <p className="text-gray-500 ">
-                  {event?.[12].length === 1 ? "Ticket Sold" : "Tickets Sold"}
+                  {activeSalesCount === 1 ? "Ticket Sold" : "Tickets Sold"}
                 </p>
               </div>
               {/* <Button variant="outline">View Tickets</Button> */}
@@ -107,12 +159,12 @@ export default function EventDetailsPage({
             <div className="rounded-lg bg-gray-100 p-6 ">
               <h2 className="mb-4 text-xl font-bold">Attendees</h2>
               <ul className="space-y-4">
-                {event?.[11].length === 0 ? (
+                {activeAttendees.length === 0 ? (
                   <div className="">
                     <p>No attendees yet</p>
                   </div>
                 ) : (
-                  event?.[11].map((attendee: any, index: number) => (
+                  activeAttendees.map((attendee: any, index: number) => (
                     <li className="flex items-center gap-2" key={index}>
                       <div>
                         <User />
