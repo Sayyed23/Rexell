@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useAccount, useReadContract, useWriteContract } from "wagmi";
+import { useAccount, useReadContract, useWriteContract, usePublicClient } from "wagmi";
 import { rexellAbi, contractAddress } from "@/blockchain/abi/rexell-abi";
+import { soulboundIdentityAbi, soulboundIdentityAddress } from "@/blockchain/abi/soulbound-abi";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -17,8 +18,25 @@ export default function ResaleTicketDetailPage({ params }: { params: { ticketId:
     const { writeContractAsync } = useWriteContract();
     const [ticket, setTicket] = useState<any>(null);
     const [buying, setBuying] = useState(false);
-
+    const publicClient = usePublicClient();
     const ticketId = BigInt(params.ticketId);
+
+    // Fetch all events on-chain to determine event ID
+    const { data: allEvents } = useReadContract({
+        address: contractAddress as `0x${string}`,
+        abi: rexellAbi,
+        functionName: "getAllEvents",
+        chainId: celoSepolia.id,
+    });
+
+    // Fetch the ticket's URI
+    const { data: ticketUri } = useReadContract({
+        address: contractAddress as `0x${string}`,
+        abi: rexellAbi,
+        functionName: "tokenURI",
+        args: [ticketId],
+        chainId: celoSepolia.id,
+    });
 
     // Fetch ticket request details
     const { data: request } = useReadContract({
@@ -53,6 +71,7 @@ export default function ResaleTicketDetailPage({ params }: { params: { ticketId:
 
     const handleBuy = async () => {
         if (!isConnected) return toast.error("Connect Wallet");
+        if (!publicClient) return toast.error("Client not ready");
         if (!request) return toast.error("Ticket request not found");
         try {
             setBuying(true);
@@ -81,10 +100,70 @@ export default function ResaleTicketDetailPage({ params }: { params: { ticketId:
                     signatures: data.signatures as `0x${string}`[]
                 };
 
-                if (attestation.score < 70n) {
-                    toast.error(`Verification failed: Your Anti-Sybil score is ${data.score}/100. Score >= 70 required to purchase.`);
-                    setBuying(false);
-                    return;
+                // Map the ticket to its event
+                let eventId = null;
+                if (allEvents && ticketUri) {
+                    const eventsList = allEvents as any[];
+                    for (const ev of eventsList) {
+                        const nftUris = ev.nftUris as string[];
+                        if (nftUris.includes(ticketUri)) {
+                            eventId = ev.id;
+                            break;
+                        }
+                    }
+                }
+
+                let purchasedCount = 0;
+                if (eventId !== null && address && publicClient) {
+                    try {
+                        const userTickets = await publicClient.readContract({
+                            address: contractAddress as `0x${string}`,
+                            abi: rexellAbi,
+                            functionName: "getUserPurchasedTickets",
+                            args: [eventId, address as `0x${string}`],
+                        }) as any[];
+                        purchasedCount = userTickets.length;
+                    } catch (err) {
+                        console.error("Error reading user purchased tickets:", err);
+                    }
+                }
+
+                const totalTickets = purchasedCount + 1;
+                if (totalTickets >= 3) {
+                    if (attestation.score < 70n) {
+                        toast.error(`Verification failed: Your Anti-Sybil score is ${data.score}/100. Score >= 70 required to purchase 3+ tickets. Please boost your score in 'Manage Resales'.`);
+                        setBuying(false);
+                        return;
+                    }
+
+                    // Check Soulbound identity
+                    const isVerified = await publicClient.readContract({
+                        address: soulboundIdentityAddress as `0x${string}`,
+                        abi: soulboundIdentityAbi,
+                        functionName: "hasValidIdentity",
+                        args: [address as `0x${string}`],
+                    });
+
+                    if (!isVerified) {
+                        toast.error("Soulbound Identity (RID) required to purchase 3+ tickets. Please mint one in 'Manage Resales'.");
+                        setBuying(false);
+                        return;
+                    }
+
+                    const identityDetails = await publicClient.readContract({
+                        address: soulboundIdentityAddress as `0x${string}`,
+                        abi: soulboundIdentityAbi,
+                        functionName: "identities",
+                        args: [address as `0x${string}`],
+                    }) as any;
+
+                    const activationTime = identityDetails ? Number(identityDetails[2]) : 0;
+                    const ageInDays = (Date.now() / 1000 - activationTime) / (24 * 3600);
+                    if (ageInDays < 14) {
+                        toast.error(`Your Soulbound Identity must be at least 14 days old to purchase 3+ tickets (Current age: ${Math.floor(ageInDays)} days).`);
+                        setBuying(false);
+                        return;
+                    }
                 }
             } catch (err: any) {
                 console.error("Attestation error:", err);

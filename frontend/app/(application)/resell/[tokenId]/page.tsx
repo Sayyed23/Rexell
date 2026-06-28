@@ -99,6 +99,7 @@ export default function ResellTicketPage({ params, searchParams }: { params: { t
     });
 
     const [verified, setVerified] = useState(false);
+    const [isBulkLister, setIsBulkLister] = useState(false);
 
     const { data: isVerified, refetch: refetchIdentity } = useReadContract({
         address: soulboundIdentityAddress as `0x${string}`,
@@ -111,12 +112,48 @@ export default function ResellTicketPage({ params, searchParams }: { params: { t
         }
     }) as { data: boolean, refetch: () => void };
 
+    const { data: userRequests } = useReadContract({
+        address: contractAddress as `0x${string}`,
+        abi: rexellAbi,
+        functionName: "getUserResaleRequests",
+        args: address ? [address] : undefined,
+        chainId: celoSepolia.id,
+        query: {
+            enabled: !!address
+        }
+    }) as { data: bigint[] | undefined };
+
     // Sync local state with contract state
     useEffect(() => {
         if (isVerified) {
             setVerified(true);
         }
     }, [isVerified]);
+
+    // Check if user is bulk lister on load
+    useEffect(() => {
+        const checkBulk = async () => {
+            if (!address || !publicClient || !userRequests) return;
+            let activeListings = 0;
+            try {
+                for (const reqTokenId of userRequests) {
+                    const req = await publicClient.readContract({
+                        address: contractAddress as `0x${string}`,
+                        abi: rexellAbi,
+                        functionName: "resaleRequests",
+                        args: [reqTokenId],
+                    }) as any;
+                    if (req && req[1] && req[1].toLowerCase() === address.toLowerCase()) {
+                        activeListings++;
+                    }
+                }
+                setIsBulkLister(activeListings > 0);
+            } catch (err) {
+                console.error("Error checking bulk listings:", err);
+            }
+        };
+        checkBulk();
+    }, [address, publicClient, userRequests]);
 
     // Load logic
     useEffect(() => {
@@ -296,6 +333,10 @@ export default function ResellTicketPage({ params, searchParams }: { params: { t
     const feeAmt = (priceVal * fPercent) / 100;
     const sellerAmt = priceVal - royaltyAmt - feeAmt;
 
+    const priceWei = price ? parseEther(price) : 0n;
+    const isMarkup = priceWei > (eventData?.price || 0n);
+    const needsIdentity = isMarkup || isBulkLister;
+
     if (loading) {
         return <div className="flex justify-center p-12"><Loader2 className="animate-spin" /></div>;
     }
@@ -382,9 +423,9 @@ export default function ResellTicketPage({ params, searchParams }: { params: { t
                 <CardFooter className="flex justify-between">
                     <Button variant="outline" onClick={() => router.back()}>Cancel</Button>
 
-                    {!verified ? (
+                    {(needsIdentity && !verified) ? (
                         <div className="flex flex-col items-end gap-2">
-                            <p className="text-xs text-red-500 font-medium">Verification Required to Sell</p>
+                            <p className="text-xs text-red-500 font-medium">Verification Required to Sell (Markup/Bulk)</p>
                             <KYCFlow onVerified={() => {
                                 setVerified(true);
                                 refetchIdentity();

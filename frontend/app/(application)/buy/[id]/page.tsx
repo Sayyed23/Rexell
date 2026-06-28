@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useAccount, useReadContract, useWriteContract } from "wagmi";
+import { useAccount, useReadContract, useWriteContract, usePublicClient } from "wagmi";
+import { soulboundIdentityAbi, soulboundIdentityAddress } from "@/blockchain/abi/soulbound-abi";
 import { useParams, useRouter } from "next/navigation";
 import { rexellAbi, contractAddress } from "@/blockchain/abi/rexell-abi";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -33,6 +34,7 @@ export default function BuyResaleTicketPage() {
   const router = useRouter();
   const { address, isConnected } = useAccount();
   const { writeContractAsync } = useWriteContract();
+  const publicClient = usePublicClient();
   const [ticket, setTicket] = useState<ResaleTicket | null>(null);
   const [loading, setLoading] = useState(true);
   const [isPurchasing, setIsPurchasing] = useState(false);
@@ -118,6 +120,11 @@ export default function BuyResaleTicketPage() {
       return;
     }
 
+    if (!publicClient) {
+      toast.error("Network client not ready. Please try again.");
+      return;
+    }
+
     if (!ticket || !id) {
       toast.error("Ticket information not available");
       return;
@@ -190,8 +197,59 @@ export default function BuyResaleTicketPage() {
           signatures: data.signatures as `0x${string}`[]
         };
 
-        // Anti-Sybil score check is bypassed for normal ticket buying.
-        // Signatures are still passed to the contract.
+        // Enforce TrustScore and Soulbound Identity requirements for Tier 1 Bulk Purchase (3+ tickets total)
+        let purchasedCount = 0;
+        if (ticket && address && publicClient) {
+          try {
+            const userTickets = await publicClient.readContract({
+              address: contractAddress as `0x${string}`,
+              abi: rexellAbi,
+              functionName: "getUserPurchasedTickets",
+              args: [BigInt(ticket.eventId), address as `0x${string}`],
+            }) as any[];
+            purchasedCount = userTickets.length;
+          } catch (err) {
+            console.error("Error checking user tickets count:", err);
+          }
+        }
+
+        const totalTickets = purchasedCount + 1;
+        if (totalTickets >= 3) {
+          if (attestation.score < 70n) {
+            toast.error(`Verification failed: Your Anti-Sybil score is ${data.score}/100. Score >= 70 required to purchase 3+ tickets. Please boost your score in 'Manage Resales'.`);
+            setIsPurchasing(false);
+            return;
+          }
+
+          // Check Soulbound identity
+          const isVerified = await publicClient.readContract({
+            address: soulboundIdentityAddress as `0x${string}`,
+            abi: soulboundIdentityAbi,
+            functionName: "hasValidIdentity",
+            args: [address as `0x${string}`],
+          });
+
+          if (!isVerified) {
+            toast.error("Soulbound Identity (RID) required to purchase 3+ tickets. Please mint one in 'Manage Resales'.");
+            setIsPurchasing(false);
+            return;
+          }
+
+          const identityDetails = await publicClient.readContract({
+            address: soulboundIdentityAddress as `0x${string}`,
+            abi: soulboundIdentityAbi,
+            functionName: "identities",
+            args: [address as `0x${string}`],
+          }) as any;
+
+          const activationTime = identityDetails ? Number(identityDetails[2]) : 0;
+          const ageInDays = (Date.now() / 1000 - activationTime) / (24 * 3600);
+          if (ageInDays < 14) {
+            toast.error(`Your Soulbound Identity must be at least 14 days old to purchase 3+ tickets (Current age: ${Math.floor(ageInDays)} days).`);
+            setIsPurchasing(false);
+            return;
+          }
+        }
       } catch (err: any) {
         console.error("Attestation error:", err);
         toast.error(`Anti-Sybil Verification Error: ${err.message || String(err)}`);

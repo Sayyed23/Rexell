@@ -1,7 +1,8 @@
 "use client";
 
-import { useAccount, useReadContract, useWriteContract } from "wagmi";
+import { useAccount, useReadContract, useWriteContract, usePublicClient } from "wagmi";
 import { rexellAbi, contractAddress } from "@/blockchain/abi/rexell-abi";
+import { soulboundIdentityAbi, soulboundIdentityAddress } from "@/blockchain/abi/soulbound-abi";
 import { cUSDTokenAbi, cUSDTokenAddress } from "@/blockchain/cUSD/cUSD-abi";
 import { Header } from "@/components/header";
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,14 @@ export default function MarketPage() {
   const config = useConfig();
   const { writeContractAsync } = useWriteContract();
   const [purchasingTokenId, setPurchasingTokenId] = useState<bigint | null>(null);
+  const publicClient = usePublicClient();
+
+  const { data: allEvents } = useReadContract({
+    address: contractAddress as `0x${string}`,
+    abi: rexellAbi,
+    functionName: "getAllEvents",
+    chainId: celoSepolia.id,
+  });
 
   // Bot-detection guard
   const {
@@ -74,6 +83,11 @@ export default function MarketPage() {
       return;
     }
 
+    if (!publicClient) {
+      toast.error("Network client not ready. Please try again.");
+      return;
+    }
+
     if (seller.toLowerCase() === address.toLowerCase()) {
       toast.error("You cannot buy your own ticket");
       return;
@@ -90,6 +104,101 @@ export default function MarketPage() {
       if (!guard.proceed) {
         setPurchasingTokenId(null);
         return;
+      }
+
+      // Check user's current purchased tickets count to enforce bulk purchase rule
+      let purchaseEventId = null;
+      if (allEvents && publicClient) {
+        try {
+          const ticketUriStr = await publicClient.readContract({
+            address: contractAddress as `0x${string}`,
+            abi: rexellAbi,
+            functionName: "tokenURI",
+            args: [tokenId],
+          }) as string;
+
+          const eventsList = allEvents as any[];
+          for (const ev of eventsList) {
+            const nftUris = ev.nftUris as string[];
+            if (nftUris.includes(ticketUriStr)) {
+              purchaseEventId = ev.id;
+              break;
+            }
+          }
+        } catch (err) {
+          console.error("Error determining event ID:", err);
+        }
+      }
+
+      let purchasedCount = 0;
+      if (purchaseEventId !== null && address && publicClient) {
+        try {
+          const userTickets = await publicClient.readContract({
+            address: contractAddress as `0x${string}`,
+            abi: rexellAbi,
+            functionName: "getUserPurchasedTickets",
+            args: [purchaseEventId, address as `0x${string}`],
+          }) as any[];
+          purchasedCount = userTickets.length;
+        } catch (err) {
+          console.error("Error checking user tickets count:", err);
+        }
+      }
+
+      const totalTickets = purchasedCount + 1;
+      if (totalTickets >= 3) {
+        // Fetch oracle attestation beforehand to verify score
+        toast.info("Requesting Anti-Sybil verification from Oracle (Bulk Purchase check)...");
+        let score = 0n;
+        try {
+          const oracleUrl = process.env.NEXT_PUBLIC_IDENTITY_ORACLE_URL || "http://localhost:5000";
+          const attestResponse = await fetch(`${oracleUrl}/api/identity/attest`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ user_address: address }),
+          });
+          if (attestResponse.ok) {
+            const data = await attestResponse.json();
+            score = BigInt(data.score);
+          }
+        } catch (err) {
+          console.error("Attestation check error:", err);
+        }
+
+        if (score < 70n) {
+          toast.error(`Verification failed: Anti-Sybil score is ${score.toString()}/100. Score >= 70 required to purchase 3+ tickets. Please boost your score in 'Manage Resales'.`);
+          setPurchasingTokenId(null);
+          return;
+        }
+
+        // Check Soulbound identity
+        const isVerified = await publicClient.readContract({
+          address: soulboundIdentityAddress as `0x${string}`,
+          abi: soulboundIdentityAbi,
+          functionName: "hasValidIdentity",
+          args: [address as `0x${string}`],
+        });
+
+        if (!isVerified) {
+          toast.error("Soulbound Identity (RID) required to purchase 3+ tickets. Please mint one in 'Manage Resales'.");
+          setPurchasingTokenId(null);
+          return;
+        }
+
+        const identityDetails = await publicClient.readContract({
+          address: soulboundIdentityAddress as `0x${string}`,
+          abi: soulboundIdentityAbi,
+          functionName: "identities",
+          args: [address as `0x${string}`],
+        }) as any;
+
+        const activationTime = identityDetails ? Number(identityDetails[2]) : 0;
+        const ageInDays = (Date.now() / 1000 - activationTime) / (24 * 3600);
+        if (ageInDays < 14) {
+          toast.error(`Your Soulbound Identity must be at least 14 days old to purchase 3+ tickets (Current age: ${Math.floor(ageInDays)} days).`);
+          setPurchasingTokenId(null);
+          return;
+        }
       }
 
       // First, approve cUSD token spending

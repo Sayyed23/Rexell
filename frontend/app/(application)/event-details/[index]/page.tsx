@@ -16,6 +16,7 @@ import {
   tokencUSDAbi,
   tokencUSDContractAddress,
 } from "@/blockchain/cUSD/TokenCusd";
+import { soulboundIdentityAbi, soulboundIdentityAddress } from "@/blockchain/abi/soulbound-abi";
 import { Header } from "@/components/header";
 import { Button } from "@/components/shared/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -127,6 +128,28 @@ export default function EventDetailsPage({
 
   const purchasedTicketsCount = userTicketsData ? (userTicketsData as string[]).length : 0;
   const hasReachedLimit = purchasedTicketsCount >= 4;
+
+  const { data: isVerified } = useReadContract({
+    address: soulboundIdentityAddress as `0x${string}`,
+    abi: soulboundIdentityAbi,
+    functionName: "hasValidIdentity",
+    args: [address as `0x${string}`],
+    chainId: celoSepolia.id,
+    query: {
+      enabled: !!address
+    }
+  });
+
+  const { data: identityDetails } = useReadContract({
+    address: soulboundIdentityAddress as `0x${string}`,
+    abi: soulboundIdentityAbi,
+    functionName: "identities",
+    args: [address as `0x${string}`],
+    chainId: celoSepolia.id,
+    query: {
+      enabled: !!address
+    }
+  });
 
   const { data: cUSDBalance } = useReadContract({
     address: tokencUSDContractAddress,
@@ -400,8 +423,30 @@ export default function EventDetailsPage({
               signatures: data.signatures as `0x${string}`[]
             };
 
-            // Anti-Sybil score check is bypassed for normal ticket buying.
-            // Signatures are still passed to the contract.
+            // Enforce TrustScore and Soulbound Identity requirements for Tier 1 Bulk Purchase (3+ tickets total)
+            const finalQuantity = selectedSeats.length > 0 ? selectedSeats.length : ticketQuantity;
+            const totalTickets = purchasedTicketsCount + finalQuantity;
+            if (totalTickets >= 3) {
+              if (attestation.score < 70n) {
+                toast.error(`Verification failed: Your Anti-Sybil score is ${data.score}/100. Score >= 70 required to buy 3+ tickets. Please boost your score in 'Manage Resales'.`);
+                setIsUploading(false);
+                return;
+              }
+              
+              if (!isVerified) {
+                toast.error("Soulbound Identity (RID) required to purchase 3+ tickets. Please mint one in 'Manage Resales'.");
+                setIsUploading(false);
+                return;
+              }
+
+              const activationTime = identityDetails ? Number((identityDetails as any)[2]) : 0;
+              const ageInDays = (Date.now() / 1000 - activationTime) / (24 * 3600);
+              if (ageInDays < 14) {
+                toast.error(`Your Soulbound Identity must be at least 14 days old to purchase 3+ tickets (Current age: ${Math.floor(ageInDays)} days).`);
+                setIsUploading(false);
+                return;
+              }
+            }
           } catch (err: any) {
             console.error("Attestation error:", err);
             toast.error(`Anti-Sybil Verification Error: ${err.message || String(err)}`);

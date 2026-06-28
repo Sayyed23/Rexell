@@ -240,12 +240,22 @@ contract Rexell is ERC721URIStorage, Ownable, ReentrancyGuard, EIP712 {
         // Anti-scalping 4-seat cap per user/wallet
         require(_event.userToNftUris[msg.sender].length + 1 <= 4, "Purchase exceeds 4 tickets limit per user");
         
-        // Anti-Sybil validation (normal buying only validates signature and nonce, score is not enforced)
+        // Anti-Sybil validation
         require(att.user == msg.sender, "Attestation user mismatch");
         require(att.expiresAt > block.timestamp, "Attestation expired");
         require(_verifyOracleSignature(att), "Invalid attestation");
         require(!usedAttestationNonces[att.nonce], "Replay detected");
         usedAttestationNonces[att.nonce] = true;
+
+        // Tier 1 Bulk Purchase Check (3+ tickets total)
+        if (_event.userToNftUris[msg.sender].length + 1 >= 3) {
+            require(att.score >= MIN_SCORE, "Score below threshold for bulk purchase");
+            if (address(identityContract) != address(0)) {
+                (uint256 idTokenId, , uint256 activationTime, , , , , , ) = identityContract.identities(msg.sender);
+                require(idTokenId != 0, "Soulbound identity required");
+                require(block.timestamp >= activationTime + 14 days, "Identity must be at least 14 days old");
+            }
+        }
 
         // Transfer payment from buyer to contract escrow
         if (_event.price > 0) {
@@ -272,12 +282,22 @@ contract Rexell is ERC721URIStorage, Ownable, ReentrancyGuard, EIP712 {
         // Anti-scalping 4-seat cap per user/wallet
         require(_event.userToNftUris[msg.sender].length + quantity <= 4, "Purchase exceeds 4 tickets limit per user");
         
-        // Anti-Sybil validation (normal buying only validates signature and nonce, score is not enforced)
+        // Anti-Sybil validation
         require(att.user == msg.sender, "Attestation user mismatch");
         require(att.expiresAt > block.timestamp, "Attestation expired");
         require(_verifyOracleSignature(att), "Invalid attestation");
         require(!usedAttestationNonces[att.nonce], "Replay detected");
         usedAttestationNonces[att.nonce] = true;
+
+        // Tier 1 Bulk Purchase Check (3+ tickets total)
+        if (_event.userToNftUris[msg.sender].length + quantity >= 3) {
+            require(att.score >= MIN_SCORE, "Score below threshold for bulk purchase");
+            if (address(identityContract) != address(0)) {
+                (uint256 idTokenId, , uint256 activationTime, , , , , , ) = identityContract.identities(msg.sender);
+                require(idTokenId != 0, "Soulbound identity required");
+                require(block.timestamp >= activationTime + 14 days, "Identity must be at least 14 days old");
+            }
+        }
 
         // Transfer payment from buyer to contract escrow
         uint totalCost = _event.price * quantity;
@@ -317,12 +337,22 @@ contract Rexell is ERC721URIStorage, Ownable, ReentrancyGuard, EIP712 {
         // Anti-scalping 4-seat cap per user/wallet
         require(_event.userToNftUris[msg.sender].length + quantity <= 4, "Purchase exceeds 4 tickets limit per user");
 
-        // Anti-Sybil validation (normal buying only validates signature and nonce, score is not enforced)
+        // Anti-Sybil validation
         require(att.user == msg.sender, "Attestation user mismatch");
         require(att.expiresAt > block.timestamp, "Attestation expired");
         require(_verifyOracleSignature(att), "Invalid attestation");
         require(!usedAttestationNonces[att.nonce], "Replay detected");
         usedAttestationNonces[att.nonce] = true;
+
+        // Tier 1 Bulk Purchase Check (3+ tickets total)
+        if (_event.userToNftUris[msg.sender].length + quantity >= 3) {
+            require(att.score >= MIN_SCORE, "Score below threshold for bulk purchase");
+            if (address(identityContract) != address(0)) {
+                (uint256 idTokenId, , uint256 activationTime, , , , , , ) = identityContract.identities(msg.sender);
+                require(idTokenId != 0, "Soulbound identity required");
+                require(block.timestamp >= activationTime + 14 days, "Identity must be at least 14 days old");
+            }
+        }
 
         uint256 totalCost = 0;
         for (uint i = 0; i < quantity; i++) {
@@ -932,6 +962,34 @@ contract Rexell is ERC721URIStorage, Ownable, ReentrancyGuard, EIP712 {
         require(_verifyOracleSignature(att), "Invalid attestation");
         require(!usedAttestationNonces[att.nonce], "Replay detected");
         usedAttestationNonces[att.nonce] = true;
+
+        // Tier 1 Bulk Purchase Check (3+ tickets total) for resale buying
+        uint256 purchaseEventId = 0;
+        bool purchaseEventFound = false;
+        string memory ticketUriStr = tokenURI(tokenId);
+        for (uint i = 0; i < events.length; i++) {
+            string[] memory eventNftUris = events[i].nftUris;
+            for (uint j = 0; j < eventNftUris.length; j++) {
+                if (keccak256(bytes(eventNftUris[j])) == keccak256(bytes(ticketUriStr))) {
+                    purchaseEventId = events[i].id;
+                    purchaseEventFound = true;
+                    break;
+                }
+            }
+            if (purchaseEventFound) break;
+        }
+
+        if (purchaseEventFound) {
+            Event storage _event = events[purchaseEventId];
+            if (_event.userToNftUris[msg.sender].length + 1 >= 3) {
+                require(att.score >= MIN_SCORE, "Score below threshold for bulk purchase");
+                if (address(identityContract) != address(0)) {
+                    (uint256 idTokenId, , uint256 activationTime, , , , , , ) = identityContract.identities(msg.sender);
+                    require(idTokenId != 0, "Soulbound identity required");
+                    require(block.timestamp >= activationTime + 14 days, "Identity must be at least 14 days old");
+                }
+            }
+        }
         
         ResaleRequest storage request = resaleRequests[tokenId];
         require(request.price <= maxPrice, "Price exceeds maximum allowed");
