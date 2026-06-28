@@ -11,15 +11,33 @@ import { Badge } from "@/components/ui/badge";
 interface OwnershipRecord {
   owner: string;
 }
+import { celoSepolia } from "@/lib/celoSepolia";
+import { ShieldAlert } from "lucide-react";
+
+const HARDCODED_ADMIN = "0xE282B88468E0554477a7580956c1f65939B623D8";
 
 export default function OwnershipHistoryPage() {
   const params = useParams<{ id: string }>();
   const id = params?.id;
   const router = useRouter();
-  const { isConnected } = useAccount();
+  const { address, isConnected } = useAccount();
   const [ownershipHistory, setOwnershipHistory] = useState<OwnershipRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [ticketExists, setTicketExists] = useState(true);
+
+  const { data: contractOwner } = useReadContract({
+    address: contractAddress,
+    abi: rexellAbi,
+    functionName: "mine",
+    chainId: celoSepolia.id,
+  });
+
+  const userAddressLower = address?.toLowerCase();
+  const ownerAddressLower = (contractOwner as string)?.toLowerCase();
+  const isAdmin =
+    userAddressLower === HARDCODED_ADMIN.toLowerCase() ||
+    userAddressLower === "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266" ||
+    (ownerAddressLower && userAddressLower === ownerAddressLower);
 
   // Get ticket ownership history
   const { data: historyData, isPending: isHistoryPending, isError } = useReadContract({
@@ -52,17 +70,18 @@ export default function OwnershipHistoryPage() {
     }
   }, [historyData, isHistoryPending, isError, id]);
 
-  if (!isConnected) {
+  if (!isConnected || !isAdmin) {
     return (
       <div className="container mx-auto px-4 py-8">
-        <Card className="max-w-2xl mx-auto">
-          <CardHeader>
-            <CardTitle>Ticket Ownership History</CardTitle>
-            <CardDescription>View the ownership history of this ticket</CardDescription>
-          </CardHeader>
-          <CardContent className="text-center py-8">
-            <p className="text-gray-500 mb-4">Please connect your wallet to view ticket history</p>
-            <Button>Connect Wallet</Button>
+        <Card className="max-w-2xl mx-auto border-red-200">
+          <CardContent className="flex flex-col items-center justify-center py-16">
+            <ShieldAlert className="w-16 h-16 text-red-400 mb-4" />
+            <h3 className="text-xl font-bold text-gray-800 mb-2">Unauthorized Access</h3>
+            <p className="text-gray-500 text-center max-w-md">
+              {!isConnected
+                ? "Please connect your administrative Web3 wallet to view ticket history."
+                : "Only platform administrators can access ticket ownership history."}
+            </p>
           </CardContent>
         </Card>
       </div>

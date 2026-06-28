@@ -50,10 +50,6 @@ export function Header() {
       name: "Market",
       href: "/market",
     },
-    {
-      name: "History",
-      href: "/history",
-    },
   ];
 
   // Don't render anything on the server to prevent hydration mismatch
@@ -152,16 +148,26 @@ export function Header() {
                     Manage Resales
                   </Link>
                 </li>
-                {/* Admin Dashboard */}
+                {/* Admin-only links */}
                 {isAdmin && (
-                  <li>
-                    <Link
-                      className="text-blue-600 font-semibold transition hover:text-blue-700 hover:underline flex items-center gap-1"
-                      href="/admin"
-                    >
-                      Admin
-                    </Link>
-                  </li>
+                  <>
+                    <li>
+                      <Link
+                        className="text-gray-500 transition hover:text-gray-500/75 hover:underline"
+                        href="/history"
+                      >
+                        History
+                      </Link>
+                    </li>
+                    <li>
+                      <Link
+                        className="text-blue-600 font-semibold transition hover:text-blue-700 hover:underline flex items-center gap-1"
+                        href="/admin"
+                      >
+                        Admin
+                      </Link>
+                    </li>
+                  </>
                 )}
               </ul>
             </nav>

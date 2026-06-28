@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useAccount } from "wagmi";
+import { useAccount, useReadContract } from "wagmi";
+import { rexellAbi, contractAddress } from "@/blockchain/abi/rexell-abi";
+import { celoSepolia } from "@/lib/celoSepolia";
 import { Header } from "@/components/header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +16,7 @@ import {
   Search, 
   Ticket, 
   ShieldCheck, 
+  ShieldAlert,
   Coins, 
   CheckCircle,
   Tag,
@@ -21,6 +24,8 @@ import {
   Eye
 } from "lucide-react";
 import Link from "next/link";
+
+const HARDCODED_ADMIN = "0xE282B88468E0554477a7580956c1f65939B623D8";
 
 interface ActivityLog {
   id: number;
@@ -32,7 +37,27 @@ interface ActivityLog {
 }
 
 export default function HistoryPage() {
-  const { isConnected } = useAccount();
+  const { address, isConnected } = useAccount();
+  const [isClient, setIsClient] = useState(false);
+
+  const { data: contractOwner } = useReadContract({
+    address: contractAddress,
+    abi: rexellAbi,
+    functionName: "mine",
+    chainId: celoSepolia.id,
+  });
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  const userAddressLower = address?.toLowerCase();
+  const ownerAddressLower = (contractOwner as string)?.toLowerCase();
+  const isAdmin =
+    userAddressLower === HARDCODED_ADMIN.toLowerCase() ||
+    userAddressLower === "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266" ||
+    (ownerAddressLower && userAddressLower === ownerAddressLower);
+
   const [logs, setLogs] = useState<ActivityLog[]>([]);
   const [filteredLogs, setFilteredLogs] = useState<ActivityLog[]>([]);
   const [loading, setLoading] = useState(true);
@@ -133,6 +158,31 @@ export default function HistoryPage() {
     const date = new Date(timeStr);
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + " " + date.toLocaleDateString();
   };
+
+  if (!isClient) return null;
+
+  if (!isConnected || !isAdmin) {
+    return (
+      <main className="px-4 min-h-screen bg-slate-50/50 pb-16">
+        <div className="hidden sm:block">
+          <Header />
+        </div>
+        <div className="container mx-auto py-8 max-w-2xl">
+          <Card className="border-red-200 bg-white">
+            <CardContent className="flex flex-col items-center justify-center py-16">
+              <ShieldAlert className="w-16 h-16 text-red-400 mb-4" />
+              <h3 className="text-xl font-bold text-gray-800 mb-2">Unauthorized Access</h3>
+              <p className="text-gray-500 text-center max-w-md">
+                {!isConnected
+                  ? "Please connect your administrative Web3 wallet to view activity logs."
+                  : `Your connected address ${address} is not authorized to view this page. Only platform administrators can access activity logs.`}
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="px-4 min-h-screen bg-slate-50/50 pb-16">
