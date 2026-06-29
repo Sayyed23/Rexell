@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useAccount, useReadContract, useWriteContract, usePublicClient } from "wagmi";
+import { useAccount, useReadContract, useWriteContract, usePublicClient, useConfig } from "wagmi";
 import { rexellAbi, contractAddress } from "@/blockchain/abi/rexell-abi";
 import { soulboundIdentityAbi, soulboundIdentityAddress } from "@/blockchain/abi/soulbound-abi";
+import { cUSDTokenAbi, cUSDTokenAddress } from "@/blockchain/cUSD/cUSD-abi";
+import { waitForTransactionReceipt } from "wagmi/actions";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +17,7 @@ import { logAppActivity } from "@/lib/activityLogger";
 
 export default function ResaleTicketDetailPage({ params }: { params: { ticketId: string } }) {
     const { address, isConnected } = useAccount();
+    const config = useConfig();
     const { writeContractAsync } = useWriteContract();
     const [ticket, setTicket] = useState<any>(null);
     const [buying, setBuying] = useState(false);
@@ -172,6 +175,24 @@ export default function ResaleTicketDetailPage({ params }: { params: { ticketId:
                 return;
             }
 
+            // First, approve cUSD token spending
+            toast.info("Approving cUSD spending...");
+            const approveHash = await writeContractAsync({
+                address: cUSDTokenAddress,
+                abi: cUSDTokenAbi,
+                functionName: "approve",
+                args: [contractAddress, ticket.price],
+            });
+
+            if (!approveHash) {
+                throw new Error("Failed to approve cUSD spending");
+            }
+
+            // Wait for the approval tx to be mined before buying
+            toast.info("Waiting for approval confirmation...");
+            await waitForTransactionReceipt(config, { hash: approveHash });
+
+            toast.info("Purchasing ticket...");
             const hash = await writeContractAsync({
                 address: contractAddress as `0x${string}`,
                 abi: rexellAbi,

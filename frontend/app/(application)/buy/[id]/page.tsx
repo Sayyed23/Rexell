@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useAccount, useReadContract, useWriteContract, usePublicClient } from "wagmi";
+import { useAccount, useReadContract, useWriteContract, usePublicClient, useConfig } from "wagmi";
 import { soulboundIdentityAbi, soulboundIdentityAddress } from "@/blockchain/abi/soulbound-abi";
+import { cUSDTokenAbi, cUSDTokenAddress } from "@/blockchain/cUSD/cUSD-abi";
+import { waitForTransactionReceipt } from "wagmi/actions";
 import { useParams, useRouter } from "next/navigation";
 import { rexellAbi, contractAddress } from "@/blockchain/abi/rexell-abi";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -33,6 +35,7 @@ export default function BuyResaleTicketPage() {
   const id = params?.id;
   const router = useRouter();
   const { address, isConnected } = useAccount();
+  const config = useConfig();
   const { writeContractAsync } = useWriteContract();
   const publicClient = usePublicClient();
   const [ticket, setTicket] = useState<ResaleTicket | null>(null);
@@ -96,23 +99,34 @@ export default function BuyResaleTicketPage() {
     }
   });
 
+  // Get event ID for this ticket token ID
+  const { data: eventIdData, isPending: isEventIdPending } = useReadContract({
+    address: contractAddress,
+    abi: rexellAbi,
+    functionName: "getEventIdForToken",
+    args: id ? [BigInt(id)] : undefined,
+    query: {
+      enabled: !!id,
+    }
+  });
+
   // Load ticket details
   useEffect(() => {
     const req = resaleRequest as any;
-    if (req && !isResaleRequestPending && id) {
+    if (req && !isResaleRequestPending && !isEventIdPending && id && eventIdData !== undefined) {
       setTicket({
         tokenId: Number(id),
         owner: req.owner,
         price: parseFloat(formatEther(req.price)),
-        eventId: 0, // Would need to store eventId in ticket struct
+        eventId: Number(eventIdData),
         isForSale: req.approved && !req.rejected,
         isResale: true,
       });
       setLoading(false);
-    } else if (!isResaleRequestPending && id) {
+    } else if (!isResaleRequestPending && !isEventIdPending && id && eventIdData !== undefined) {
       setLoading(false);
     }
-  }, [resaleRequest, isResaleRequestPending, id]);
+  }, [resaleRequest, isResaleRequestPending, isEventIdPending, id, eventIdData]);
 
   const handlePurchase = async (bypassWarning = false) => {
     if (!isConnected) {
@@ -259,6 +273,24 @@ export default function BuyResaleTicketPage() {
 
       const priceInWei = BigInt(Math.floor(ticket.price * 1e18));
 
+      // First, approve cUSD token spending
+      toast.info("Approving cUSD spending...");
+      const approveHash = await writeContractAsync({
+        address: cUSDTokenAddress,
+        abi: cUSDTokenAbi,
+        functionName: "approve",
+        args: [contractAddress, priceInWei],
+      });
+
+      if (!approveHash) {
+        throw new Error("Failed to approve cUSD spending");
+      }
+
+      // Wait for the approval tx to be mined before buying
+      toast.info("Waiting for approval confirmation...");
+      await waitForTransactionReceipt(config, { hash: approveHash });
+
+      toast.info("Purchasing ticket...");
       const hash = await writeContractAsync({
         address: contractAddress,
         abi: rexellAbi,
@@ -318,7 +350,7 @@ export default function BuyResaleTicketPage() {
     );
   }
 
-  if (loading || isResaleRequestPending || isTokenURIPending) {
+  if (loading || isResaleRequestPending || isTokenURIPending || isEventIdPending) {
     return (
       <div className="container mx-auto px-4 py-8">
         <Card className="max-w-2xl mx-auto">

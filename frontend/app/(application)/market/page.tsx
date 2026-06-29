@@ -108,23 +108,15 @@ export default function MarketPage() {
 
       // Check user's current purchased tickets count to enforce bulk purchase rule
       let purchaseEventId = null;
-      if (allEvents && publicClient) {
+      if (publicClient) {
         try {
-          const ticketUriStr = await publicClient.readContract({
+          const eventIdData = await publicClient.readContract({
             address: contractAddress as `0x${string}`,
             abi: rexellAbi,
-            functionName: "tokenURI",
+            functionName: "getEventIdForToken",
             args: [tokenId],
-          }) as string;
-
-          const eventsList = allEvents as any[];
-          for (const ev of eventsList) {
-            const nftUris = ev.nftUris as string[];
-            if (nftUris.includes(ticketUriStr)) {
-              purchaseEventId = ev.id;
-              break;
-            }
-          }
+          });
+          purchaseEventId = eventIdData;
         } catch (err) {
           console.error("Error determining event ID:", err);
         }
@@ -369,26 +361,35 @@ export default function MarketPage() {
                   const isOwnTicket = ticket.owner.toLowerCase() === address?.toLowerCase();
                   return (
                     <Card key={ticket.tokenId.toString()} className="overflow-hidden hover:shadow-lg transition-shadow" data-testid={`resale-ticket-${ticket.tokenId}`}>
-                      <CardHeader>
-                        <div className="bg-gradient-to-br from-blue-500 to-emerald-600 border-2 border-dashed rounded-xl w-full h-48 flex items-center justify-center">
-                          <div className="text-center text-white">
-                            <svg className="w-16 h-16 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
-                            </svg>
-                            <p className="text-sm font-medium">Ticket #{ticket.tokenId.toString()}</p>
+                      <Link href={`/buy/${ticket.tokenId.toString()}`} className="cursor-pointer group">
+                        <CardHeader>
+                          <div className="bg-gradient-to-br from-blue-500 to-emerald-600 border-2 border-dashed rounded-xl w-full h-48 flex items-center justify-center group-hover:opacity-90 transition-opacity">
+                            <div className="text-center text-white">
+                              <svg className="w-16 h-16 mx-auto mb-2 group-hover:scale-105 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
+                              </svg>
+                              <p className="text-sm font-medium">Ticket #{ticket.tokenId.toString()}</p>
+                            </div>
                           </div>
-                        </div>
-                      </CardHeader>
+                        </CardHeader>
+                      </Link>
                       <CardContent>
                         <div className="flex justify-between items-start mb-2">
-                          <CardTitle className="text-lg">Ticket #{ticket.tokenId.toString()}</CardTitle>
+                          <CardTitle className="text-lg">
+                            <Link href={`/buy/${ticket.tokenId.toString()}`} className="hover:text-blue-600 hover:underline">
+                              Ticket #{ticket.tokenId.toString()}
+                            </Link>
+                          </CardTitle>
                           <div className="flex flex-col gap-1 items-end">
                             <Badge variant="secondary">Resale</Badge>
                             {isOwnTicket && <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-200 border-blue-200">Your Listing</Badge>}
                           </div>
                         </div>
-                        <CardDescription className="mb-4">
-                          Seller: {formatAddress(ticket.owner)}
+                        <CardDescription className="mb-4 flex justify-between items-center">
+                          <span>Seller: {formatAddress(ticket.owner)}</span>
+                          <Link href={`/history/${ticket.tokenId.toString()}`} className="text-xs text-blue-600 hover:underline">
+                            View History
+                          </Link>
                         </CardDescription>
                         <div className="flex justify-between items-center">
                           <div className="text-2xl font-bold">{formatPrice(ticket.price)} cUSD</div>

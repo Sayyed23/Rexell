@@ -1,8 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useAccount, useReadContract, useWriteContract } from "wagmi";
+import { useState } from "react";
+import { useEffect } from "react";
+import { useAccount, useReadContract, useWriteContract, useConfig } from "wagmi";
 import { rexellAbi, contractAddress } from "@/blockchain/abi/rexell-abi";
+import { cUSDTokenAbi, cUSDTokenAddress } from "@/blockchain/cUSD/cUSD-abi";
+import { waitForTransactionReceipt } from "wagmi/actions";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,6 +34,7 @@ interface ResaleTicket {
 
 export default function ResaleBrowsePage() {
   const { address, isConnected } = useAccount();
+  const config = useConfig();
   const { writeContractAsync } = useWriteContract();
   const [tickets, setTickets] = useState<ResaleTicket[]>([]);
   const [filteredTickets, setFilteredTickets] = useState<ResaleTicket[]>([]);
@@ -161,6 +165,24 @@ export default function ResaleBrowsePage() {
         return;
       }
 
+      // First, approve cUSD token spending
+      toast.info("Approving cUSD spending...");
+      const approveHash = await writeContractAsync({
+        address: cUSDTokenAddress,
+        abi: cUSDTokenAbi,
+        functionName: "approve",
+        args: [contractAddress, price],
+      });
+
+      if (!approveHash) {
+        throw new Error("Failed to approve cUSD spending");
+      }
+
+      // Wait for the approval tx to be mined before buying
+      toast.info("Waiting for approval confirmation...");
+      await waitForTransactionReceipt(config, { hash: approveHash });
+
+      toast.info("Purchasing ticket...");
       const hash = await writeContractAsync({
         address: contractAddress as `0x${string}`,
         abi: rexellAbi,
