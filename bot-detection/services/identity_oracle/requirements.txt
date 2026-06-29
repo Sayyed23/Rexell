@@ -5,3 +5,4 @@ eth-account
 python-dotenv
 sqlalchemy
 pyodbc
+psycopg2-binary

@@ -52,7 +52,14 @@ except Exception:
     use_sqlite = True
 
 # Construct URL and create the database engine
-if use_sqlite:
+DATABASE_URL_ENV = os.getenv("DATABASE_URL")
+
+if DATABASE_URL_ENV:
+    # Render/Railway postgres database injection fix
+    if DATABASE_URL_ENV.startswith("postgres://"):
+        DATABASE_URL_ENV = DATABASE_URL_ENV.replace("postgres://", "postgresql://", 1)
+    engine = create_engine(DATABASE_URL_ENV, echo=False)
+elif use_sqlite:
     db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "identity_oracle.db"))
     DATABASE_URL = f"sqlite:///{db_path}"
     engine = create_engine(

@@ -859,5 +859,35 @@
       "quantity": 1,
       "price": "40000000000000000"
     }
+  },
+  {
+    "eventType": "purchase_attempt",
+    "wallet": "0x7027F4B8e3809F809A87C3d90F9De510742B5aCA",
+    "eventId": 1,
+    "timestamp": 1782725069593,
+    "metadata": {
+      "quantity": 1,
+      "price": "20000000000000000"
+    }
+  },
+  {
+    "eventType": "purchase_attempt",
+    "wallet": "0xE282B88468E0554477a7580956c1f65939B623D8",
+    "eventId": 3,
+    "timestamp": 1782751250343,
+    "metadata": {
+      "quantity": 1,
+      "price": "15000000000000000"
+    }
+  },
+  {
+    "eventType": "purchase_attempt",
+    "wallet": "0xE282B88468E0554477a7580956c1f65939B623D8",
+    "eventId": 3,
+    "timestamp": 1782751427298,
+    "metadata": {
+      "quantity": 1,
+      "price": "15000000000000000"
+    }
   }
 ]
