@@ -68,7 +68,7 @@ export default function HistoryPage() {
   const fetchLogs = async (silent = false) => {
     if (!silent) setLoading(true);
     try {
-      const oracleUrl = process.env.NEXT_PUBLIC_IDENTITY_ORACLE_URL || "http://localhost:5000";
+      const oracleUrl = process.env.NEXT_PUBLIC_IDENTITY_ORACLE_URL || "https://identity-oracle-180777648897.us-central1.run.app";
       const response = await fetch(`${oracleUrl}/api/activity/history`);
       if (response.ok) {
         const data = await response.json();

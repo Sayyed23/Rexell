@@ -187,7 +187,7 @@ export default function ResaleVerificationNew({ tokenId, onVerificationComplete,
       toast.info("Requesting Anti-Sybil verification from Oracle...");
       let attestation;
       try {
-        const oracleUrl = process.env.NEXT_PUBLIC_IDENTITY_ORACLE_URL || "http://localhost:5000";
+        const oracleUrl = process.env.NEXT_PUBLIC_IDENTITY_ORACLE_URL || "https://identity-oracle-180777648897.us-central1.run.app";
         const attestResponse = await fetch(`${oracleUrl}/api/identity/attest`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
