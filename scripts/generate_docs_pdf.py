@@ -6,10 +6,10 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
 
-def add_footer(canvas, doc):
+def add_footer(canvas, doc):   
     canvas.saveState()
     canvas.setFont('Helvetica', 8)
-    canvas.setFillColor(colors.HexColor("#64748b"))  # Slate-500
+    canvas.setFillColor(colors.HexColor("#64748b"))  # Slate-500 00
     
     # Draw a thin footer line
     canvas.setStrokeColor(colors.HexColor("#e2e8f0"))  # Slate-200
